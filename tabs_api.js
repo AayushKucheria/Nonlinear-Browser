@@ -7,7 +7,14 @@ let data = []; // tree of tabs as objects
 let root = [];
 let idMapping = [];
 
-
+class Tab {
+  constructor(id, parentId, children, windowId) {
+    this.id = id;
+    this.parentId = parentId;
+    this.children = children;
+    this.windowId = windowId;
+  }
+}
 function bootStrap() {
   loadWindowList();
 }
@@ -16,7 +23,7 @@ function isInt(i) {
 }
 
 function printRoot() {
-  root.forEach((element) => console.log(element.id, element.parentId, element.children));
+  root.forEach((element) => console.log(element.id, element.openerTabId, element.children));
 
 }
 // Load tree from scratch
@@ -25,16 +32,15 @@ function loadWindowList() {
   data = [];
   // Get windows + tabs data from chrome api
   chrome.windows.getAll({ populate: true }, function(windowList) {
-    // windowList[0].tabs.map(n => console.log(n.id, "has parent" , n.openerTabId))
     // For each tab in each window
     // Add the tab's id, parent's id, and set it's children as empty (for now)
     for(var i=0; i < windowList.length; i++) {
       for (var j=0; j < windowList[i].tabs.length; j++) {
-        data.push({ "id": windowList[i].tabs[j].id,
-                    "parentId": windowList[i].tabs[j].openerTabId,
-                    "children": [] });
+        data.push(new Tab(windowList[i].tabs[j].id, windowList[i].tabs[j].openerTabId, [], windowList[i].id));
+        // data.push(windowList[i].tabs[j])
       };
     };
+    // console.log(data[0]);
 
     /* Making an ID-to-Index Map (for ease of access)
       Syntax: [tab_id: index_in_data]
@@ -45,7 +51,7 @@ function loadWindowList() {
       return acc;
     }, {});
 
-    console.log(idMapping[0])
+    // console.log(idMapping[0])
     // For each tab, if it's a root (i.e. it doesn't have a parent),
     // Then add it to the list of roots
     // Else, Find its parent and insert the tab in the parent's children list.
@@ -69,12 +75,8 @@ function loadWindowList() {
 
 function addNewTab(tab) {
 
-  tabObj = { "id": tab.id,
-              "parentId": tab.openerTabId,
-              "children": [] }
+  tabObj = new Tab(tab.id, tab.parentId, [], tab.windowId);
   data.push(tabObj);
-
-  // TODO: WRONG! Add to (and understand) idMapping
 
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
@@ -89,11 +91,6 @@ function addNewTab(tab) {
   printRoot();
 };
 
-chrome.tabs.onCreated.addListener(function(tab) {
-  addNewTab(tab);
-
-});
-
 // TODO: For later
 // function refreshTab(tabId) {
 //   chrome.tabs.get(tabId, function(tab) {
@@ -106,27 +103,25 @@ chrome.tabs.onCreated.addListener(function(tab) {
 function removeTab(tabId) {
 
   // Removing tab from data and idMapping
-  // removedTab = data.find(elem => elem.id == tabId);
   indexInData = idMapping[tabId];
-  console.log(indexInData)
   removedTab = data.splice(indexInData, 1)
-  // idMapping.splice(tabId, 1);
   delete idMapping[tabId];
 
   // Removing from parent's children listS
-  console.log("Parent id = ", removedTab.parentId)
-  parentIndexInData = idMapping[removedTab.parentId]
-  console.log("Parent Index = ", parentIndexInData)
-  data[parentIndexInData].children = data[parentIndexInData].children.filter(child => child.id != removedTab.parentId);
+  parentIndexInData = idMapping[removedTab[0].parentId]
+  data[parentIndexInData].children = data[parentIndexInData].children.filter(child => child.id == removedTab.parentId);
 
   console.log("Removed 1 tab")
   printRoot();
 }
+
+chrome.tabs.onCreated.addListener(function(tab) {
+  addNewTab(tab);
+});
 chrome.tabs.onRemoved.addListener(function(tabId) {
-//   appendToLog('tabs.onRemoved -- tab: ' + tabId);
     removeTab(tabId);
 });
-
+// chrome.tabs.onRemoved.addListener(function)
 document.addEventListener('DOMContentLoaded', function() {
   document.querySelector('button').addEventListener('click', loadWindowList);
 
