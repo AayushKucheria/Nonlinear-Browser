@@ -18,7 +18,7 @@ let idMapping = [];
 
 function bootStrap() {
   loadWindowList();
-  main();
+  // main();
 
 }
 
@@ -91,7 +91,7 @@ function addNewTab(tab) {
   console.log("New Child = ", tabObj);
   data.push(tabObj);
 
-  await insertinDB(tabObj);
+  // insertinDB(tabObj);
 
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
@@ -104,6 +104,7 @@ function addNewTab(tab) {
     parentElement.children.push(tabObj);
   };
   console.log("Added new tab")
+  start(i=0);
 }
 
   // async function SetupConnection()
@@ -148,11 +149,11 @@ function addNewTab(tab) {
    //  }
   //console.log({"Inserted":1})
   //SetupConnection(client).catch(console.error);
-}
+// }
 
   //insert(client);
-  printRoot();
-};
+//   printRoot();
+// };
 
 // TODO: For later
 // function refreshTab(tabId) {
@@ -178,6 +179,7 @@ function removeTab(tabId) {
   window.d3tree = d3.hierarchy(window.localRoot)
   // console.log(window.d3tree)
   printRoot();
+  // start(i=0)
 }
 
 chrome.tabs.onCreated.addListener(function(tab) {
@@ -187,8 +189,9 @@ chrome.tabs.onRemoved.addListener(function(tabId) {
     removeTab(tabId);
 });
 // chrome.tabs.onRemoved.addListener(function)
+// document.getElementById('myButton').addEventListener('click', start());
 document.addEventListener('DOMContentLoaded', function() {
-  document.querySelector('button').addEventListener('click', loadWindowList);
+  // document.getElementById('myButton').addEventListener('click', start());
 
   bootStrap();
 });
