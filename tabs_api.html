@@ -1,20 +1,28 @@
 <html>
 <head>
-<script src="jstemplate_compiled.js" type="text/javascript"></script>
-<script src="tabs_api.js"></script>
-<script type="text/javascript" src="https://d3js.org/d3.v6.min.js"></script>
+
+
+  <script src="jstemplate_compiled.js" type="text/javascript"></script>
+  <script type="module" src="tabs_api.js"></script>
+  <script type="text/javascript" src="https://d3js.org/d3.v6.min.js"></script>
+  <script type="module" src="visualize.js"></script>
 
 </head>
   <body>
     <button id="myButton">Load Tree</button>
 
+    <div id = "svgcontainer"></div>
+
+    <!-- <script language = "javascript"> -->
+      <!-- // d3.select("#svgcontainer").append(window.chart)
+    // </script> -->
+
+
       <!-- Selecting by class -->
-      <div class = "myclass">
-        Hello World!!
-      </div>
-      <script>
-        var t = d3.transition().duration(2000);
-      d3.select(".myclass").transition(t).style("background-color", "lightblue");
+      <div class = "myclass"></div>
+      <!-- <script>
+        // var t = d3.transition().duration(2000);
+      // d3.select(".myclass").transition(t).style("background-color", "lightblue");
         // d3.selectAll(".myclass").attr("style", "color: red"); // OR .select().style("color", "red");
 
         // Execute operation and create alert
@@ -28,7 +36,7 @@
         // var element = d3.select(".myclass")
         // element.classed("myanotherclass", !oneBar.classed("myanotherclass"));
 
-      </script>
+      </script> -->
 
       <!-- Selection by ID -->
       <!-- <div id = "hello">
