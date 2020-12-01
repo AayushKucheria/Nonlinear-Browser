@@ -7,6 +7,8 @@ let data = []; // tree of tabs as objects
 let root = [];
 let idMapping = [];
 
+
+
 class Tab {
   constructor(id, parentId, children, windowId) {
     this.id = id;
@@ -17,6 +19,8 @@ class Tab {
 }
 function bootStrap() {
   loadWindowList();
+  main();
+
 }
 function isInt(i) {
   return (typeof i == "number") && !(i % 1) && !isNaN(i);
@@ -28,6 +32,7 @@ function printRoot() {
 }
 // Load tree from scratch
 function loadWindowList() {
+  //await SetupConnection();
   console.log("Reloading")
   data = [];
   // Get windows + tabs data from chrome api
@@ -72,11 +77,14 @@ function loadWindowList() {
     printRoot();
  });
 };
-
+//await SetupConnection();
 function addNewTab(tab) {
+
 
   tabObj = new Tab(tab.id, tab.parentId, [], tab.windowId);
   data.push(tabObj);
+
+  await insertinDB(tabObj);
 
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
@@ -88,6 +96,53 @@ function addNewTab(tab) {
     parentElement.children.push(tabObj);
   };
   console.log("Added new tab")
+}
+
+  // async function SetupConnection()
+  // {
+  // console.log("iuaufsdifuhadsif");
+  // const {MongoClient} = require('mongodb');
+  // const uri = "mongodb+srv://sparrsh:rYbk0Zsh3jh4m7ES@tabdata.ttdvm.mongodb.net/test";
+  // const window.client= new MongoClient(uri,{ useNewUrlParser: true, useUnifiedTopology: true });
+  //
+  // try {
+  //        // Connect to the MongoDB cluster
+  //        await client.connect();
+  //        console.log("wtf");
+  //       } catch (e) {
+  //        console.error(e);
+  //      } finally {
+  //        await client.close();
+  //    }
+  //  }
+
+   // async function insertinDB(client,tabObj)
+   // {
+   //   db = await client.db("TabData");
+   //
+   //   individual_element= {ID: tabObj.id,ParentID: tabObj.parentId, children: tabObj.children,WindowID: tabObj.windowId};
+   //   if(tabObj.parentId===undefined)
+   //  {
+   //   await db.collection("tab_data_test").insertOne(individual_element);
+   //   console.log("hey");
+   //  }
+   //  else
+   //  {
+   //    parentid_newtab= tabObj.parentId;
+   //    primary_key_parent =parentid_newtab._id;
+   //    console.log("primary_key_parent");
+   //    prev_children=parentid_newtab.children;
+   //    new_children=prev_children.append(tabObj);
+   //    await db.collection("tab_data_test").updateOne(
+   //      {_id : primary_key_parent},
+   //      { $set: {children: new_children}}
+   //    )
+   //  }
+  //console.log({"Inserted":1})
+  //SetupConnection(client).catch(console.error);
+}
+
+  //insert(client);
   printRoot();
 };
 
