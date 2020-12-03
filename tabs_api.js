@@ -11,19 +11,21 @@
 
 
 let data = []; // tree of tabs as objects
-window.localRoot = [];
+window.localRoot = {"id": "Root", "children": []};
+// window.localRoot.id = "Root";
+// window.localRoot.children = [];
 let idMapping = [];
 // export {localRoot};
 
 
 function bootStrap() {
   loadWindowList();
-  printTree();
+  // printTree();
 
 }
 
 function printRoot() {
-  window.localRoot.forEach((element) => console.log(element.id, element.openerTabId, element.children));
+  window.localRoot.children.forEach((element) => console.log(element.id, element.openerTabId, element.children));
 
 }
 // Load tree from scratch
@@ -61,10 +63,10 @@ function loadWindowList() {
     // For each tab, if it's a root (i.e. it doesn't have a parent),
     // Then add it to the list of roots
     // Else, Find its parent and insert the tab in the parent's children list.
-    localRoot = [];
+    localRoot.children = []
     data.forEach(element => {
      if(element.parentId === undefined) {
-       localRoot.push(element);
+       localRoot.children.push(element);
      }
      else {
       // Use our mapping to locate the parent element in our data array
@@ -73,11 +75,11 @@ function loadWindowList() {
         parentElement.children.push(element);
       };
     });
-
+    visualizeTree(localRoot)
     // Print roots of each tree
-    window.d3tree = d3.hierarchy(window.localRoot)
+    // window.d3tree = d3.hierarchy(window.localRoot)
     // console.log(window.d3tree)
-    printRoot();
+    printRoot(localRoot);
  });
 };
 //await SetupConnection();
@@ -96,7 +98,7 @@ function addNewTab(tab) {
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
   if(tabObj.parentId === undefined) {
-    localRoot.push(tabObj)
+    localRoot.children.push(tabObj)
   }
   else {
     const parentElement = data[idMapping[tabObj.parentId]];
@@ -104,7 +106,9 @@ function addNewTab(tab) {
     parentElement.children.push(tabObj);
   };
   console.log("Added new tab")
-  update(localRoot);
+  visualizeTree(localRoot)
+
+  // update(localRoot);
 }
 
   // async function SetupConnection()
@@ -176,10 +180,10 @@ function removeTab(tabId) {
   data[parentIndexInData].children = data[parentIndexInData].children.filter(child => child.id == removedTab.parentId);
 
   console.log("Removed 1 tab")
-  window.d3tree = d3.hierarchy(window.localRoot)
+  // window.d3tree = d3.hierarchy(window.localRoot)
   // console.log(window.d3tree)
   printRoot();
-  // start(i=0)
+  visualizeTree(localRoot)
 }
 
 chrome.tabs.onCreated.addListener(function(tab) {

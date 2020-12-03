@@ -22,28 +22,29 @@ const zoom = d3.zoom().on("zoom", e => {
 });
 svg.call(zoom);
 
-d3.json('example.json')
-  .then(data => {
+function visualizeTree(localRoot) {
 
-    const root = d3.hierarchy(data);
-    const links = treeLayout(root).links();
-    const linkPathGenerator = d3.linkHorizontal()
-      .x(d => d.x)
-      .y(d => d.y)
+  const root = d3.hierarchy(localRoot);
+  console.log(root)
+  const links = treeLayout(root).links();
+  const linkPathGenerator = d3.linkHorizontal()
+    .x(d => d.x)
+    .y(d => d.y)
 
-    g.selectAll('path').data(links)
-      .enter().append('path')
-        .attr('d', linkPathGenerator);
+  g.selectAll('path').data(links)
+    .enter().append('path')
+      .attr('d', linkPathGenerator);
 
-    g.selectAll('text').data(root.descendants())
-      .enter().append('text')
-        .attr('x', d => d.x)
-        .attr('y', d => d.y)
-        .attr('dy', '0.32em')
-        .attr('text-anchor', d => d.children? 'middle' : 'start')
-        .attr('font-size', d => 3 - d.depth + 'em')
-        .text(d =>  d.data.id)
-  });
+  g.selectAll('text').data(root.descendants())
+    .enter().append('text')
+      .attr('x', d => d.x)
+      .attr('y', d => d.y)
+      .attr('dy', '0.32em')
+      .attr('text-anchor', d => d.children? 'middle' : 'start')
+      .attr('font-size', d => 3 - d.depth + 'em')
+      .text(d =>  d.data.id)
+  // });
+}
 
 
 // const svg = d3.select('svg');
