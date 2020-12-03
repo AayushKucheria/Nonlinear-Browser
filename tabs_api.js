@@ -18,7 +18,7 @@ let idMapping = [];
 
 function bootStrap() {
   loadWindowList();
-  // main();
+  printTree();
 
 }
 
@@ -104,7 +104,7 @@ function addNewTab(tab) {
     parentElement.children.push(tabObj);
   };
   console.log("Added new tab")
-  start(i=0);
+  update(localRoot);
 }
 
   // async function SetupConnection()
@@ -191,7 +191,7 @@ chrome.tabs.onRemoved.addListener(function(tabId) {
 // chrome.tabs.onRemoved.addListener(function)
 // document.getElementById('myButton').addEventListener('click', start());
 document.addEventListener('DOMContentLoaded', function() {
-  // document.getElementById('myButton').addEventListener('click', start());
+  // document.getElementById('myButton').addEventListener('click', x());
 
   bootStrap();
 });

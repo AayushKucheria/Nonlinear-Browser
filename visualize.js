@@ -1,34 +1,35 @@
 
-const svg = d3.select('svg');
-const width = 1000;
-const height = 1000;
 
+const svg = d3.select('svg')
+const width = document.body.clientWidth;
+const height = document.body.clientHeight;
 const margin = { top: 0, right: 50, bottom: 0, left: 75};
 const innerWidth = width - margin.left - margin.right;
 const innerHeight = height - margin.top - margin.bottom;
 
-const treeLayout = d3.tree().size([innerHeight, innerWidth]);
+const treeLayout = d3.tree().size([height, width]);
 
-const zoomG = svg
+const g = svg
     .attr('width', width)
     .attr('height', height)
-  .append('g');
+  .append('g')
+    .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
-const g = zoomG.append('g')
-    .attr('transform', `translate(${margin.left},${margin.top})`);
+let transform;
 
-svg.call(d3.zoom().on('zoom', () => {
-  console.log("Trying to zoom")
-  zoomG.attr('transform', d3.event.transform);
-}));
+const zoom = d3.zoom().on("zoom", e => {
+  g.attr("transform", (transform = e.transform));
+});
+svg.call(zoom);
 
-d3.json('data.json')
+d3.json('example.json')
   .then(data => {
+
     const root = d3.hierarchy(data);
     const links = treeLayout(root).links();
     const linkPathGenerator = d3.linkHorizontal()
-      .x(d => d.y)
-      .y(d => d.x);
+      .x(d => d.x)
+      .y(d => d.y)
 
     g.selectAll('path').data(links)
       .enter().append('path')
@@ -36,208 +37,81 @@ d3.json('data.json')
 
     g.selectAll('text').data(root.descendants())
       .enter().append('text')
-        .attr('x', d => d.y)
-        .attr('y', d => d.x)
+        .attr('x', d => d.x)
+        .attr('y', d => d.y)
         .attr('dy', '0.32em')
-        .attr('text-anchor', d => d.children ? 'middle' : 'start')
-        .attr('font-size', d => 3.25 - d.depth + 'em')
-        .text(d => d.data.data.id);
+        .attr('text-anchor', d => d.children? 'middle' : 'start')
+        .attr('font-size', d => 3 - d.depth + 'em')
+        .text(d =>  d.data.id)
   });
 
 
-
-
-
-
-// // const d3 = window.d3;
+// const svg = d3.select('svg');
 //
-// // import { localRoot } from '/tabs_api.js'
+// const width = +svg.attr('width');
+// const height = +svg.attr('height');
 //
+// //create a rectangle
+// const render = data1 => {
 //
-// // const gNode = svg.append("g")
-// // .attr("r", 25)
-// // .attr("stroke-width", 50)
-// // .attr("transform", "translate(20, 20)")
-// // .style("stroke", "#818181")
+//   // value accesors
+//   const xValue = d => d.population;
+//   const yValue = d => d.country;
+//   const margin = {top: 50, bottom: 100, left: 140, right: 40}
+//   const innerWidth = width - margin.left - margin.right;
+//   const innerHeight = height - margin.top - margin.bottom;
 //
-// function ayy(i=1) {
-//   if(i === 0) {
-//     console.log(i)
-//     const svg1 = d3.select("#svgcontainer")
-//     // .append("svg")
-//     //   .attr("width", 1000)
-//     //   .attr("height", 1000)
+//   const xScale = d3.scaleLinear()
+//   							.domain([0,d3.max(data1,xValue)])
+//   							.range([0,innerWidth]);
 //
-//     svg1.append("line")
-//     .attr("x1", "200")
-//     .attr("y1", 200)
-//     .attr("x2", 100)
-//     .attr("y2", 100)
-//     .style("stroke", "rgb(255,0,0)")
-//     .style("stroke-width", 2)
-//     // gNode.attr("fill", "#999")
-//   } else {
-//     // console.log("Ilu")
-//     const svg = d3.select("#svgcontainer")
-//     .append("svg")
-//       .attr("width", 1000)
-//       .attr("height", 1000)
+//   const yScale = d3.scaleBand()
+//   							.domain(data1.map(yValue))
+//   							.range([0,innerHeight])
+//   							.padding(0.1)
 //
+//   const xAxisTickFormat = number => d3.format('.3s')(number).replace('G','B')
+//   const xAxis = d3.axisBottom(xScale)
+//   								.tickFormat(xAxisTickFormat)
+//   								.tickSize(-innerHeight)
+//   const yAxis = d3.axisLeft(yScale)
 //
-//     svg.append("line")
-//       .attr("x1", "100")
-//       .attr("y1", 100)
-//       .attr("x2", 200)
-//       .attr("y2", 200)
-//       .style("stroke", "rgb(255,0,0)")
-//       .style("stroke-width", 2);
+//   const g = svg.append('g')
+//   					.attr('transform',`translate(${margin.left},${margin.top})`)
 //
-//     svg.append("p")
-//       .text("Fuck me")
-//     // return svg.style("stroke", "blue")
-//     // gNode.attr("fill", "#555")
-//   }
-// }
-// tree = d3.tree().nodeSize([100, 159])
-// function start(i=1) {
-//   console.log(localRoot)
-//     const root = d3.hierarchy(localRoot[0]);
+//   g.append('g').call(yAxis)
+//     .selectAll('.domain, .tick line')
+//     .remove()
 //
-//     root.x0 = dy / 2;
-//     root.y0 = 0;
-//     root.descendants().forEach((d, i) => {
-//       d.id = i;
-//       d._children = d.children;
-//     });
+//   const xAxisG = g.append('g').call(xAxis)
+//     .attr('transform',`translate(0,${innerHeight})`)
 //
-//     const svg = d3.create("svg")
-//         .attr("viewBox", [-margin.left, -margin.top, width, dx])
-//         .style("font", "10px sans-serif")
-//         .style("user-select", "none");
+//   xAxisG.select('.domain').remove()
 //
-//     const gLink = svg.append("g")
-//         .attr("fill", "none")
-//         .attr("stroke", "#555")
-//         .attr("stroke-opacity", 0.4)
-//         .attr("stroke-width", 1.5);
+//   xAxisG.append('text')
+//     		.text('population')
+//     		.attr('fill','black')
+//   			.attr('x',innerWidth/2)
+//   			.attr('y',60)
 //
-//     const gNode = svg.append("g")
-//         .attr("cursor", "pointer")
-//         .attr("pointer-events", "all");
+// 	g.selectAll('rect')
+//     .data(data1)
+//     .enter()
+//     .append('rect')
+//   	.attr('y',d => yScale(yValue(d)))
+//     .attr('width',d => xScale(xValue(d)))
+//     .attr('height',yScale.bandwidth())
 //
-//     function update(source) {
-//       const duration = d3.event && d3.event.altKey ? 2500 : 250;
-//       const nodes = root.descendants().reverse();
-//       const links = root.links();
-//
-//       // Compute the new tree layout.
-//       tree(root);
-//
-//       let left = root;
-//       let right = root;
-//       root.eachBefore(node => {
-//         if (node.x < left.x) left = node;
-//         if (node.x > right.x) right = node;
-//       });
-//
-//       const height = right.x - left.x + margin.top + margin.bottom;
-//
-//       const transition = svg.transition()
-//           .duration(duration)
-//           .attr("viewBox", [-margin.left, left.x - margin.top, width, height])
-//           .tween("resize", window.ResizeObserver ? null : () => () => svg.dispatch("toggle"));
-//
-//       // Update the nodes…
-//       const node = gNode.selectAll("g")
-//         .data(nodes, d => d.id);
-//
-//       // Enter any new nodes at the parent's previous position.
-//       const nodeEnter = node.enter().append("g")
-//           .attr("transform", d => `translate(${source.y0},${source.x0})`)
-//           .attr("fill-opacity", 0)
-//           .attr("stroke-opacity", 0)
-//           .on("click", (event, d) => {
-//             d.children = d.children ? null : d._children;
-//             update(d);
-//           });
-//
-//       nodeEnter.append("circle")
-//           .attr("r", 2.5)
-//           .attr("fill", d => d._children ? "#555" : "#999")
-//           .attr("stroke-width", 10);
-//
-//       nodeEnter.append("text")
-//           .attr("dy", "0.31em")
-//           .attr("x", d => d._children ? -6 : 6)
-//           .attr("text-anchor", d => d._children ? "end" : "start")
-//           .text(d => d.data.id)
-//         .clone(true).lower()
-//           .attr("stroke-linejoin", "round")
-//           .attr("stroke-width", 3)
-//           .attr("stroke", "white");
-//
-//       // Transition nodes to their new position.
-//       const nodeUpdate = node.merge(nodeEnter).transition(transition)
-//           .attr("transform", d => `translate(${d.y},${d.x})`)
-//           .attr("fill-opacity", 1)
-//           .attr("stroke-opacity", 1);
-//
-//       // Transition exiting nodes to the parent's new position.
-//       const nodeExit = node.exit().transition(transition).remove()
-//           .attr("transform", d => `translate(${source.y},${source.x})`)
-//           .attr("fill-opacity", 0)
-//           .attr("stroke-opacity", 0);
-//
-//       // Update the links…
-//       const link = gLink.selectAll("path")
-//         .data(links, d => d.target.id);
-//
-//       // Enter any new links at the parent's previous position.
-//       const linkEnter = link.enter().append("path")
-//           .attr("d", d => {
-//             const o = {x: source.x0, y: source.y0};
-//             return diagonal({source: o, target: o});
-//           });
-//
-//       // Transition links to their new position.
-//       link.merge(linkEnter).transition(transition)
-//           .attr("d", diagonal);
-//
-//       // Transition exiting nodes to the parent's new position.
-//       link.exit().transition(transition).remove()
-//           .attr("d", d => {
-//             const o = {x: source.x, y: source.y};
-//             return diagonal({source: o, target: o});
-//           });
-//
-//       // Stash the old positions for transition.
-//       root.eachBefore(d => {
-//         d.x0 = d.x;
-//         d.y0 = d.y;
-//       });
-//     }
-//
-//     update(root);
-//
-//     return svg.node();
+//   g.append('text')
+//     .attr('y',-10)
+//     .text('Top 10 most populous countries in the world.')
+//   	.attr('class','headline')
 // }
 //
-//
-// function hello(i=0) {
-//   var canvas= d3.select("#svgcontainer").append("svg").attr("width",500).attr("height",500);
-//   var data = {
-//   source: {
-//     x: 20,
-//     y: 10
-//   },
-//   target: {
-//     x: 280,
-//     y: 100
-//   }
-// };
-//
-//   var diagonal=d3.linkHorizontal().x(function(d) { return d.y; })
-//     .y(function(d) { return d.x; });
-//
-// canvas.append("path").attr("fill","none").attr("stroke","black");
-// }
+// // returns a promise
+// d3.csv('data.csv').then(data1 => {
+//   data1.forEach(d => {
+//   	d.population = +d.population * 1000
+//   })
+//   render(data1)
+// });
