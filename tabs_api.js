@@ -176,17 +176,17 @@ function removeTab(tabId) {
   console.log("Removed 1 tab")
   // window.d3tree = d3.hierarchy(window.localRoot)
   // console.log(window.d3tree)
-  printRoot();
+  // printRoot();
   visualizeTree(localRoot)
 }
 
 chrome.tabs.onCreated.addListener(function(tab) {
   addNewTab(tab);
-  visualizeTree(localRoot);
+  // visualizeTree(localRoot);
 });
 chrome.tabs.onRemoved.addListener(function(tabId) {
     removeTab(tabId);
-    visualizeTree(localRoot);
+    // visualizeTree(localRoot);
 });
 // chrome.tabs.onRemoved.addListener(function)
 // document.getElementById('myButton').addEventListener('click', start());

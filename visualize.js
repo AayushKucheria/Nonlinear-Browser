@@ -32,9 +32,9 @@ function visualizeTree(localRoot) {
 
 
   const root = d3.hierarchy(localRoot);
-  console.log(root)
+  // console.log(root)
   const links = treeLayout(root).links();
-  const linkPathGenerator = d3.linkHorizontal()
+  const linkPathGenerator = d3.linkVertical()
     .x(d => d.x)
     .y(d => d.y)
 
@@ -45,6 +45,7 @@ function visualizeTree(localRoot) {
       enter => enter.append('path')
         .attr('d', linkPathGenerator),
       update => update,
+        // console.log(d
       exit => exit.remove()
     );
 
@@ -64,26 +65,72 @@ function visualizeTree(localRoot) {
     //             .duration(500)
     //             .style('fill', 'green');
     //     });
-  g.selectAll('rect').data(root.descendants())
-    .enter().append('rect')
-    .attr('x', function(d) { return (d.x-2);})
-    .attr('y', function(d) { return (d.y-5);})
-    .attr('width',10)
-    .attr('height', 15).attr('stroke',"black").attr('stroke-width',"5")
-    .style("fill", "white").style("opacity", 0.5);
 
-  g.selectAll('text').data(root.descendants())
+
+
+  g.selectAll('g').data(root.descendants())
     .join(
-      enter => enter.append('text')
-        .attr('x', d => d.x)
-        .attr('y', d => d.y)
-        .attr('dy', '0.32em')
-        .attr('text-anchor', d => d.children? 'middle' : 'start')
-        .attr('font-size', d => 3 - d.depth + 'em')
-        .text(d =>  d.data.id),
-      update => update,
+      enter => {
+        node = enter.append('g').attr('transform', function(d, i) { return "translate (" + d.x + "," + d.y + ")"})
+          .attr('x', d => d.x)
+          .attr('y', d => d.y)
+          .attr('dy', '0.32em')
+          .attr('text-anchor', d => d.children? 'middle' : 'start')
+          .attr('font-size', d => 3 - d.depth + 'em')
+          .text(d =>  d.data.id);
+
+
+        node.append('rect')
+          .attr('width', 12)
+          .attr('height', 40)
+          .attr('height', 15)
+          .attr('stroke',"black")
+          .attr('stroke-width',"5")
+          .style("fill", "white")
+          .style("opacity", 0.5);
+
+        node.append('text')
+          .attr('x', d => d.x)
+          .attr('y', d => 20)
+          .attr('dy', '0.32em')
+          .attr('text-anchor', d => d.children? 'middle' : 'start')
+          .text(d =>  d.data.id);
+      },
+      update => {
+        update => {
+          node = enter.append('g').attr('transform', function(d, i) { return "translate (" + d.x + "," + d.y + ")"})
+            .attr('x', d => d.x)
+            .attr('y', d => d.y)
+            .attr('dy', '1em')
+            // .attr('text-anchor', d => d.children? 'middle' : 'start')
+            .attr('width', 60)
+            .attr('height', 20)
+            .text(d =>  d.data.id);
+
+
+          node.append('rect')
+            // .attr('x', d => d.x)
+            // .attr('y', d => d.y)
+            // .attr('width', 12)
+            // .attr('height', 40)
+            // .attr('height', 15)
+            .attr('stroke',"black")
+            .attr('stroke-width',"5")
+            .style("fill", "white")
+            .style("opacity", 0.5);
+
+          node.append('text')
+            .attr('x', d => d.x)
+            .attr('y', d => d.y)
+            // .attr('dy', '0.32em')
+            // .attr('text-anchor', d => d.children? 'middle' : 'start')
+            .attr('font-size', d => 3 - d.depth + 'em')
+            .text(d =>  d.data.id);
+        }
+      },
       exit => exit.remove()
     );
+
 
 }
 
