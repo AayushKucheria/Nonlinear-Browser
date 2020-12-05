@@ -31,19 +31,29 @@ function visualizeTree(localRoot) {
     .x(d => d.x)
     .y(d => d.y)
 
+  // cost t = svg.transition().duration(2000);
+
   g.selectAll('path').data(links)
-    .enter().append('path')
-      .attr('d', linkPathGenerator);
+    .join(
+      enter => enter.append('path')
+        .attr('d', linkPathGenerator),
+      update => update,
+      exit => exit.remove()
+    );
 
   g.selectAll('text').data(root.descendants())
-    .enter().append('text')
-      .attr('x', d => d.x)
-      .attr('y', d => d.y)
-      .attr('dy', '0.32em')
-      .attr('text-anchor', d => d.children? 'middle' : 'start')
-      .attr('font-size', d => 3 - d.depth + 'em')
-      .text(d =>  d.data.id)
-  // });
+    .join(
+      enter => enter.append('text')
+        .attr('x', d => d.x)
+        .attr('y', d => d.y)
+        .attr('dy', '0.32em')
+        .attr('text-anchor', d => d.children? 'middle' : 'start')
+        .attr('font-size', d => 3 - d.depth + 'em')
+        .text(d =>  d.data.id),
+      update => update,
+      exit => exit.remove()
+    );
+
 }
 
 

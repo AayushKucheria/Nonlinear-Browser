@@ -39,9 +39,6 @@ function loadWindowList() {
     // Add the tab's id, parent's id, and set it's children as empty (for now)
     for(var i=0; i < windowList.length; i++) {
       for (var j=0; j < windowList[i].tabs.length; j++) {
-        // data.push({windowList[i].tabs[j].id, windowList[i].tabs[j].openerTabId, [], windowList[i].id));
-        // data.push(windowList[i].tabs[j])
-
         data.push({ "id": windowList[i].tabs[j].id,
                     "parentId": windowList[i].tabs[j].openerTabId,
                     "children": [],
@@ -76,10 +73,7 @@ function loadWindowList() {
       };
     });
     visualizeTree(localRoot)
-    // Print roots of each tree
-    // window.d3tree = d3.hierarchy(window.localRoot)
-    // console.log(window.d3tree)
-    printRoot(localRoot);
+    // printRoot(localRoot);
  });
 };
 //await SetupConnection();
@@ -90,7 +84,7 @@ function addNewTab(tab) {
                   "parentId": tab.openerTabId,
                   "children": [],
                   "windowId": tab.windowId };
-  console.log("New Child = ", tabObj);
+  // console.log("New Child = ", tabObj);
   data.push(tabObj);
 
   // insertinDB(tabObj);
@@ -102,10 +96,10 @@ function addNewTab(tab) {
   }
   else {
     const parentElement = data[idMapping[tabObj.parentId]];
-    console.log("Parent = ", parentElement);
+    // console.log("Parent = ", parentElement);
     parentElement.children.push(tabObj);
   };
-  console.log("Added new tab")
+  // console.log("Added new tab")
   visualizeTree(localRoot)
 
   // update(localRoot);
@@ -188,9 +182,11 @@ function removeTab(tabId) {
 
 chrome.tabs.onCreated.addListener(function(tab) {
   addNewTab(tab);
+  visualizeTree(localRoot);
 });
 chrome.tabs.onRemoved.addListener(function(tabId) {
     removeTab(tabId);
+    visualizeTree(localRoot);
 });
 // chrome.tabs.onRemoved.addListener(function)
 // document.getElementById('myButton').addEventListener('click', start());
