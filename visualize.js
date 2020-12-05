@@ -16,6 +16,8 @@ const g = svg
     .attr('height', height)
   .append('g')
     .attr('transform', `translate(${margin.left}, ${margin.top})`);
+    // .selectAll(".tick text")
+    // .call(wrap,15);
 
 let transform;
 
@@ -26,9 +28,7 @@ svg.call(zoom);
 
 function visualizeTree(localRoot) {
 
-  const x = svg.attr('width', width)
-      .attr('height', height)
-    .append('g').attr('transform', `translate(${margin.left}, ${margin.top})`);
+
 
 
   const root = d3.hierarchy(localRoot);
@@ -68,7 +68,7 @@ function visualizeTree(localRoot) {
     .enter().append('rect')
     .attr('x', function(d) { return (d.x-2);})
     .attr('y', function(d) { return (d.y-5);})
-    .attr('width',10  )
+    .attr('width',10)
     .attr('height', 15).attr('stroke',"black").attr('stroke-width',"5")
     .style("fill", "white").style("opacity", 0.5);
 
@@ -85,6 +85,30 @@ function visualizeTree(localRoot) {
       exit => exit.remove()
     );
 
+}
+
+function wrap(text, width) {
+  text.each(function() {
+    var text = d3.select(this),
+        words = text.text().split(/\s+/).reverse(),
+        word,
+        line = [],
+        lineNumber = 0,
+        lineHeight = 1.1, // ems
+        y = text.attr("y"),
+        dy = parseFloat(text.attr("dy")),
+        tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+    while (word = words.pop()) {
+      line.push(word);
+      tspan.text(line.join(" "));
+      if (tspan.node().getComputedTextLength() > width) {
+        line.pop();
+        tspan.text(line.join(" "));
+        line = [word];
+        tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+      }
+    }
+  });
 }
 
 
