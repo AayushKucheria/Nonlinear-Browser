@@ -25,9 +25,9 @@ svg.call(zoom);
 function visualizeTree(localRoot) {
 
   const root = d3.hierarchy(localRoot);
-  console.log(root)
+  // console.log(root)
   const links = treeLayout(root).links();
-  const linkPathGenerator = d3.linkHorizontal()
+  const linkPathGenerator = d3.linkVertical()
     .x(d => d.x)
     .y(d => d.y)
 
@@ -38,21 +38,55 @@ function visualizeTree(localRoot) {
       enter => enter.append('path')
         .attr('d', linkPathGenerator),
       update => update,
+        // console.log(d
       exit => exit.remove()
     );
 
   g.selectAll('text').data(root.descendants())
     .join(
-      enter => enter.append('text')
+      enter => {
+        a = enter.append('text')
+          .attr('x', d => d.x)
+          .attr('y', d => d.y)
+          .attr('dy', '0.32em')
+          .attr('text-anchor', d => d.children? 'middle' : 'start')
+          .attr('font-size', d => 3 - d.depth + 'em')
+          .text(d =>  d.data.id)
+      },
+      update => {
+        update
         .attr('x', d => d.x)
         .attr('y', d => d.y)
+        .text(d => d.data.id)
         .attr('dy', '0.32em')
         .attr('text-anchor', d => d.children? 'middle' : 'start')
-        .attr('font-size', d => 3 - d.depth + 'em')
-        .text(d =>  d.data.id),
-      update => update,
+        .attr('font-size', d => 3 - d.depth + 'em');
+      },
       exit => exit.remove()
     );
+
+  var node = g.selectAll('g').data(root.descendants())
+    .enter().append('g')
+      .attr('transform', function(d, i) { return "translate (" + d.x + "," + d.y + ")"});
+
+  node.append('rect')
+    .attr('width', 12)
+    .attr('height', 40);
+
+  node.append('text')
+    .attr('x', d => d.x)
+    .attr('y', d => 20)
+    .attr('dy', '0.32em')
+    .attr('text-anchor', d => d.children? 'middle' : 'start')
+    .attr('font-size', d => 3 - d.depth + 'em')
+    .text(d =>  d.data.id);
+
+  // const nodesEnter = nodes.enter().append('g');
+  // nodesEnter.append('circle')
+  //   .merge(groups.select('circle'))
+  //     .attr('r' d => 50)
+  //     .attr('fill')
+
 
 }
 
