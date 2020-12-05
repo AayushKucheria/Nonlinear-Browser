@@ -9,6 +9,8 @@ const innerHeight = height - margin.top - margin.bottom;
 
 const treeLayout = d3.tree().size([height, width]);
 
+
+
 const g = svg
     .attr('width', width)
     .attr('height', height)
@@ -23,6 +25,11 @@ const zoom = d3.zoom().on("zoom", e => {
 svg.call(zoom);
 
 function visualizeTree(localRoot) {
+
+  const x = svg.attr('width', width)
+      .attr('height', height)
+    .append('g').attr('transform', `translate(${margin.left}, ${margin.top})`);
+
 
   const root = d3.hierarchy(localRoot);
   // console.log(root)
@@ -41,6 +48,30 @@ function visualizeTree(localRoot) {
         // console.log(d
       exit => exit.remove()
     );
+
+    // g.append('rect')
+    //     .attr('height', 20)
+    //     .attr('width', 100)
+    //     .style('fill', 'green')
+    //     .on('mouseover', (d, i, elements) => {
+    //         d3.select(elements[i])
+    //            .transition()
+    //            .duration(500)
+    //            .style('fill', 'red');
+    //     })
+    //     .on('mouseout', (d, i, elements) => {
+    //         d3.select(elements[i])
+    //             .transition()
+    //             .duration(500)
+    //             .style('fill', 'green');
+    //     });
+  g.selectAll('rect').data(root.descendants())
+    .enter().append('rect')
+    .attr('x', function(d) { return (d.x-2);})
+    .attr('y', function(d) { return (d.y-5);})
+    .attr('width',10  )
+    .attr('height', 15).attr('stroke',"black").attr('stroke-width',"5")
+    .style("fill", "white").style("opacity", 0.5);
 
   g.selectAll('text').data(root.descendants())
     .join(
