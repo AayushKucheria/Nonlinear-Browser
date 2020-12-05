@@ -65,58 +65,71 @@ function visualizeTree(localRoot) {
     //             .duration(500)
     //             .style('fill', 'green');
     //     });
-  g.selectAll('rect').data(root.descendants())
-    .enter().append('rect')
-    .attr('x', function(d) { return (d.x-2);})
-    .attr('y', function(d) { return (d.y-5);})
-    .attr('width',10  )
-    .attr('height', 15).attr('stroke',"black").attr('stroke-width',"5")
-    .style("fill", "white").style("opacity", 0.5);
 
-  g.selectAll('text').data(root.descendants())
+
+
+  g.selectAll('g').data(root.descendants())
     .join(
       enter => {
-        a = enter.append('text')
+        node = enter.append('g').attr('transform', function(d, i) { return "translate (" + d.x + "," + d.y + ")"})
           .attr('x', d => d.x)
           .attr('y', d => d.y)
           .attr('dy', '0.32em')
           .attr('text-anchor', d => d.children? 'middle' : 'start')
           .attr('font-size', d => 3 - d.depth + 'em')
-          .text(d =>  d.data.id)
+          .text(d =>  d.data.id);
+
+
+        node.append('rect')
+          .attr('width', 12)
+          .attr('height', 40)
+          .attr('height', 15)
+          .attr('stroke',"black")
+          .attr('stroke-width',"5")
+          .style("fill", "white")
+          .style("opacity", 0.5);
+
+        node.append('text')
+          .attr('x', d => d.x)
+          .attr('y', d => 20)
+          .attr('dy', '0.32em')
+          .attr('text-anchor', d => d.children? 'middle' : 'start')
+          .text(d =>  d.data.id);
       },
       update => {
-        update
-        .attr('x', d => d.x)
-        .attr('y', d => d.y)
-        .text(d => d.data.id)
-        .attr('dy', '0.32em')
-        .attr('text-anchor', d => d.children? 'middle' : 'start')
-        .attr('font-size', d => 3 - d.depth + 'em');
+        update => {
+          node = enter.append('g').attr('transform', function(d, i) { return "translate (" + d.x + "," + d.y + ")"})
+            .attr('x', d => d.x)
+            .attr('y', d => d.y)
+            .attr('dy', '1em')
+            // .attr('text-anchor', d => d.children? 'middle' : 'start')
+            .attr('width', 60)
+            .attr('height', 20)
+            .text(d =>  d.data.id);
+
+
+          node.append('rect')
+            // .attr('x', d => d.x)
+            // .attr('y', d => d.y)
+            // .attr('width', 12)
+            // .attr('height', 40)
+            // .attr('height', 15)
+            .attr('stroke',"black")
+            .attr('stroke-width',"5")
+            .style("fill", "white")
+            .style("opacity", 0.5);
+
+          node.append('text')
+            .attr('x', d => d.x)
+            .attr('y', d => d.y)
+            // .attr('dy', '0.32em')
+            // .attr('text-anchor', d => d.children? 'middle' : 'start')
+            .attr('font-size', d => 3 - d.depth + 'em')
+            .text(d =>  d.data.id);
+        }
       },
       exit => exit.remove()
     );
-
-  var node = g.selectAll('g').data(root.descendants())
-    .enter().append('g')
-      .attr('transform', function(d, i) { return "translate (" + d.x + "," + d.y + ")"});
-
-  node.append('rect')
-    .attr('width', 12)
-    .attr('height', 40);
-
-  node.append('text')
-    .attr('x', d => d.x)
-    .attr('y', d => 20)
-    .attr('dy', '0.32em')
-    .attr('text-anchor', d => d.children? 'middle' : 'start')
-    .attr('font-size', d => 3 - d.depth + 'em')
-    .text(d =>  d.data.id);
-
-  // const nodesEnter = nodes.enter().append('g');
-  // nodesEnter.append('circle')
-  //   .merge(groups.select('circle'))
-  //     .attr('r' d => 50)
-  //     .attr('fill')
 
 
 }
