@@ -28,21 +28,13 @@ svg.call(zoom);
 
 function visualizeTree(localRoot) {
 
-
-
-
   const root = d3.hierarchy(localRoot);
-  // console.log(root)
   const links = treeLayout(root).links();
   const linkPathGenerator = d3.linkVertical()
     .x(d => d.x)
     .y(d => d.y)
 
-  // cost t = svg.transition().duration(2000);
-
-  var tabs = d3.select("tabButton")
-    .selectAll('tab')
-    .data(root.descendants());
+  var tabs = g.selectAll("g").data(root.descendants());
 
   g.selectAll('path').data(links)
     .join(
@@ -57,22 +49,59 @@ function visualizeTree(localRoot) {
       exit => exit.remove()
     );
 
-  g.selectAll('text').data(root.descendants())
+  // g.selectAll('text').data(root.descendants())
+  //   .join(
+  //     enter => {
+  //       enter.append('text')
+  //         .text(d => d.data.title)
+  //         .attr('dy', '0.32em')
+  //         .attr('x', d => d.x)
+  //         .attr('y', d => d.y)
+  //         .style('fill', 'red')
+  //     },
+  //     update => {
+  //       update
+  //       .transition()
+  //       .duration(750)
+  //       .attr('x', d => d.x)
+  //       .attr('y', d => d.y)
+  //     },
+  //     exit => exit.remove()
+  //   );
+
+  tabs
     .join(
       enter => {
-        enter.append('text')
-          .text(d => d.data.id)
+        enter
+        .append('text')
+          .text(d => d.data.title)
           .attr('dy', '0.32em')
           .attr('x', d => d.x)
-          .attr('y', d => d.y)
+          .attr('y', d => d.y + 6)
           .style('fill', 'red')
+          .call(wrap, 80);
+      enter
+        .append('rect')
+          .attr('width', 80)
+          .attr('height', 40)
+          .attr('x', d => d.x)
+          .attr('y', d => d.y)
+          .attr('fill-opacity', 0.2);
       },
       update => {
         update
-        .transition()
-        .duration(750)
-        .attr('x', d => d.x)
-        .attr('y', d => d.y)
+          .transition()
+          .duration(750)
+          .selectAll('text')
+            .attr('x', d => d.x)
+            .attr('y', d => d.y);
+
+        update
+          .transition()
+          .duration(750)
+          .selectAll('rect')
+            .attr('x', d => d.x)
+          . attr('y', d => d.y);
       },
       exit => exit.remove()
     );
@@ -97,27 +126,36 @@ function visualizeTree(localRoot) {
 }
 
 function wrap(text, width) {
-  text.each(function() {
-    var text = d3.select(this),
-        words = text.text().split(/\s+/).reverse(),
-        word,
-        line = [],
-        lineNumber = 0,
-        lineHeight = 1.1, // ems
-        y = text.attr("y"),
-        dy = parseFloat(text.attr("dy")),
-        tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
-    while (word = words.pop()) {
-      line.push(word);
-      tspan.text(line.join(" "));
-      if (tspan.node().getComputedTextLength() > width) {
-        line.pop();
-        tspan.text(line.join(" "));
-        line = [word];
-        tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
-      }
-    }
-  });
+    text.each(function () {
+        var text = d3.select(this),
+            words = text.text().split(/\s+/).reverse(),
+            word,
+            line = [],
+            lineNumber = 0,
+            lineHeight = 1.1, // ems
+            x = text.attr("x"),
+            y = text.attr("y"),
+            dy = 0, //parseFloat(text.attr("dy")),
+            tspan = text.text(null)
+                        .append("tspan")
+                        .attr("x", x)
+                        .attr("y", y)
+                        .attr("dy", dy + "em");
+        while (word = words.pop()) {
+            line.push(word);
+            tspan.text(line.join(" "));
+            if (tspan.node().getComputedTextLength() > width) {
+                line.pop();
+                tspan.text(line.join(" "));
+                line = [word];
+                tspan = text.append("tspan")
+                            .attr("x", x)
+                            .attr("y", y)
+                            .attr("dy", ++lineNumber * lineHeight + dy + "em")
+                            .text(word);
+            }
+        }
+    });
 }
 
 

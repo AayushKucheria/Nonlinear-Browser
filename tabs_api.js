@@ -40,6 +40,7 @@ function loadWindowList() {
     for(var i=0; i < windowList.length; i++) {
       for (var j=0; j < windowList[i].tabs.length; j++) {
         data.push({ "id": windowList[i].tabs[j].id,
+                    "title": windowList[i].tabs[j].title,
                     "parentId": windowList[i].tabs[j].openerTabId,
                     "children": [],
                     "windowId": windowList[i].id });
@@ -73,14 +74,13 @@ function loadWindowList() {
       };
     });
     visualizeTree(localRoot)
-    // printRoot(localRoot);
  });
 };
 //await SetupConnection();
 function addNewTab(tab) {
 
-  // let tabObj = new Tab(tab.id, tab.parentId, [], tab.windowId);
   let tabObj = {  "id": tab.id,
+                  "title": tab.title,
                   "parentId": tab.openerTabId,
                   "children": [],
                   "windowId": tab.windowId };
@@ -96,13 +96,9 @@ function addNewTab(tab) {
   }
   else {
     const parentElement = data[idMapping[tabObj.parentId]];
-    // console.log("Parent = ", parentElement);
     parentElement.children.push(tabObj);
   };
-  // console.log("Added new tab")
   visualizeTree(localRoot)
-
-  // update(localRoot);
 }
 
   // async function SetupConnection()
@@ -163,7 +159,8 @@ function addNewTab(tab) {
 // });
 
 function removeTab(tabId) {
-  console.log("initial root:", localRoot)
+  console.log("initial root:", localRoot.children)
+  console.log("Tab ID: ", tabId)
   // TODO: If the tab has children, add option to merge with grandparent or become separate
   // Removing tab from data and idMapping
   let indexInData = idMapping[tabId];
@@ -180,13 +177,11 @@ function removeTab(tabId) {
       console.log("")
       removedtab[0].children.forEach(child => {
         child.parentId = undefined;
-        localRoot.children.push(child);
+        localRoot.children.append(child);
       })
     }
     // Remove itself as a root
-    console.log(localRoot);
-    localRoot.children = localRoot.children.filter(child => child.id == removedTab.id)
-    console.log(localRoot);
+    localRoot.children.splice(localRoot.children.indexOf(removedTab), 1)
   }
   else { // It has a parent
     console.log("Has a parent. Adding children (if present) to parent and removing it from parent's children")
@@ -206,19 +201,14 @@ function removeTab(tabId) {
   }
 
   console.log("Removed 1 tab")
-  // window.d3tree = d3.hierarchy(window.localRoot)
-  // console.log(window.d3tree)
-  // printRoot();
   visualizeTree(localRoot)
 }
 
 chrome.tabs.onCreated.addListener(function(tab) {
   addNewTab(tab);
-  // visualizeTree(localRoot);
 });
 chrome.tabs.onRemoved.addListener(function(tabId) {
     removeTab(tabId);
-    // visualizeTree(localRoot);
 });
 // chrome.tabs.onRemoved.addListener(function)
 // document.getElementById('myButton').addEventListener('click', start());
