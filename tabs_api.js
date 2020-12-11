@@ -84,7 +84,7 @@ function addNewTab(tab) {
                   "parentId": tab.openerTabId,
                   "children": [],
                   "windowId": tab.windowId };
-  // console.log("New Child = ", tabObj);
+  console.log("New Tab Added = ", tabObj);
   data.push(tabObj);
 
   // insertinDB(tabObj);
@@ -163,15 +163,47 @@ function addNewTab(tab) {
 // });
 
 function removeTab(tabId) {
+  console.log("initial root:", localRoot)
   // TODO: If the tab has children, add option to merge with grandparent or become separate
   // Removing tab from data and idMapping
   let indexInData = idMapping[tabId];
   let removedTab = data.splice(indexInData, 1)
   delete idMapping[tabId];
-
   // Removing from parent's children listS
-  let parentIndexInData = idMapping[removedTab[0].parentId]
-  data[parentIndexInData].children = data[parentIndexInData].children.filter(child => child.id == removedTab.parentId);
+
+  // The tab doesn't have children, and is a root
+  if(removedTab[0].parentId === undefined) {
+    console.log("Is a root. Adding children (if present) as root")
+
+    // If it has children, add them as roots
+    if(removedTab[0].children.length > 0) {
+      console.log("")
+      removedtab[0].children.forEach(child => {
+        child.parentId = undefined;
+        localRoot.children.push(child);
+      })
+    }
+    // Remove itself as a root
+    console.log(localRoot);
+    localRoot.children = localRoot.children.filter(child => child.id == removedTab.id)
+    console.log(localRoot);
+  }
+  else { // It has a parent
+    console.log("Has a parent. Adding children (if present) to parent and removing it from parent's children")
+    let parentIndexInData = idMapping[removedTab[0].parentId];
+    let parent = data[parentIndexInData];
+
+    // Set it's children as its parent's children
+    if(removedTab[0].children.length > 0) {
+      console.log("Has Children")
+      removedtab[0].children.forEach(child => {
+        child.parentId = parent.id;
+        parent.children.append(child);
+      });
+    }
+    // Remove the tab from it's parent's children
+    parent.children = data[parentIndexInData].children.filter(child => child.id == removedTab.parentId);
+  }
 
   console.log("Removed 1 tab")
   // window.d3tree = d3.hierarchy(window.localRoot)
