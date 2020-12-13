@@ -6,6 +6,8 @@ const height = document.body.clientHeight;
 const margin = { top: 0, right: 50, bottom: 0, left: 75};
 const innerWidth = width - margin.left - margin.right;
 const innerHeight = height - margin.top - margin.bottom;
+const tabWidth = 120;
+const tabHeight = 40;
 
 const treeLayout = d3.tree().size([height, width]);
 
@@ -14,10 +16,16 @@ const treeLayout = d3.tree().size([height, width]);
 const g = svg
     .attr('width', width)
     .attr('height', height)
+    .attr("text-anchor", "middle")
   .append('g')
-    .attr('transform', `translate(${margin.left}, ${margin.top})`);
+    .attr('transform', `translate(${margin.left}, ${margin.top})`)
+    .on('click', d => alert(d.toElement.__data__.data.url));
     // .selectAll(".tick text")
     // .call(wrap,15);
+// g.selectAll('g').on("click", d => {
+//   console.log(d)
+//   d.data.url
+// })
 
 let transform;
 
@@ -31,10 +39,10 @@ function visualizeTree(localRoot) {
   const root = d3.hierarchy(localRoot);
   const links = treeLayout(root).links();
   const linkPathGenerator = d3.linkVertical()
-    .x(d => d.x)
+    .x(d => 2 * d.x)
     .y(d => d.y)
 
-  var tabs = g.selectAll("g").data(root.descendants());
+  // var tabs = g.selectAll("g").data(root.descendants());
 
   g.selectAll('path').data(links)
     .join(
@@ -49,83 +57,52 @@ function visualizeTree(localRoot) {
       exit => exit.remove()
     );
 
-  // g.selectAll('text').data(root.descendants())
-  //   .join(
-  //     enter => {
-  //       enter.append('text')
-  //         .text(d => d.data.title)
-  //         .attr('dy', '0.32em')
-  //         .attr('x', d => d.x)
-  //         .attr('y', d => d.y)
-  //         .style('fill', 'red')
-  //     },
-  //     update => {
-  //       update
-  //       .transition()
-  //       .duration(750)
-  //       .attr('x', d => d.x)
-  //       .attr('y', d => d.y)
-  //     },
-  //     exit => exit.remove()
-  //   );
-
-  tabs
+  g.selectAll('text').data(root.descendants())
     .join(
       enter => {
-        enter
-        .append('text')
+        enter.append('text')
           .text(d => d.data.title)
           .attr('dy', '0.32em')
-          .attr('x', d => d.x)
-          .attr('y', d => d.y + 6)
+          .attr('x', d => 2 * d.x)
+          .attr('y', d => d.y + (tabHeight/2))
           .style('fill', 'red')
-          .call(wrap, 80);
-      enter
-        .append('rect')
-          .attr('width', 80)
-          .attr('height', 40)
-          .attr('x', d => d.x)
-          .attr('y', d => d.y)
-          .attr('fill-opacity', 0.2);
+          .attr('width', tabWidth);
+          // .call(wrap, tabWidth)
       },
       update => {
         update
           .transition()
           .duration(750)
-          .selectAll('text')
-            .attr('x', d => d.x)
-            .attr('y', d => d.y);
-
-        update
-          .transition()
-          .duration(750)
-          .selectAll('rect')
-            .attr('x', d => d.x)
-          . attr('y', d => d.y);
+          .attr('x', d => 2 * d.x)
+          .attr('y', d => d.y + (tabHeight/2))
+          // .call(wrap, tabWidth);
       },
       exit => exit.remove()
     );
 
-    // g.append('rect')
-    //     .attr('height', 20)
-    //     .attr('width', 100)
-    //     .style('fill', 'green')
-    //     .on('mouseover', (d, i, elements) => {
-    //         d3.select(elements[i])
-    //            .transition()
-    //            .duration(500)
-    //            .style('fill', 'red');
-    //     })
-    //     .on('mouseout', (d, i, elements) => {
-    //         d3.select(elements[i])
-    //             .transition()
-    //             .duration(500)
-    //             .style('fill', 'green');
-    //     });
+    g.selectAll('rect').data(root.descendants())
+      .join(
+        enter => {
+          enter.append('rect')
+            .attr('width', tabWidth)
+            .attr('height', tabHeight)
+            .attr('x', d => (2 * d.x) - tabWidth/2)
+            .attr('y', d => d.y)
+            .attr('fill-opacity', 0.2)
 
+        },
+        update => {
+          update
+            .transition()
+            .duration(750)
+            .attr('x', d => (2 * d.x) - tabWidth/2)
+            .attr('y', d => d.y);
+        },
+        exit => exit.remove()
+      );
 }
 
-function wrap(text, width) {
+function wrap(text, width, d) {
     text.each(function () {
         var text = d3.select(this),
             words = text.text().split(/\s+/).reverse(),
@@ -135,7 +112,7 @@ function wrap(text, width) {
             lineHeight = 1.1, // ems
             x = text.attr("x"),
             y = text.attr("y"),
-            dy = 0, //parseFloat(text.attr("dy")),
+            dy = parseFloat(text.attr("dy")),
             tspan = text.text(null)
                         .append("tspan")
                         .attr("x", x)

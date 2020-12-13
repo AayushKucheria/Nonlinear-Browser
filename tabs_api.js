@@ -43,7 +43,8 @@ function loadWindowList() {
                     "title": windowList[i].tabs[j].title,
                     "parentId": windowList[i].tabs[j].openerTabId,
                     "children": [],
-                    "windowId": windowList[i].id });
+                    "windowId": windowList[i].id,
+                    "url": windowList[i].tabs[j].url });
       };
     };
     // console.log(data[0]);
@@ -83,7 +84,8 @@ function addNewTab(tab) {
                   "title": tab.title,
                   "parentId": tab.openerTabId,
                   "children": [],
-                  "windowId": tab.windowId };
+                  "windowId": tab.windowId,
+                  "url": tab.url };
   console.log("New Tab Added = ", tabObj);
   data.push(tabObj);
 
