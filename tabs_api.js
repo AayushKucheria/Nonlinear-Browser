@@ -74,7 +74,7 @@ function loadWindowList() {
         parentElement.children.push(element);
       };
     });
-    visualizeTree(localRoot)
+    initializeTree(localRoot)
  });
 };
 //await SetupConnection();
@@ -94,13 +94,14 @@ function addNewTab(tab) {
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
   if(tabObj.parentId === undefined) {
-    localRoot.children.push(tabObj)
+    localRoot.children.push(tabObj);
+    update(localRoot)
   }
   else {
     const parentElement = data[idMapping[tabObj.parentId]];
     parentElement.children.push(tabObj);
+    update(parentElement)
   };
-  visualizeTree(localRoot)
 }
 
   // async function SetupConnection()
@@ -184,6 +185,7 @@ function removeTab(tabId) {
     }
     // Remove itself as a root
     localRoot.children.splice(localRoot.children.indexOf(removedTab), 1)
+    update(localRoot);
   }
   else { // It has a parent
     console.log("Has a parent. Adding children (if present) to parent and removing it from parent's children")
@@ -200,10 +202,10 @@ function removeTab(tabId) {
     }
     // Remove the tab from it's parent's children
     parent.children = data[parentIndexInData].children.filter(child => child.id == removedTab.parentId);
+    update(parent);
   }
 
   console.log("Removed 1 tab")
-  visualizeTree(localRoot)
 }
 
 chrome.tabs.onCreated.addListener(function(tab) {
@@ -211,6 +213,10 @@ chrome.tabs.onCreated.addListener(function(tab) {
 });
 chrome.tabs.onRemoved.addListener(function(tabId) {
     removeTab(tabId);
+});
+
+chrome.windows.onBoundsChanged.addListener(function(wId) {
+  update(localRoot);
 });
 // chrome.tabs.onRemoved.addListener(function)
 // document.getElementById('myButton').addEventListener('click', start());

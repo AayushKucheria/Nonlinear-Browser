@@ -1,5 +1,6 @@
 
 // The whole svg element
+
 const svg = d3.select('svg')
 const width = document.body.clientWidth;
 const height = document.body.clientHeight;
@@ -9,6 +10,7 @@ const innerHeight = height - margin.top - margin.bottom;
 const tabWidth = 120;
 const tabHeight = 40;
 const treeLayout = d3.tree().size([height, width]);
+const duration = 750;
 
 // Our groups?
 const g = svg
@@ -17,81 +19,96 @@ const g = svg
     // .attr("text-anchor", "middle")
   .append('g')
     .attr('transform', `translate(${margin.left}, ${margin.top})`)
-    .on('click', d => {
-      chrome.tabs.update(d.toElement.__data__.data.id, {
-        active: true
-      });
-    })
+    // .on('click', d => {
+    //   chrome.tabs.update(d.toElement.__data__.data.id, {
+    //     active: true
+    //   });
+    // })
 
-let transform;
 
+// Zoom in/out the group elements, not the whole svg for better experience
 const zoom = d3.zoom().on("zoom", e => {
-  g.attr("transform", (transform = e.transform));
-});
+  g.attr("transform", e.transform)}); // Changing svg.attr fucks things up.
+
+// Enables zoom on the whole area
 svg.call(zoom);
 
-function visualizeTree(localRoot) {
-
+function initializeTree(localRoot) {
   const root = d3.hierarchy(localRoot);
-  const links = treeLayout(root).links();
+  update(root);
+}
+function update(source) {
+
+  const tree = treeLayout(source)
+  const links = tree.links()
+  const descendants = tree.descendants()
   const linkPathGenerator = d3.linkHorizontal()
     .x(d => d.y)
     .y(d => d.x)
 
+  // Collapse the roots
+  // root.children.forEach(collapse);
   // var tabs = g.selectAll("g").data(root.descendants());
 
-  g.selectAll('path').data(links)
-    .join(
-      enter => enter.append('path')
-        .attr('d', linkPathGenerator),
-      update => {
-        update
-        .transition()
-        .duration(750)
-        .attr('d', linkPathGenerator)
-      },
-      exit => exit.remove()
-    );
+  // ******* LINKS ******
+  var link = g.selectAll('path.link').data(links)
 
-  g.selectAll('text').data(root.descendants())
-    .join(
-      enter => {
-        enter.append('text')
-          .text(d => d.data.id)
-          .attr('dy', '0.32em')
-          .attr('x', d => d.y)
-          .attr('y', d => d.x)
-          .style('fill', 'red');
-      },
-      update => {
-        update
-          .transition()
-          .duration(750)
-          .attr('x', d => d.y)
-          .attr('y', d => d.x);
-      },
-      exit => exit.remove()
-    );
+  var linkEnter = link.enter().insert('path')
+    .attr('class', 'link')
+    .attr('d', linkPathGenerator);
 
-    g.selectAll('rect').data(root.descendants())
-      .join(
-        enter => {
-          enter.append('rect')
-            .attr('width', tabWidth)
-            .attr('height', tabHeight)
-            .attr('x', d => d.y)
-            .attr('y', d => d.x)
-            .attr('fill-opacity', 0.2)
-        },
-        update => {
-          update
-            .transition()
-            .duration(750)
-            .attr('x', d => d.y)
-            .attr('y', d => d.x);
-        },
-        exit => exit.remove()
-      );
+  var linkUpdate = link
+    .transition()
+    .duration(duration)
+    .attr('d', linkPathGenerator);
+
+  var linkExit = link.exit()
+    .transition()
+    .duration(duration)
+    .remove()
+
+  // **** NODES *****
+  var node = g.selectAll('g.node').data(descendants);
+
+  var nodeEnter = node.enter().append('g')
+    .attr('class', 'node')
+    // .on('click', click)
+    .attr('cursor', 'pointer');
+
+  nodeEnter.append('rect')
+    .attr('class', 'node')
+    .attr('width', tabWidth)
+    .attr('height', tabHeight)
+    .attr('x', d => d.y)
+    .attr('y', d => d.x)
+    .style('fill', d => "orange")
+    .attr('fill-opacity', 0.4);
+
+  nodeEnter.append('text')
+    .attr('class', 'node')
+    .text(d => d.data.id)
+    .attr('dy', '0.32em')
+    .attr('x', d => d.y)
+    .attr('y', d => d.x)
+    .attr('text-anchor', d => d.children || d._children ? "end": "start");
+
+  var nodeUpdate = nodeEnter.merge(node)
+  .transition()
+  .duration(duration);
+
+  nodeUpdate.select('rect.node')
+    .attr('x', d => d.y)
+    .attr('y', d => d.x);
+  nodeUpdate.select('text.node')
+    .attr('x', d => d.y)
+    .attr('y', d => d.x);
+  // nodeUpdate.select('text.node')
+  //   .attr('x', d => d.y)
+  //   .attr('y', d => d.x)
+
+  var nodeExit = node.exit().transition()
+    .duration(duration)
+    .remove();
 }
 
 
@@ -114,6 +131,21 @@ function expand(d) {
   }
 }
 
+function click(d) {
+  console.log("before edit", d)
+  if(d.srcElement.__data__.children) {
+    d.srcElement._children = d.srcElement.__data__.children;
+    d.srcElement.__data__.children = null;
+  }
+  else {
+    d.srcElement.__data__.children = d.srcElement._children;
+    d.srcElement._children = null;
+  }
+  console.log('after edit', d)
+  update(d.srcElement.__data__)
+
+}
+
 // Function to center node when clicked/dropped so node doesn't get lost when collapsing/moving around with a large amount of children
 
 // function centerNode(source) {
@@ -122,23 +154,23 @@ function expand(d) {
 // }
 
 function toggleChildren(d) {
-  if(d.children) {
-    d._children = d.children;
-    d.children = null;
+  if(d.srcElement.__data__.children) {
+    d.srcElement_children = d.srcElement.__data__.children;
+    d.toElement.__data__.children = null;
   }
   else if(d._children) {
-    d.children = d._children;
+    d.toElement.__data__.children = d._children;
     d._children = null;
   }
   return d;
 }
 
-function click(d) {
-  if(d3.event.defaultPrevented) return;
-  d = toggleChildren(d);
-  update(d);
-  centerNode(d);
-}
+// function click(d) {
+//   if(d3.event.defaultPrevented) return;
+//   d = toggleChildren(d);
+//   update(d);
+//   centerNode(d);
+// }
 
 
 
