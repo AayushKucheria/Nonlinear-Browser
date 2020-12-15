@@ -11,7 +11,7 @@
 
 
 let data = []; // tree of tabs as objects
-window.localRoot = {"id": "Root", "children": []};
+window.localRoot = {"id": "Root", "title": "Root", "children": []};
 // window.localRoot.id = "Root";
 // window.localRoot.children = [];
 let idMapping = [];
@@ -195,13 +195,13 @@ function removeTab(tabId) {
     // Set it's children as its parent's children
     if(removedTab[0].children.length > 0) {
       console.log("Has Children")
-      removedtab[0].children.forEach(child => {
+      removedTab[0].children.forEach(child => {
         child.parentId = parent.id;
         parent.children.append(child);
       });
     }
     // Remove the tab from it's parent's children
-    parent.children = data[parentIndexInData].children.filter(child => child.id == removedTab.parentId);
+    parent.children = data[parentIndexInData].children.filter(child => child.id == removedTab[0].parentId);
     update(parent);
   }
 

@@ -1,7 +1,5 @@
 
 // The whole svg element
-
-const svg = d3.select('svg')
 const width = document.body.clientWidth;
 const height = document.body.clientHeight;
 const margin = { top: 20, right: 50, bottom: 30, left: 75};
@@ -9,49 +7,56 @@ const innerWidth = width - margin.left - margin.right;
 const innerHeight = height - margin.top - margin.bottom;
 const tabWidth = 120;
 const tabHeight = 40;
-const treeLayout = d3.tree().size([height, width]);
 const duration = 750;
 
-// Our groups?
-const g = svg
+var baseSvg = d3.select('svg')
     .attr('width', width)
     .attr('height', height)
-    // .attr("text-anchor", "middle")
-  .append('g')
     .attr('transform', `translate(${margin.left}, ${margin.top})`)
-    // .on('click', d => {
-    //   chrome.tabs.update(d.toElement.__data__.data.id, {
-    //     active: true
-    //   });
-    // })
 
+// A group that holds all the nodes
+var g = baseSvg.append('g')
+          // .on('click', d, e => {
+          //   console.log(e)
+          //   // chrome.tabs.update(d.toElement.__data__.data.id, {
+          //     // active: true
+          //   // });
+          // });
 
 // Zoom in/out the group elements, not the whole svg for better experience
 const zoom = d3.zoom().on("zoom", e => {
   g.attr("transform", e.transform)}); // Changing svg.attr fucks things up.
-
 // Enables zoom on the whole area
-svg.call(zoom);
+baseSvg.call(zoom);
+
 
 function initializeTree(localRoot) {
-  const root = d3.hierarchy(localRoot);
-  update(root);
+
+  console.log("LocalRoot = ", localRoot);
+  // console.log("Root = ", root)
+
+  update(localRoot);
 }
 function update(source) {
+  window.root = d3.hierarchy(localRoot);
 
-  const tree = treeLayout(source)
+  window.treeLayout = d3.tree().size([height, width]);
+  const tree = treeLayout(window.root)
+  console.log("Tree = ", tree);
   const links = tree.links()
   const descendants = tree.descendants()
   const linkPathGenerator = d3.linkHorizontal()
     .x(d => d.y)
     .y(d => d.x)
 
+
+
   // Collapse the roots
   // root.children.forEach(collapse);
   // var tabs = g.selectAll("g").data(root.descendants());
 
   // ******* LINKS ******
-  var link = g.selectAll('path.link').data(links)
+  var link = g.selectAll('path.link').data(links)// Links join tree.links()
 
   var linkEnter = link.enter().insert('path')
     .attr('class', 'link')
@@ -68,11 +73,11 @@ function update(source) {
     .remove()
 
   // **** NODES *****
-  var node = g.selectAll('g.node').data(descendants);
+  var node = g.selectAll('g.node').data(descendants); // Node SVG join tree.descendants()
 
   var nodeEnter = node.enter().append('g')
     .attr('class', 'node')
-    // .on('click', click)
+    // .on('click', click(d))
     .attr('cursor', 'pointer');
 
   nodeEnter.append('rect')
@@ -80,9 +85,10 @@ function update(source) {
     .attr('width', tabWidth)
     .attr('height', tabHeight)
     .attr('x', d => d.y)
-    .attr('y', d => d.x)
+    .attr('y', d => d.x - (tabHeight/2))
     .style('fill', d => "orange")
-    .attr('fill-opacity', 0.4);
+    .attr('fill-opacity', 0.4)
+    .on('click', d => click(d));
 
   nodeEnter.append('text')
     .attr('class', 'node')
@@ -98,7 +104,7 @@ function update(source) {
 
   nodeUpdate.select('rect.node')
     .attr('x', d => d.y)
-    .attr('y', d => d.x);
+    .attr('y', d => d.x - (tabHeight/2));
   nodeUpdate.select('text.node')
     .attr('x', d => d.y)
     .attr('y', d => d.x);
@@ -110,6 +116,20 @@ function update(source) {
     .duration(duration)
     .remove();
 }
+
+// function deleteNode(node) {
+//   visit(treeData, d => {
+//     if(d.children) {
+//       if(d.children.includes(node)) {
+//         d.children = d.without(d.children, node)
+//         update(root);
+//         break;
+//       }
+//     }
+//   },
+//   d => d.children && d.children.length > 0 ? d.children : null;
+// );
+// }
 
 
 
@@ -131,20 +151,20 @@ function expand(d) {
   }
 }
 
-function click(d) {
-  console.log("before edit", d)
-  if(d.srcElement.__data__.children) {
-    d.srcElement._children = d.srcElement.__data__.children;
-    d.srcElement.__data__.children = null;
-  }
-  else {
-    d.srcElement.__data__.children = d.srcElement._children;
-    d.srcElement._children = null;
-  }
-  console.log('after edit', d)
-  update(d.srcElement.__data__)
-
-}
+// function click(d) {
+//   console.log("Clicking ", d)
+//   if(d.srcElement.__data__.children) {
+//     d.srcElement._children = d.srcElement.__data__.children;
+//     d.srcElement.__data__.children = null;
+//   }
+//   else {
+//     d.srcElement.__data__.children = d.srcElement._children;
+//     d.srcElement._children = null;
+//   }
+//   console.log('Clicked ', d)
+//   update(d.srcElement.__data__)
+//
+// }
 
 // Function to center node when clicked/dropped so node doesn't get lost when collapsing/moving around with a large amount of children
 
@@ -155,7 +175,7 @@ function click(d) {
 
 function toggleChildren(d) {
   if(d.srcElement.__data__.children) {
-    d.srcElement_children = d.srcElement.__data__.children;
+    d.srcElement._children = d.srcElement.__data__.children;
     d.toElement.__data__.children = null;
   }
   else if(d._children) {
@@ -165,12 +185,13 @@ function toggleChildren(d) {
   return d;
 }
 
-// function click(d) {
-//   if(d3.event.defaultPrevented) return;
-//   d = toggleChildren(d);
-//   update(d);
-//   centerNode(d);
-// }
+function click(d) {
+  console.log("Clicked ", d3.select('this'))
+  // if(d3.defaultPrevented) return;
+  // d = toggleChildren(d);
+  // update(d);
+  // centerNode(d);
+}
 
 
 
