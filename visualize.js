@@ -1,14 +1,15 @@
 
 // The whole svg element
-const width = document.body.clientWidth;
-const height = document.body.clientHeight;
+
 const margin = { top: 20, right: 50, bottom: 30, left: 75};
-const innerWidth = width - margin.left - margin.right;
-const innerHeight = height - margin.top - margin.bottom;
+
 const tabWidth = 120;
 const tabHeight = 40;
 const duration = 750;
-
+var width = document.body.clientWidth;
+var height = document.body.clientHeight;
+var innerWidth = width - margin.left - margin.right;
+var innerHeight = height - margin.top - margin.bottom;
 var baseSvg = d3.select('svg')
     .attr('width', width)
     .attr('height', height)
@@ -32,15 +33,42 @@ baseSvg.call(zoom);
 
 function initializeTree(localRoot) {
 
-  console.log("LocalRoot = ", localRoot);
-  // console.log("Root = ", root)
-
-  update(localRoot);
+  var root;
+  width = document.body.clientWidth;
+  height = document.body.clientHeight;
+  innerWidth = width - margin.left - margin.right;
+  innerHeight = height - margin.top - margin.bottom;
+  window.treeLayout = d3.tree().size([height, width]);
+  // TODO Diagonal for path?
+  // update(localRoot);
+  update(root);
 }
+
+// Traverse through all the nodes
+// Explain TODO
+// parent = Node, traverseFn = what to do while traversing, childrenFn = children if present else null
+function traverse(parent, traverseFn, childrenFn) {
+  if(!parent) return;
+
+  traverseFn(parent);
+
+  var children = childrenFn(parent);
+  if(children) {
+    var count = children.length;
+    for(var i = 0; i < count; i++) {
+      traverse(children[i], traverseFn, childrenFn);
+    }
+  }
+}
+
 function update(source) {
   window.root = d3.hierarchy(localRoot);
+  width = document.body.clientWidth;
+  height = document.body.clientHeight;
+  innerWidth = width - margin.left - margin.right;
+  innerHeight = height - margin.top - margin.bottom;
 
-  window.treeLayout = d3.tree().size([height, width]);
+
   const tree = treeLayout(window.root)
   console.log("Tree = ", tree);
   const links = tree.links()
@@ -88,7 +116,7 @@ function update(source) {
     .attr('y', d => d.x - (tabHeight/2))
     .style('fill', d => "orange")
     .attr('fill-opacity', 0.4)
-    .on('click', d => click(d));
+    .on('click', d => click(d.target));
 
   nodeEnter.append('text')
     .attr('class', 'node')
@@ -136,6 +164,7 @@ function update(source) {
 // Helper functions for collapsing and expanding nodes
 
 function collapse(d) {
+  console.log("Collapsing ", d, " where d.children = ", d.children, " and d._children = ", d._children);
   if(d.children) {
     d._children = d.children;
     d._children.foreach(collapse);
@@ -144,6 +173,7 @@ function collapse(d) {
 }
 
 function expand(d) {
+  console.log("Expanding ", d, " where d.children = ", d.children, " and d._children = ", d._children);
   if(d._children) {
     d.children = d._children;
     d.children.foreach(expand);
@@ -174,22 +204,23 @@ function expand(d) {
 // }
 
 function toggleChildren(d) {
-  if(d.srcElement.__data__.children) {
-    d.srcElement._children = d.srcElement.__data__.children;
-    d.toElement.__data__.children = null;
+  console.log("Toggling ", d, " where d.children = ", d.__data__.data.children, " and d._children = ", d._children);
+  if(d.__data__.data.children) {
+    d._children = d.__data__.data.children;
+    d.__data__.data.children = null;
   }
   else if(d._children) {
-    d.toElement.__data__.children = d._children;
+    d.__data__.data.children = d._children;
     d._children = null;
   }
   return d;
 }
 
 function click(d) {
-  console.log("Clicked ", d3.select('this'))
-  // if(d3.defaultPrevented) return;
-  // d = toggleChildren(d);
-  // update(d);
+  console.log("Clicked ", d);
+  // if(d3.event.defaultPrevented) return;
+  d = toggleChildren(d);
+  update(d);
   // centerNode(d);
 }
 
