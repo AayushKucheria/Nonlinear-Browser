@@ -14,6 +14,16 @@ var maxTabLength = 0;
 var maxLevelTabLength = [0]
 
 
+var baseSvg = d3.select('svg')
+    .attr('class', 'overlay')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('transform', `translate(${margin.left}, ${margin.top})`)
+var g = baseSvg.append('g')
+
+const zoom = d3.zoom().on("zoom", e => {
+  g.attr("transform", e.transform)}); // Changing svg.attr fucks things up.
+baseSvg.call(zoom);
 // A group that holds all the nodes
           // .on('click', d, e => {
           //   console.log(e)
@@ -77,15 +87,7 @@ function traverse(parent, traverseFn, childrenFn) {
 
 function update(source) {
 
-  const zoom = d3.zoom().on("zoom", e => {
-    g.attr("transform", e.transform)}); // Changing svg.attr fucks things up.
-  var baseSvg = d3.select('svg')
-      .attr('class', 'overlay')
-      .attr('width', width)
-      .attr('height', height)
-      .attr('transform', `translate(${margin.left}, ${margin.top})`)
-  var g = baseSvg.append('g')
-  baseSvg.call(zoom);
+
 
   window.root = d3.hierarchy(localRoot);
   // root.x0 = height/2;
