@@ -8,16 +8,16 @@ const tabHeight = 40;
 const duration = 750;
 function width() { return document.body.clientWidth};
 function height() {return document.body.clientHeight};
-var innerWidth = width - margin.left - margin.right;
-var innerHeight = height - margin.top - margin.bottom;
+var innerWidth = width() - margin.left - margin.right;
+var innerHeight = height() - margin.top - margin.bottom;
 var maxTabLength = 0;
 var maxLevelTabLength = [0]
 
 
 var baseSvg = d3.select('svg')
     .attr('class', 'overlay')
-    .attr('width', width)
-    .attr('height', height)
+    .attr('width', width())
+    .attr('height', height())
     .attr('transform', `translate(${margin.left}, ${margin.top})`)
 var g = baseSvg.append('g')
 
@@ -43,15 +43,8 @@ baseSvg.call(zoom);
 
 
 function initializeTree(localRoot) {
-
   var root;
-  // width = document.body.clientWidth;
-  // height = document.body.clientHeight;
-  // innerWidth = width() - margin.left - margin.right;
-  // innerHeight = height() - margin.top - margin.bottom;
   window.treeLayout = d3.tree().size([height(), width()]);
-  // TODO Diagonal for path?
-  // update(localRoot);
   update(root);
 }
 
@@ -86,8 +79,6 @@ function traverse(parent, traverseFn, childrenFn) {
 }
 
 function update(source) {
-
-
 
   window.root = d3.hierarchy(localRoot);
   // root.x0 = height/2;
@@ -142,12 +133,12 @@ function update(source) {
   const links = tree.links()
   const descendants = tree.descendants()
   const linkPathGenerator = d3.linkHorizontal()
-    .x(d => d.y)
+    .x(d => d.depth * (maxTabLength * 10))
     .y(d => d.x) // TODO
 
-  descendants.forEach(d => {
-    d.y = d.depth * (maxTabLength * 10);
-  })
+  // descendants.forEach(d => {
+  //   d.y = d.depth * (maxTabLength * 10);
+  // })
 
   // Collapse the roots
   // root.children.forEach(collapse);
@@ -157,6 +148,7 @@ function update(source) {
   // **** NODES *****
   var node = g.selectAll('g.node').data(descendants); // Node SVG join tree.descendants()
   console.log("Source = ", source);
+
   var nodeEnter = node.enter().append('g')
     .attr('class', 'node')
     // .attr('transform', `translate(${source.y0}, ${source.x0})`)
@@ -170,13 +162,8 @@ function update(source) {
     .attr('class', 'node')
     .attr('width', d => maxLevelTabLength[d.depth] * 6)
     .attr('height', tabHeight)
-    // .attr('x', d => {
-    //   if(d.parent)
-    //     return d.y
-    //   else
-    //     return d.y - maxLevelTabLength[d.depth] * 6
-    //  })
-    // .attr('y', d => d.x - (tabHeight/2))
+    .attr('x', d => d.depth * (maxTabLength * 11)) // or 10?
+    .attr('y', d => d.x - tabHeight/2)
     .style('fill', d => "orange")
     .attr('fill-opacity', 0.4)
 
@@ -184,29 +171,20 @@ function update(source) {
     .attr('class', 'node')
     .text(d => d.data.title)
     .attr('dy', '0.32em')
-    .attr('x', d => d.y)
+    .attr('x', d => d.depth * (maxTabLength * 10))
     .attr('y', d => d.x)
-    .attr('text-anchor', d => d.children || d._children ? "end": "start");
 
   var nodeUpdate = nodeEnter.merge(node)
   .transition()
-  .duration(duration);
+  .duration(duration)
 
   nodeUpdate.select('rect.node')
-    .attr('x', d => {
-      if(d.parent)
-        return d.y
-      else
-        return d.y - maxLevelTabLength[d.depth] * 6
-    })
-    .attr('y', d => d.x - (tabHeight/2));
+    .attr('x', d => d.depth * (maxTabLength * 10))
+    .attr('y', d => d.x - tabHeight/2)
 
   nodeUpdate.select('text.node')
-    .attr('x', d => d.y)
-    .attr('y', d => d.x);
-  // nodeUpdate.select('text.node')
-  //   .attr('x', d => d.y)
-  //   .attr('y', d => d.x)
+    .attr('x', d => d.depth * (maxTabLength * 10))
+    .attr('y', d => d.x)
 
   var nodeExit = node.exit().transition()
     .duration(duration)
