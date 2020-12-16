@@ -6,17 +6,15 @@ const margin = { top: 20, right: 50, bottom: 30, left: 75};
 const tabWidth = 120;
 const tabHeight = 40;
 const duration = 750;
-var width = document.body.clientWidth;
-var height = document.body.clientHeight;
+function width() { return document.body.clientWidth};
+function height() {return document.body.clientHeight};
 var innerWidth = width - margin.left - margin.right;
 var innerHeight = height - margin.top - margin.bottom;
-var baseSvg = d3.select('svg')
-    .attr('width', width)
-    .attr('height', height)
-    .attr('transform', `translate(${margin.left}, ${margin.top})`)
+var maxTabLength = 0;
+var maxLevelTabLength = [0]
+
 
 // A group that holds all the nodes
-var g = baseSvg.append('g')
           // .on('click', d, e => {
           //   console.log(e)
           //   // chrome.tabs.update(d.toElement.__data__.data.id, {
@@ -25,24 +23,40 @@ var g = baseSvg.append('g')
           // });
 
 // Zoom in/out the group elements, not the whole svg for better experience
-const zoom = d3.zoom().on("zoom", e => {
-  g.attr("transform", e.transform)}); // Changing svg.attr fucks things up.
-// Enables zoom on the whole area
-baseSvg.call(zoom);
+
+// function zoom() {
+//   console.log("G is present = ", g)
+//   g.attr("transform", `translate(${d3.event.translate}, ${d3.event.scale})`)
+// }
+// // Enables zoom on the whole area
+// var zoomListener = d3.zoom().scaleExtent([0.1, 3]).on("zoom", zoom);
 
 
 function initializeTree(localRoot) {
 
   var root;
-  width = document.body.clientWidth;
-  height = document.body.clientHeight;
-  innerWidth = width - margin.left - margin.right;
-  innerHeight = height - margin.top - margin.bottom;
-  window.treeLayout = d3.tree().size([height, width]);
+  // width = document.body.clientWidth;
+  // height = document.body.clientHeight;
+  // innerWidth = width() - margin.left - margin.right;
+  // innerHeight = height() - margin.top - margin.bottom;
+  window.treeLayout = d3.tree().size([height(), width()]);
   // TODO Diagonal for path?
   // update(localRoot);
   update(root);
 }
+
+// function centerNode(source) {
+//   console.log("Source in centerNode = ", source)
+//   scale = d3.zoomTransform(source).k;
+//   x = -source.y0;
+//   y = -source.x0;
+//   x = x * scale + width/2;
+//   y = y * scale + height/2;
+//   d3.select('g').transition()
+//     .attr("transform", `translate(${margin.left}, ${margin.top})scale(${scale})`)
+//   zoom.scaleTo(g, scale)
+//   zoom.translateTo(g, [x, y])
+// }
 
 // Traverse through all the nodes
 // Explain TODO
@@ -62,65 +76,111 @@ function traverse(parent, traverseFn, childrenFn) {
 }
 
 function update(source) {
+
+  const zoom = d3.zoom().on("zoom", e => {
+    g.attr("transform", e.transform)}); // Changing svg.attr fucks things up.
+  var baseSvg = d3.select('svg')
+      .attr('class', 'overlay')
+      .attr('width', width)
+      .attr('height', height)
+      .attr('transform', `translate(${margin.left}, ${margin.top})`)
+  var g = baseSvg.append('g')
+  baseSvg.call(zoom);
+
   window.root = d3.hierarchy(localRoot);
-  width = document.body.clientWidth;
-  height = document.body.clientHeight;
-  innerWidth = width - margin.left - margin.right;
-  innerHeight = height - margin.top - margin.bottom;
+  // root.x0 = height/2;
+  // root.y0 = 0;
+  // width = document.body.clientWidth;
+  // height = document.body.clientHeight;
+  console.log("Width = ", width(), " and Height = ", height());
+  innerWidth = width() - margin.left - margin.right;
+  innerHeight = height() - margin.top - margin.bottom;
+
+  traverse(localRoot, function(d) { // Check tabLength with maxLength
+    // totalNodes++;
+    maxTabLength = Math.max(d.title.length, maxTabLength)
+  },
+  function(d) { // Return children if any
+    return d.children && d.children.length > 0 ? d.children : null;
+  });
 
 
+  // Get number of nodes at each level, where level is index
+  var levelWidth = [1]; // 1 at index 0 because of root node.
+  var childCount = function(level, node) {
+
+
+      while(maxLevelTabLength.length <= level)
+        maxLevelTabLength.push(0);
+      maxLevelTabLength[level] = Math.max(maxLevelTabLength[level], node.data.title.length)
+
+    // If node has children, continue
+    if(node.children && node.children.length > 0) {
+
+
+
+      // If levelWidth doesn't have width for this level
+      // Initialize width with value 0
+      if(levelWidth.length <= level + 1)
+        levelWidth.push(0);
+
+      // Increment next level's width by this level's node's children
+      levelWidth[level + 1] += node.children.length;
+      // console.log(node)
+      // For each child, keep the cycle going
+      node.children.forEach(d => childCount(level+1, d))
+    }
+  }
+  childCount(0, root);
+
+  // var newHeight = d3.max(levelWidth) * 25; // Choose width with most nodes, and 25 pixels per line
+  treeLayout = d3.tree().size([height(), width()]);
   const tree = treeLayout(window.root)
   console.log("Tree = ", tree);
   const links = tree.links()
   const descendants = tree.descendants()
   const linkPathGenerator = d3.linkHorizontal()
     .x(d => d.y)
-    .y(d => d.x)
+    .y(d => d.x) // TODO
 
-
+  descendants.forEach(d => {
+    d.y = d.depth * (maxTabLength * 10);
+  })
 
   // Collapse the roots
   // root.children.forEach(collapse);
   // var tabs = g.selectAll("g").data(root.descendants());
 
-  // ******* LINKS ******
-  var link = g.selectAll('path.link').data(links)// Links join tree.links()
-
-  var linkEnter = link.enter().insert('path')
-    .attr('class', 'link')
-    .attr('d', linkPathGenerator);
-
-  var linkUpdate = link
-    .transition()
-    .duration(duration)
-    .attr('d', linkPathGenerator);
-
-  var linkExit = link.exit()
-    .transition()
-    .duration(duration)
-    .remove()
 
   // **** NODES *****
   var node = g.selectAll('g.node').data(descendants); // Node SVG join tree.descendants()
-
+  console.log("Source = ", source);
   var nodeEnter = node.enter().append('g')
     .attr('class', 'node')
-    // .on('click', click(d))
-    .attr('cursor', 'pointer');
+    // .attr('transform', `translate(${source.y0}, ${source.x0})`)
+    .attr('cursor', 'pointer')
+    .on('click', d => {
+      console.log("Click event ", d);
+      click(d.target)
+    });
 
   nodeEnter.append('rect')
     .attr('class', 'node')
-    .attr('width', tabWidth)
+    .attr('width', d => maxLevelTabLength[d.depth] * 6)
     .attr('height', tabHeight)
-    .attr('x', d => d.y)
-    .attr('y', d => d.x - (tabHeight/2))
+    // .attr('x', d => {
+    //   if(d.parent)
+    //     return d.y
+    //   else
+    //     return d.y - maxLevelTabLength[d.depth] * 6
+    //  })
+    // .attr('y', d => d.x - (tabHeight/2))
     .style('fill', d => "orange")
     .attr('fill-opacity', 0.4)
-    .on('click', d => click(d.target));
 
   nodeEnter.append('text')
     .attr('class', 'node')
-    .text(d => d.data.id)
+    .text(d => d.data.title)
     .attr('dy', '0.32em')
     .attr('x', d => d.y)
     .attr('y', d => d.x)
@@ -131,8 +191,14 @@ function update(source) {
   .duration(duration);
 
   nodeUpdate.select('rect.node')
-    .attr('x', d => d.y)
+    .attr('x', d => {
+      if(d.parent)
+        return d.y
+      else
+        return d.y - maxLevelTabLength[d.depth] * 6
+    })
     .attr('y', d => d.x - (tabHeight/2));
+
   nodeUpdate.select('text.node')
     .attr('x', d => d.y)
     .attr('y', d => d.x);
@@ -143,6 +209,28 @@ function update(source) {
   var nodeExit = node.exit().transition()
     .duration(duration)
     .remove();
+
+  // ******* LINKS ******
+  var link = g.selectAll('path.link').data(links)// Links join tree.links()
+
+  // Enter
+  link.enter().insert('path')
+    .attr('class', 'link')
+    .attr('d', linkPathGenerator);
+
+  // Update
+  link
+    .transition()
+    .duration(duration)
+    .attr('d', linkPathGenerator);
+
+  // Exit
+  link.exit()
+    .transition()
+    .duration(duration)
+    .remove()
+
+  console.log(maxLevelTabLength)
 }
 
 // function deleteNode(node) {
@@ -159,50 +247,6 @@ function update(source) {
 // );
 // }
 
-
-
-// Helper functions for collapsing and expanding nodes
-
-function collapse(d) {
-  console.log("Collapsing ", d, " where d.children = ", d.children, " and d._children = ", d._children);
-  if(d.children) {
-    d._children = d.children;
-    d._children.foreach(collapse);
-    d.children = null;
-  }
-}
-
-function expand(d) {
-  console.log("Expanding ", d, " where d.children = ", d.children, " and d._children = ", d._children);
-  if(d._children) {
-    d.children = d._children;
-    d.children.foreach(expand);
-    d._children = null;
-  }
-}
-
-// function click(d) {
-//   console.log("Clicking ", d)
-//   if(d.srcElement.__data__.children) {
-//     d.srcElement._children = d.srcElement.__data__.children;
-//     d.srcElement.__data__.children = null;
-//   }
-//   else {
-//     d.srcElement.__data__.children = d.srcElement._children;
-//     d.srcElement._children = null;
-//   }
-//   console.log('Clicked ', d)
-//   update(d.srcElement.__data__)
-//
-// }
-
-// Function to center node when clicked/dropped so node doesn't get lost when collapsing/moving around with a large amount of children
-
-// function centerNode(source) {
-//   scale =zoomListener.scale();
-//   x = -source.y0;
-// }
-
 function toggleChildren(d) {
   console.log("Toggling ", d, " where d.children = ", d.__data__.data.children, " and d._children = ", d._children);
   if(d.__data__.data.children) {
@@ -217,11 +261,12 @@ function toggleChildren(d) {
 }
 
 function click(d) {
-  console.log("Clicked ", d);
+  // console.log("Clicked ", d);
   // if(d3.event.defaultPrevented) return;
   d = toggleChildren(d);
-  update(d);
   // centerNode(d);
+
+  update(d);
 }
 
 

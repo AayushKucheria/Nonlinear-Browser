@@ -11,7 +11,7 @@
 
 
 let data = []; // tree of tabs as objects
-window.localRoot = {"id": "Root", "title": "Root", "children": []};
+window.localRoot = {"id": "Root", "title": "Root", "children": [], "x0": 0, "y0": 0};
 // window.localRoot.id = "Root";
 // window.localRoot.children = [];
 let idMapping = [];
@@ -44,7 +44,9 @@ function loadWindowList() {
                     "parentId": windowList[i].tabs[j].openerTabId,
                     "children": [],
                     "windowId": windowList[i].id,
-                    "url": windowList[i].tabs[j].url });
+                    "url": windowList[i].tabs[j].url,
+                    "x0": 0,
+                    "y0": 0});
       };
     };
     // console.log(data[0]);
@@ -85,7 +87,9 @@ function addNewTab(tab) {
                   "parentId": tab.openerTabId,
                   "children": [],
                   "windowId": tab.windowId,
-                  "url": tab.url };
+                  "url": tab.url,
+                  "x0": 0,
+                  "y0": 0};
   console.log("New Tab Added = ", tabObj);
   data.push(tabObj);
 
