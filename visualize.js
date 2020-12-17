@@ -24,7 +24,6 @@ var g = baseSvg.append('g')
 const zoom = d3.zoom().on("zoom", e => {
   g.attr("transform", e.transform)}); // Changing svg.attr fucks things up.
 baseSvg.call(zoom);
-// A group that holds all the nodes
           // .on('click', d, e => {
           //   console.log(e)
           //   // chrome.tabs.update(d.toElement.__data__.data.id, {
@@ -43,9 +42,9 @@ baseSvg.call(zoom);
 
 
 function initializeTree(localRoot) {
-  var root;
+  window.root = d3.hierarchy(localRoot);
   window.treeLayout = d3.tree().size([height(), width()]);
-  update(root);
+  update(window.root);
 }
 
 // function centerNode(source) {
@@ -81,11 +80,8 @@ function traverse(parent, traverseFn, childrenFn) {
 function update(source) {
 
   window.root = d3.hierarchy(localRoot);
-  // root.x0 = height/2;
-  // root.y0 = 0;
-  // width = document.body.clientWidth;
-  // height = document.body.clientHeight;
-  console.log("Width = ", width(), " and Height = ", height());
+  window.root.x0 = height/2;
+  window.root.y0 = 0;
   innerWidth = width() - margin.left - margin.right;
   innerHeight = height() - margin.top - margin.bottom;
 
@@ -129,20 +125,12 @@ function update(source) {
   // var newHeight = d3.max(levelWidth) * 25; // Choose width with most nodes, and 25 pixels per line
   treeLayout = d3.tree().size([height(), width()]);
   const tree = treeLayout(window.root)
-  console.log("Tree = ", tree);
   const links = tree.links()
   const descendants = tree.descendants()
   const linkPathGenerator = d3.linkHorizontal()
-    .x(d => d.depth * (maxTabLength * 10))
-    .y(d => d.x) // TODO
-
-  // descendants.forEach(d => {
-  //   d.y = d.depth * (maxTabLength * 10);
-  // })
-
-  // Collapse the roots
-  // root.children.forEach(collapse);
-  // var tabs = g.selectAll("g").data(root.descendants());
+    // .x(d => d.depth * (maxTabLength * 10)) // This was for fitting text to the tab?
+    .x(d => d.y)
+    .y(d => d.x)
 
 
   // **** NODES *****
@@ -151,7 +139,9 @@ function update(source) {
 
   var nodeEnter = node.enter().append('g')
     .attr('class', 'node')
-    // .attr('transform', `translate(${source.y0}, ${source.x0})`)
+    .attr('fill-opacity', 0)
+    .attr('stroke-opacity', 0)
+    .attr("transform", d => `translate(${source.y0},${source.x0})`)
     .attr('cursor', 'pointer')
     .on('click', d => {
       console.log("Click event ", d);
@@ -162,55 +152,76 @@ function update(source) {
     .attr('class', 'node')
     .attr('width', d => maxLevelTabLength[d.depth] * 6)
     .attr('height', tabHeight)
-    .attr('x', d => d.depth * (maxTabLength * 11)) // or 10?
-    .attr('y', d => d.x - tabHeight/2)
+    // .attr('x', d => d.depth * (maxTabLength * 11)) // or 10?
+    // .attr('y', d => d.x - tabHeight/2)
     .style('fill', d => "orange")
-    .attr('fill-opacity', 0.4)
+    // .attr('fill-opacity', 1)
 
   nodeEnter.append('text')
     .attr('class', 'node')
     .text(d => d.data.title)
     .attr('dy', '0.32em')
-    .attr('x', d => d.depth * (maxTabLength * 10))
-    .attr('y', d => d.x)
+    // .attr('x', d => d.depth * (maxTabLength * 10))
 
   var nodeUpdate = nodeEnter.merge(node)
   .transition()
   .duration(duration)
-
+  .attr("transform", d => `translate(${d.y},${d.x})`)
+  // .attr('fill-opacity', 1);
+  
   nodeUpdate.select('rect.node')
-    .attr('x', d => d.depth * (maxTabLength * 10))
-    .attr('y', d => d.x - tabHeight/2)
+    .attr('fill-opacity', 0.4);
 
+  //   // .attr('x', d => d.depth * (maxTabLength * 10))
+  //   .attr('y', d => d.x - tabHeight/2)
   nodeUpdate.select('text.node')
-    .attr('x', d => d.depth * (maxTabLength * 10))
-    .attr('y', d => d.x)
+    .attr('fill-opacity', 1);
+
+  //   // .attr('x', d => d.depth * (maxTabLength * 10))
 
   var nodeExit = node.exit().transition()
     .duration(duration)
-    .remove();
+    .remove()
+    .attr("transform", d => `translate(${source.y},${source.x})`)
+
+  nodeExit.select('rect.node')
+    .attr('width', 1e-6)
+    .attr('height', 1e-6);
+  nodeExit.select('text.node')
+    .style('fill-opacity', 1e-6)
 
   // ******* LINKS ******
   var link = g.selectAll('path.link').data(links)// Links join tree.links()
 
   // Enter
-  link.enter().insert('path')
+  var linkEnter = link.enter().append('path') // or insert
     .attr('class', 'link')
-    .attr('d', linkPathGenerator);
+    .attr('d', linkPathGenerator)
+    // .attr('stroke-opacity', 1);
 
   // Update
-  link
+  var linkUpdate = link.merge(linkEnter)
     .transition()
     .duration(duration)
-    .attr('d', linkPathGenerator);
+    .attr('d', linkPathGenerator)
+    .attr('stroke-opacity', 1);
 
   // Exit
-  link.exit()
+  var linkExit = link.exit()
     .transition()
     .duration(duration)
-    .remove()
+    .attr('d', d => {
+      var o = {x: source.x, y: source.y}
+      return linkPathGenerator({source: o, target: o})
+    })
+    .attr('stroke-opacity', 1e-6)
+    .remove();
+  // linkExit.select('path.link')
 
-  console.log(maxLevelTabLength)
+  descendants.forEach(d => {
+    d.x0 = d.x;
+    d.y0 = d.y;
+  });
 }
 
 // function deleteNode(node) {
@@ -241,12 +252,12 @@ function toggleChildren(d) {
 }
 
 function click(d) {
-  // console.log("Clicked ", d);
+  console.log("Clicked ", d);
   // if(d3.event.defaultPrevented) return;
   d = toggleChildren(d);
   // centerNode(d);
 
-  update(d);
+  update(d.__data__);
 }
 
 
