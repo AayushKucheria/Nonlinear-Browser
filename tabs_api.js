@@ -81,32 +81,43 @@ function loadWindowList() {
 };
 //await SetupConnection();
 function addNewTab(tab) {
-
+  // if(tab.title.length >= 0)
   let tabObj = {  "id": tab.id,
                   "title": tab.title,
                   "parentId": tab.openerTabId,
                   "children": [],
                   "windowId": tab.windowId,
                   "url": tab.url,
+                  "pendingUrl":tab.pendingUrl,
                   "x0": 0,
                   "y0": 0};
-  console.log("New Tab Added = ", tabObj);
+
+  // console.log("New Tab Added = ", tabObj);
   data.push(tabObj);
 
   // insertinDB(tabObj);
 
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
+  if (tabObj.pendingUrl ==="chrome://newtab/") {
+    tabObj.parentId = undefined;
+    // console.log("New tab is empty. Removed parent");
+  }
+
   if(tabObj.parentId === undefined) {
     localRoot.children.push(tabObj);
+    // console.log("No parent. Added tab as root: ", tabObj);
+    // console.log("The whole tree: ", localRoot);
     update(localRoot)
   }
   else {
     const parentElement = data[idMapping[tabObj.parentId]];
     parentElement.children.push(tabObj);
+    // console.log("Parent found. Adding as child");
     update(parentElement)
   };
 }
+
 
   // async function SetupConnection()
   // {
@@ -164,31 +175,35 @@ function addNewTab(tab) {
 // chrome.tabs.onUpdated.addListener(function(tabId, props) {
 //   refreshTab(tabId);
 // });
-
+function updateIdMapping() {
+  idMapping = data.reduce((acc, elem, index) => {
+    acc[elem.id] = index;
+    return acc;
+  }, {});
+}
 function removeTab(tabId) {
-  console.log("initial root:", localRoot.children)
-  console.log("Tab ID: ", tabId)
+  console.log("initial Roots:", localRoot.children)
   // TODO: If the tab has children, add option to merge with grandparent or become separate
   // Removing tab from data and idMapping
   let indexInData = idMapping[tabId];
   let removedTab = data.splice(indexInData, 1)
-  delete idMapping[tabId];
+  updateIdMapping();
+  // delete idMapping[tabId];
   // Removing from parent's children listS
-
+  console.log("Tab to be removed: ", removedTab[0]);
   // The tab doesn't have children, and is a root
   if(removedTab[0].parentId === undefined) {
     console.log("Is a root. Adding children (if present) as root")
 
     // If it has children, add them as roots
     if(removedTab[0].children.length > 0) {
-      console.log("")
       removedtab[0].children.forEach(child => {
         child.parentId = undefined;
         localRoot.children.append(child);
       })
     }
     // Remove itself as a root
-    localRoot.children.splice(localRoot.children.indexOf(removedTab), 1)
+    localRoot.children.splice(localRoot.children.indexOf(removedTab[0]), 1)
     update(localRoot);
   }
   else { // It has a parent
@@ -211,6 +226,70 @@ function removeTab(tabId) {
 
   console.log("Removed 1 tab")
 }
+
+// function removeTab(tabId) {
+//   data2= localRoot.children;
+//
+//   console.log("initial data:", data);
+//   console.log("Tab ID: ", tabId)
+//   // TODO: If the tab has children, add option to merge with grandparent or become separate
+//   // Removing tab from data and idMapping
+//   let indexInData = idMapping[tabId];
+//   console.log("current index:", indexInData);
+//
+//   index_in_data2= data2.findIndex(a => a === data[indexInData]);
+//   let removedTab = data2.splice(index_in_data2, 1);
+//
+//
+//   console.log("removing tab", removedTab);
+//   console.log("mapping", idMapping[tabId]);
+//   delete idMapping[tabId];
+//   // Removing from parent's children listS
+//
+//   // The tab doesn't have children, and is a root
+//   if(removedTab[0].parentId === undefined) {
+//     console.log("Is a root. Adding children (if present) as root")
+//
+//     // If it has children, add them as roots
+//     if(removedTab[0].children.length > 0) {
+//       console.log("")
+//       removedtab[0].children.forEach(child => {
+//         child.parentId = undefined;
+//         localRoot.children.append(child);
+//       })
+//     }
+//     // Remove itself as a root
+//     console.log("removed tab being checked for", removedTab);
+//     x= localRoot.children.findIndex((a) => a === removedTab);
+//     console.log(" the index being checked for", x);
+//
+//     var y = data2.splice(x,1);
+//     console.log("the deleted tab should be ", y);
+//     //var y = data2.splice(x, 1);
+//
+//     update(localRoot);
+//   }
+//   else { // It has a parent
+//     console.log("Has a parent. Adding children (if present) to parent and removing it from parent's children");
+//     let parentIndexInData = idMapping[removedTab[0].parentId];
+//     let parent = data[parentIndexInData];
+//
+//     // Set it's children as its parent's children
+//     if(removedTab[0].children.length > 0) {
+//       console.log("Has Children")
+//       removedTab[0].children.forEach(child => {
+//         child.parentId = parent.id;
+//         parent.children.append(child);
+//       });
+//     }
+//     // Remove the tab from it's parent's children
+//     parent.children = data[parentIndexInData].children.filter(child => child.id != removedTab[0].parentId);
+//     update(parent);
+//   }
+
+//   console.log("Removed 1 tab")
+//   console.log(data);
+// }
 
 chrome.tabs.onCreated.addListener(function(tab) {
   addNewTab(tab);

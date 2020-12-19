@@ -12,7 +12,7 @@ var innerWidth = width() - margin.left - margin.right;
 var innerHeight = height() - margin.top - margin.bottom;
 var maxTabLength = 0;
 var maxLevelTabLength = [0]
-
+window.currentRoot;
 
 var baseSvg = d3.select('svg')
     .attr('class', 'overlay')
@@ -40,11 +40,39 @@ baseSvg.call(zoom);
 // // Enables zoom on the whole area
 // var zoomListener = d3.zoom().scaleExtent([0.1, 3]).on("zoom", zoom);
 
+// Levels (including root):
+function getSubtree(subRoot) {
+  var res = subRoot;
+  // res.push(subRoot);
+  // temp[0].children.forEach(d1 => d1.children.forEach(d2 => d2.children.forEach(de3 => de3.children = [])));
+
+  function check(depth, innerRoot, parent) {
+    if(depth == 2) { // Only add node without children
+      innerRoot.children = [];
+      parent.children.push(innerRoot);
+      return;
+    }
+    else { // Add node and recurse children
+      var tempChildren = innerRoot.children;
+      innerRoot.children = [];
+      if(parent != null)
+        parent.children.push(innerRoot);
+			if(tempChildren.length > 0)
+      	tempChildren.forEach(a => check(depth+1, a, innerRoot));
+    }
+  }
+	res.children.forEach(a => check(0, res, null)) // TODO Maybe assign?
+	return res;
+}
+
 
 function initializeTree(localRoot) {
-  window.root = d3.hierarchy(localRoot);
+  console.log("Local Root = ", localRoot);
+  window.jsonRoot = getSubtree(localRoot);
+  console.log("jsonRoot = ", window.jsonRoot);
+  root = d3.hierarchy(window.jsonRoot);
   window.treeLayout = d3.tree().size([height(), width()]);
-  update(window.root);
+  update(root);
 }
 
 // function centerNode(source) {
@@ -79,14 +107,15 @@ function traverse(parent, traverseFn, childrenFn) {
 
 function update(source) {
 
-  window.root = d3.hierarchy(localRoot);
-  window.root.x0 = height/2;
-  window.root.y0 = 0;
+  window.d3Root = d3.hierarchy(window.jsonRoot);
+  window.d3Root.x0 = height/2;
+  window.d3Root.y0 = 0;
   innerWidth = width() - margin.left - margin.right;
   innerHeight = height() - margin.top - margin.bottom;
 
-  traverse(localRoot, function(d) { // Check tabLength with maxLength
+  traverse(window.jsonRoot, function(d) { // Check tabLength with maxLength
     // totalNodes++;
+    // console.log(d);
     maxTabLength = Math.max(d.title.length, maxTabLength)
   },
   function(d) { // Return children if any
@@ -120,22 +149,23 @@ function update(source) {
       node.children.forEach(d => childCount(level+1, d))
     }
   }
-  childCount(0, root);
+  childCount(0, window.d3Root);
 
   // var newHeight = d3.max(levelWidth) * 25; // Choose width with most nodes, and 25 pixels per line
   treeLayout = d3.tree().size([height(), width()]);
-  const tree = treeLayout(window.root)
+  const tree = treeLayout(window.d3Root)
   const links = tree.links()
   const descendants = tree.descendants()
   const linkPathGenerator = d3.linkVertical()
     // .x(d => d.depth * (maxTabLength * 10)) // This was for fitting text to the tab?
     .x(d => d.x)
     .y(d => d.y)
-
+  // console.log("d3Root = ", window.jsonRoot);
+  console.log("Updated Tree = ", tree);
 
   // **** NODES *****
   var node = g.selectAll('g.node').data(descendants); // Node SVG join tree.descendants()
-  console.log("Source = ", source);
+  // console.log("Source = ", source);
 
   var nodeEnter = node.enter().append('g')
     .attr('class', 'node')
@@ -150,10 +180,10 @@ function update(source) {
 
   nodeEnter.append('rect')
     .attr('class', 'node')
-    .attr('width', d => maxLevelTabLength[d.depth] * 6)
+    .attr('width', d => tabWidth)//maxLevelTabLength[d.depth] * 6)
     .attr('height', tabHeight)
-    // .attr('x', d => d.depth * (maxTabLength * 11)) // or 10?
-    // .attr('y', d => d.x - tabHeight/2)
+    // .attr('x', d => d.x - tabHeight/2) // or 10?
+    // .attr('y', d => d.depth * (maxTabLength * 11))
     .style('fill', d => "orange")
     // .attr('fill-opacity', 1)
 
@@ -170,12 +200,15 @@ function update(source) {
   // .attr('fill-opacity', 1);
 
   nodeUpdate.select('rect.node')
-    .attr('fill-opacity', 0.4);
+    .attr('fill-opacity', 0.4)
+    // .attr('x', d => d.x - tabHeight/2) // or 10?
+    // .attr('y', d => d.depth * (maxTabLength * 11))
 
   //   // .attr('x', d => d.depth * (maxTabLength * 10))
   //   .attr('y', d => d.x - tabHeight/2)
   nodeUpdate.select('text.node')
-    .attr('fill-opacity', 1);
+    .attr('fill-opacity', 1)
+    .text(d => d.data.title);
 
   //   // .attr('x', d => d.depth * (maxTabLength * 10))
 
