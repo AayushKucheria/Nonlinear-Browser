@@ -127,10 +127,10 @@ function update(source) {
   const tree = treeLayout(window.root)
   const links = tree.links()
   const descendants = tree.descendants()
-  const linkPathGenerator = d3.linkHorizontal()
+  const linkPathGenerator = d3.linkVertical()
     // .x(d => d.depth * (maxTabLength * 10)) // This was for fitting text to the tab?
-    .x(d => d.y)
-    .y(d => d.x)
+    .x(d => d.x)
+    .y(d => d.y)
 
 
   // **** NODES *****
@@ -141,7 +141,7 @@ function update(source) {
     .attr('class', 'node')
     .attr('fill-opacity', 0)
     .attr('stroke-opacity', 0)
-    .attr("transform", d => `translate(${source.y0},${source.x0})`)
+    .attr("transform", d => `translate(${source.x0},${source.y0})`)
     .attr('cursor', 'pointer')
     .on('click', d => {
       console.log("Click event ", d);
@@ -166,9 +166,9 @@ function update(source) {
   var nodeUpdate = nodeEnter.merge(node)
   .transition()
   .duration(duration)
-  .attr("transform", d => `translate(${d.y},${d.x})`)
+  .attr("transform", d => `translate(${d.x},${d.y})`)
   // .attr('fill-opacity', 1);
-  
+
   nodeUpdate.select('rect.node')
     .attr('fill-opacity', 0.4);
 
@@ -182,7 +182,7 @@ function update(source) {
   var nodeExit = node.exit().transition()
     .duration(duration)
     .remove()
-    .attr("transform", d => `translate(${source.y},${source.x})`)
+    .attr("transform", d => `translate(${source.x},${source.y})`)
 
   nodeExit.select('rect.node')
     .attr('width', 1e-6)
