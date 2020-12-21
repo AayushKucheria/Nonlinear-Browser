@@ -184,6 +184,14 @@ function update(source) {
       action: function(elem) {
         console.log("Clicked on View as root for ", elem);
       }
+    },
+    {
+      title: "Delete Tab",
+      action: function(elem) {
+        // console.log("Clicked on View as root for ", elem);
+        chrome.tabs.remove(elem.data.id)
+        update(elem)
+      }
     }
   ]
   // **** NODES *****
