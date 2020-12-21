@@ -205,15 +205,12 @@ function removeTab(tabId) {
   let removedTab = data.splice(indexInData, 1)[0]
   updateIdMapping();
   let parent;
-  let parentId;
+  let parentId = removedTab.parentId;
 
-  if(removedTab.parentId === undefined) {
-    parentId = undefined;
+  if(removedTab.parentId === undefined)
     parent = localRoot;
-  } else {
-    parentId = removedTab.parentId
+  else
     parent = data[idMapping[parentId]];
-  }
 
   if(removedTab.children.length > 0) {
     removedTab.children.forEach(child => {
