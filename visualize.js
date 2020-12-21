@@ -163,6 +163,26 @@ function update(source) {
   // console.log("d3Root = ", window.jsonRoot);
   console.log("Updated Tree = ", tree);
 
+  var menu = [
+    {
+      title: "Go to tab",
+      action: function(elem, d, i) {
+        console.log("Clicked on go to tab for ", elem, " where d is ", d);
+      }
+    },
+    {
+      title: "Toggle",
+      action: function(elem, d, i) {
+        console.log("Clicked toggle for ", elem ," where d is ", d);
+      }
+    },
+    {
+      title: "View as Root",
+      action: function(elem, d, i) {
+        console.log("Clicked on View as root for ", elem, " where d is ", d);
+      }
+    }
+  ]
   // **** NODES *****
   var node = g.selectAll('g.node').data(descendants); // Node SVG join tree.descendants()
   // console.log("Source = ", source);
@@ -173,10 +193,16 @@ function update(source) {
     .attr('stroke-opacity', 0)
     .attr("transform", d => `translate(${source.x0},${source.y0})`)
     .attr('cursor', 'pointer')
-    .on('click', d => {
-      console.log("Click event ", d);
-      click(d.target)
-    });
+    .on('click', function(event, d) {
+      click(event, d)
+    })
+    .on('contextmenu', function(event, d) {
+      event.preventDefault();
+      // TODO: Show my own menu
+      // var position = d3.mouse(this);
+      console.log("Event = ", event, " and d = ", d);
+      window.contextMenu(d, menu);
+    })
 
   nodeEnter.append('rect')
     .attr('class', 'node')
@@ -194,9 +220,9 @@ function update(source) {
     // .attr('x', d => d.depth * (maxTabLength * 10))
 
   var nodeUpdate = nodeEnter.merge(node)
-  .transition()
-  .duration(duration)
-  .attr("transform", d => `translate(${d.x},${d.y})`)
+    .transition()
+    .duration(duration)
+    .attr("transform", d => `translate(${d.x},${d.y})`)
   // .attr('fill-opacity', 1);
 
   nodeUpdate.select('rect.node')
@@ -272,95 +298,21 @@ function update(source) {
 // }
 
 function toggleChildren(d) {
-  console.log("Toggling ", d, " where d.children = ", d.__data__.data.children, " and d._children = ", d._children);
-  if(d.__data__.data.children) {
-    d._children = d.__data__.data.children;
-    d.__data__.data.children = null;
+  if(d.data.children) {
+    d.data._children = d.data.children;
+    d.data.children = null;
   }
-  else if(d._children) {
-    d.__data__.data.children = d._children;
-    d._children = null;
+  else if(d.data._children) {
+    d.data.children = d.data._children;
+    d.data._children = null;
   }
   return d;
 }
 
-function click(d) {
-  console.log("Clicked ", d);
+function click(event, d) {
+  // console.log("Event = ", event, " and node = ", d);
   // if(d3.event.defaultPrevented) return;
   d = toggleChildren(d);
   // centerNode(d);
-
-  update(d.__data__);
+  update(d);
 }
-
-
-
-// const svg = d3.select('svg');
-//
-// const width = +svg.attr('width');
-// const height = +svg.attr('height');
-//
-// //create a rectangle
-// const render = data1 => {
-//
-//   // value accesors
-//   const xValue = d => d.population;
-//   const yValue = d => d.country;
-//   const margin = {top: 50, bottom: 100, left: 140, right: 40}
-//   const innerWidth = width - margin.left - margin.right;
-//   const innerHeight = height - margin.top - margin.bottom;
-//
-//   const xScale = d3.scaleLinear()
-//   							.domain([0,d3.max(data1,xValue)])
-//   							.range([0,innerWidth]);
-//
-//   const yScale = d3.scaleBand()
-//   							.domain(data1.map(yValue))
-//   							.range([0,innerHeight])
-//   							.padding(0.1)
-//
-//   const xAxisTickFormat = number => d3.format('.3s')(number).replace('G','B')
-//   const xAxis = d3.axisBottom(xScale)
-//   								.tickFormat(xAxisTickFormat)
-//   								.tickSize(-innerHeight)
-//   const yAxis = d3.axisLeft(yScale)
-//
-//   const g = svg.append('g')
-//   					.attr('transform',`translate(${margin.left},${margin.top})`)
-//
-//   g.append('g').call(yAxis)
-//     .selectAll('.domain, .tick line')
-//     .remove()
-//
-//   const xAxisG = g.append('g').call(xAxis)
-//     .attr('transform',`translate(0,${innerHeight})`)
-//
-//   xAxisG.select('.domain').remove()
-//
-//   xAxisG.append('text')
-//     		.text('population')
-//     		.attr('fill','black')
-//   			.attr('x',innerWidth/2)
-//   			.attr('y',60)
-//
-// 	g.selectAll('rect')
-//     .data(data1)
-//     .enter()
-//     .append('rect')
-//   	.attr('y',d => yScale(yValue(d)))
-//     .attr('width',d => xScale(xValue(d)))
-//     .attr('height',yScale.bandwidth())
-//
-//   g.append('text')
-//     .attr('y',-10)
-//     .text('Top 10 most populous countries in the world.')
-//   	.attr('class','headline')
-// }
-//
-// // returns a promise
-// d3.csv('data.csv').then(data1 => {
-//   data1.forEach(d => {
-//   	d.population = +d.population * 1000
-//   })
-//   render(data1)
-// });
