@@ -139,16 +139,17 @@ function updateTab(tabId, changeInfo) {
 
   let indexInData = idMapping[tabId];
   updatedTab = data[indexInData];
-  var changed = false
+  var displayChanged = false
 
   for(var i in changeInfo) {
     if(updatedTab.hasOwnProperty(i)) {
       // console.log("Updating ", tabId, " with ", i);
       updatedTab[i] = changeInfo[i];
-      changed = true
+      if(i == 'title' || i == 'favIconUrl')
+        displayChanged = true
     }
   }
-  if(changed)
+  if(displayChanged)
     update(localRoot)
 }
 
