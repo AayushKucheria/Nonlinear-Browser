@@ -26,9 +26,9 @@ const zoom = d3.zoom().on("zoom", e => {
 baseSvg.call(zoom);
           // .on('click', d, e => {
           //   console.log(e)
-          //   // chrome.tabs.update(d.toElement.__data__.data.id, {
-          //     // active: true
-          //   // });
+            // chrome.tabs.update(d.toElement.__data__.data.id, {
+            //   active: true
+            // });
           // });
 
 // Zoom in/out the group elements, not the whole svg for better experience
@@ -166,20 +166,23 @@ function update(source) {
   var menu = [
     {
       title: "Go to tab",
-      action: function(elem, d, i) {
-        console.log("Clicked on go to tab for ", elem, " where d is ", d);
+      action: function(elem) {
+        console.log("Clicked on go to tab for ", elem);
+        chrome.tabs.update(elem.data.id, {
+          active: true
+        });
       }
     },
     {
       title: "Toggle",
-      action: function(elem, d, i) {
-        console.log("Clicked toggle for ", elem ," where d is ", d);
+      action: function(elem) {
+        toggleChildren(elem);
       }
     },
     {
       title: "View as Root",
-      action: function(elem, d, i) {
-        console.log("Clicked on View as root for ", elem, " where d is ", d);
+      action: function(elem) {
+        console.log("Clicked on View as root for ", elem);
       }
     }
   ]
@@ -193,15 +196,11 @@ function update(source) {
     .attr('stroke-opacity', 0)
     .attr("transform", d => `translate(${source.x0},${source.y0})`)
     .attr('cursor', 'pointer')
-    .on('click', function(event, d) {
-      click(event, d)
-    })
+    // .on('click', function(event, d) {
+    //   click(event, d)
+    // })
     .on('contextmenu', function(event, d) {
-      event.preventDefault();
-      // TODO: Show my own menu
-      // var position = d3.mouse(this);
-      console.log("Event = ", event, " and d = ", d);
-      window.contextMenu(d, menu);
+      window.contextMenu(event, d, menu);
     })
 
   nodeEnter.append('rect')
@@ -306,13 +305,5 @@ function toggleChildren(d) {
     d.data.children = d.data._children;
     d.data._children = null;
   }
-  return d;
-}
-
-function click(event, d) {
-  // console.log("Event = ", event, " and node = ", d);
-  // if(d3.event.defaultPrevented) return;
-  d = toggleChildren(d);
-  // centerNode(d);
   update(d);
 }
