@@ -153,6 +153,7 @@ function update(source) {
 
   // var newHeight = d3.max(levelWidth) * 25; // Choose width with most nodes, and 25 pixels per line
   treeLayout = d3.tree().size([height(), width()]);
+  treeLayout.nodeSize([tabWidth, tabHeight])
   const tree = treeLayout(window.d3Root)
   const links = tree.links()
   const descendants = tree.descendants()
@@ -210,6 +211,8 @@ function update(source) {
     .on('contextmenu', function(event, d) {
       window.contextMenu(event, d, menu);
     })
+    .style('font-size', '8px')
+    .style('font-weight', 400);
 
   nodeEnter.append('rect')
     .attr('class', 'node')
@@ -222,8 +225,9 @@ function update(source) {
 
   nodeEnter.append('text')
     .attr('class', 'node')
-    .text(d => d.data.title)
     .attr('dy', '0.32em')
+    .text(d => d.data.title)
+    .call(wrap, tabWidth);
     // .attr('x', d => d.depth * (maxTabLength * 10))
 
   var nodeUpdate = nodeEnter.merge(node)
@@ -241,9 +245,8 @@ function update(source) {
   //   .attr('y', d => d.x - tabHeight/2)
   nodeUpdate.select('text.node')
     .attr('fill-opacity', 1)
-    .text(d => d.data.title);
-
-  //   // .attr('x', d => d.depth * (maxTabLength * 10))
+    // .text(d => d.data.title)
+    // .call(wrap, tabWidth);
 
   var nodeExit = node.exit().transition()
     .duration(duration)
@@ -314,4 +317,33 @@ function toggleChildren(d) {
     d.data._children = null;
   }
   update(d);
+}
+
+function wrap(text, width) {
+  text.each(function() {
+    let text = d3.select(this),
+      words = text.text().split(/\s+/).reverse(),
+      word,
+      line = [],
+      lineNumber = 0,
+      lineHeight = 1.1, // ems
+      x = 0,
+      y = 0,
+      dy = 0.32,
+      tspan = text.text(null).append('tspan').attr('x', x).attr('y', y).attr('dy', dy + "em"); // + "em" if modifying dy here.
+
+    // console.log("Text: ", text, " and words: ", words);
+    while(word = words.pop()) {
+      line.push(word);
+      tspan.text(line.join(" "));
+      if(tspan.text().length >= width/5.5) {
+        line.pop();
+        tspan.text(line.join(" "));
+        line = [word];
+        tspan = text.append('tspan').attr('x', x).attr('y', y).attr('dy', ++lineNumber * lineHeight + dy + "em").text(word);
+      }
+    }
+    // console.log("wrapping done: ", tspan)
+
+  });
 }
