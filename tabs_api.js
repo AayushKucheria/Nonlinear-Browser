@@ -1,22 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-// https://typeofnan.dev/an-easy-way-to-build-a-tree-with-object-references/
-
 // (function() {
 //   var d3 = document.createElement('script'); d3.type = 'text/javascript'; d3.async = true;
 //   d3.src = 'https://d3js.org/d3.v6.min.js';
 //   var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(d3, s);
 // })();
 
-
 let data = []; // tree of tabs as objects
-window.localRoot = {"id": "Root", "title": "Root", "children": [], "x0": 0, "y0": 0};
-// window.localRoot.id = "Root";
-// window.localRoot.children = [];
+window.localRoot = {"id": "Root", "title": "Root", "children": [], "_children": [], "x0": 0, "y0": 0};
 let idMapping = [];
-// export {localRoot};
-
 
 function bootStrap() {
   loadWindowList();
@@ -44,11 +34,13 @@ function loadWindowList() {
                     "shortened_title": getShortenedTitle(windowList[i].tabs[j].title),
                     "parentId": windowList[i].tabs[j].openerTabId,
                     "children": [],
+                    "_children": [],
                     "windowId": windowList[i].id,
                     "url": windowList[i].tabs[j].url,
                     "pendingUrl": windowList[i].tabs[j].pendingUrl,
                     "x0": 0,
-                    "y0": 0});
+                    "y0": 0
+                  });
       };
     };
     // console.log(data[0]);
@@ -81,19 +73,36 @@ function loadWindowList() {
     initializeTree(localRoot)
  });
 };
+
+function updateIdMapping() {
+  idMapping = data.reduce((acc, elem, index) => {
+    acc[elem.id] = index;
+    return acc;
+  }, {});
+}
 //await SetupConnection();
 function addNewTab(tab) {
-  // if(tab.title.length >= 0)
+  // while(tab.status != "complete") {
+  //   console.log(tab)
+  //   setTimeout(function() {
+  //     chrome.tabs.get(tab.id, function(newTab) {
+  //       tab = newTab;
+  //     })
+  //   }, 3000);
+
+  // };
   let tabObj = {  "id": tab.id,
                   "shortened_title":getShortenedTitle(tab),
                   "title": tab.title,
                   "parentId": tab.openerTabId,
                   "children": [],
+                  "_children": [],
                   "windowId": tab.windowId,
                   "url": tab.url,
                   "pendingUrl":tab.pendingUrl,
                   "x0": 0,
-                  "y0": 0};
+                  "y0": 0,
+                  "favIconUrl": tab.favIconUrl};
 
   // console.log("New Tab Added = ", tabObj);
   data.push(tabObj);
@@ -118,11 +127,36 @@ function addNewTab(tab) {
     parentElement.children.push(tabObj);
     // console.log("Parent found. Adding as child");
     update(parentElement)
-  };
+  }
+}
+/**
+TODO: Chrome listener gets called multiple times, and thus this
+method gets called multiple times.
+Coz of that the tree is recreated 2-3times within a second.
+This makes it look like the tree is lagging, but it's just being created 3x
+in a very short time. Solve this.
+
+Tried: Timeout - doesn't help.
+*/
+function updateTab(tabId, changeInfo) {
+
+  let indexInData = idMapping[tabId];
+  updatedTab = data[indexInData];
+  var displayChanged = false
+
+  for(var i in changeInfo) {
+    if(updatedTab.hasOwnProperty(i)) {
+      // console.log("Updating ", tabId, " with ", i);
+      updatedTab[i] = changeInfo[i];
+      if(i == 'title' || i == 'favIconUrl')
+        displayChanged = true
+    }
+  }
+  if(displayChanged)
+    update(localRoot)
 }
 
-
-  // async function SetupConnection()
+// async function SetupConnection()
   // {
   // console.log("iuaufsdifuhadsif");
   // const {MongoClient} = require('mongodb');
@@ -139,7 +173,6 @@ function addNewTab(tab) {
   //        await client.close();
   //    }
   //  }
-
    // async function insertinDB(client,tabObj)
    // {
    //   db = await client.db("TabData");
@@ -165,69 +198,32 @@ function addNewTab(tab) {
   //console.log({"Inserted":1})
   //SetupConnection(client).catch(console.error);
 // }
-
   //insert(client);
 //   printRoot();
 // };
 
-// TODO: For later
-// function refreshTab(tabId) {
-//   chrome.tabs.get(tabId, function(tab) {
-//   });
-// }
-// chrome.tabs.onUpdated.addListener(function(tabId, props) {
-//   refreshTab(tabId);
-// });
-function updateIdMapping() {
-  idMapping = data.reduce((acc, elem, index) => {
-    acc[elem.id] = index;
-    return acc;
-  }, {});
-}
+
 function removeTab(tabId) {
-  console.log("initial Roots:", localRoot.children)
-  // TODO: If the tab has children, add option to merge with grandparent or become separate
-  // Removing tab from data and idMapping
+
   let indexInData = idMapping[tabId];
-  let removedTab = data.splice(indexInData, 1)
+  let removedTab = data.splice(indexInData, 1)[0]
   updateIdMapping();
-  // delete idMapping[tabId];
-  // Removing from parent's children listS
-  console.log("Tab to be removed: ", removedTab[0]);
-  // The tab doesn't have children, and is a root
-  if(removedTab[0].parentId === undefined) {
-    console.log("Is a root. Adding children (if present) as root")
+  let parent;
+  let parentId = removedTab.parentId;
 
-    // If it has children, add them as roots
-    if(removedTab[0].children.length > 0) {
-      removedtab[0].children.forEach(child => {
-        child.parentId = undefined;
-        localRoot.children.append(child);
-      })
-    }
-    // Remove itself as a root
-    localRoot.children.splice(localRoot.children.indexOf(removedTab[0]), 1)
-    update(localRoot);
+  if(parentId === undefined)
+    parent = localRoot;
+  else
+    parent = data[idMapping[parentId]];
+
+  if(removedTab.children.length > 0) {
+    removedTab.children.forEach(child => {
+      child.parentId = parentId;
+      parent.children.push(child);
+    })
   }
-  else { // It has a parent
-    console.log("Has a parent. Adding children (if present) to parent and removing it from parent's children")
-    let parentIndexInData = idMapping[removedTab[0].parentId];
-    let parent = data[parentIndexInData];
-
-    // Set it's children as its parent's children
-    if(removedTab[0].children.length > 0) {
-      console.log("Has Children")
-      removedTab[0].children.forEach(child => {
-        child.parentId = parent.id;
-        parent.children.append(child);
-      });
-    }
-    // Remove the tab from it's parent's children
-    parent.children = data[parentIndexInData].children.filter(child => child.id == removedTab[0].parentId);
-    update(parent);
-  }
-
-  console.log("Removed 1 tab")
+  parent.children.splice(parent.children.indexOf(removedTab), 1)
+  update(localRoot);
 }
 
 // function removeTab(tabId) {
@@ -336,6 +332,11 @@ chrome.tabs.onCreated.addListener(function(tab) {
 chrome.tabs.onRemoved.addListener(function(tabId) {
     removeTab(tabId);
 });
+
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+  // console.log("", tab, " with id ", tabId, " updated with info ", changeInfo)
+  updateTab(tabId, changeInfo)
+})
 
 chrome.windows.onBoundsChanged.addListener(function(wId) {
   update(localRoot);
