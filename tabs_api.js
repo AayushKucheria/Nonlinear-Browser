@@ -41,10 +41,12 @@ function loadWindowList() {
       for (var j=0; j < windowList[i].tabs.length; j++) {
         data.push({ "id": windowList[i].tabs[j].id,
                     "title": windowList[i].tabs[j].title,
+                    "shortened_title": getShortenedTitle(windowList[i].tabs[j].title),
                     "parentId": windowList[i].tabs[j].openerTabId,
                     "children": [],
                     "windowId": windowList[i].id,
                     "url": windowList[i].tabs[j].url,
+                    "pendingUrl": windowList[i].tabs[j].pendingUrl,
                     "x0": 0,
                     "y0": 0});
       };
@@ -83,6 +85,7 @@ function loadWindowList() {
 function addNewTab(tab) {
   // if(tab.title.length >= 0)
   let tabObj = {  "id": tab.id,
+                  "shortened_title":getShortenedTitle(tab),
                   "title": tab.title,
                   "parentId": tab.openerTabId,
                   "children": [],
@@ -291,6 +294,42 @@ function removeTab(tabId) {
 //   console.log(data);
 // }
 
+function getShortenedTitle(x)
+{
+
+  if(x.pendingUrl === "chrome://newtab/" )
+  {
+    return "New Tab";
+  }
+
+ else {
+
+  if(x.length > 10)
+  {
+    rem=(x.length)-10;
+    y=x.substring(0,10);
+
+    var i;
+
+    if(rem>10)
+    {
+    for(i=0;i < 5 ; i++)
+    {
+      y=y+".";
+    }
+  }
+  else
+  {
+    y=y+"...";
+  }
+    return y;
+  }
+  else
+  {
+    return x;
+  }
+}
+}
 chrome.tabs.onCreated.addListener(function(tab) {
   addNewTab(tab);
 });
