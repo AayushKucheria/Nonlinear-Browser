@@ -27,17 +27,15 @@ var baseSvg = d3.select('svg')
     // .attr('transform', `translate(${width()/2}, ${height()/2})`)
 
 var g = baseSvg.append('g')
-  .attr('transform', {
-    console.log("Transforming g")
-    `translate(${innerWidth/2}, ${innerHeight/2})`
-  })
+  .attr('transform', d => `translate(${innerWidth/2}, ${innerHeight/2})`)
+  .call(printMe, "g")
 
 
 const zoom = d3.zoom().on("zoom", e => {
-  g.attr("transform", {
-    console.log("Transforming through zoom")
-    e.transform
-  })}); // Changing svg.attr fucks things up.
+  g
+    .attr("transform", d => e.transform) // Changing svg.attr fucks things up.
+    .call(printMe, e , "Zoom")})
+
 baseSvg.call(zoom);
           // .on('click', d, e => {
           //   console.log(e)
@@ -46,6 +44,27 @@ baseSvg.call(zoom);
             // });
           // });
 
+// function addAncestor(tabObj) {
+//   var temp = tabObj;
+//
+//   tabObj.ancestors.push(window.localRoot)
+//
+//   while(temp.parentId != undefined) {
+//     parent = data[idMapping[temp.parentId]];
+//     tabObj.ancestors.push(parent);
+//
+//     // if added, just copy
+//     if(parent.ancestors.length > 1) {
+//       tabObj.ancestors.push(parent.ancestors);
+//       return
+//     }
+//     // If added,
+//     else {
+//     temp = parent;
+//     // Then complete ancestor array for ancestors, along with the child array.
+//   }
+//   }
+// }
 // Zoom in/out the group elements, not the whole svg for better experience
 
 // function zoom() {
@@ -98,11 +117,17 @@ function centerNode(source) {
   x = x * scale + innerWidth/2;
   y = y * scale + innerHeight/2;
   d3.select('g').transition()
-    .attr("transform", {
-      console.log("Transforming by center node")
-    `translate(${x}, ${y})scale(${scale})`})
+    .attr("transform", d => `translate(${x}, ${y})scale(${scale})`)
+    .call(printMe, "Center Node")
   // zoom.scaleTo(g, scale)
   // zoom.translateTo(g, [x, y])
+}
+
+function printMe(elem, text) {
+  console.log("Transform: ", text);
+}
+function printMe(elem, e, trans) {
+  console.log("Transform: ", elem, ", ", e, ", ", trans)
 }
 
 // Traverse through all the nodes
@@ -220,10 +245,8 @@ function update(source) {
     .attr('class', 'node')
     .attr('fill-opacity', 1)
     .attr('stroke-opacity', 1)
-    .attr("transform", d => {
-      console.log("Transforming by center node")
-      `translate(${source.x0},${source.y0})`
-    })
+    .attr("transform",d => `translate(${source.x0},${source.y0})`)
+    .call(printMe, "nodeEnter")
     // .attr("transform", d => `translate(${d.x},${d.y})`)
 
     // .attr("transform", d => `translate(${innerWidth/2},${innerHeight/2})`)
@@ -277,11 +300,12 @@ function update(source) {
     //             .style("opacity", .9)
     //             .text(d => d.title)});
 
-    
+
   var nodeUpdate = nodeEnter.merge(node)
   .transition()
   .duration(duration)
-  .attr("transform", d => `translate(${d.x},${d.y})`);
+  .attr("transform",d => `translate(${d.x},${d.y})`)
+  .call(printMe, "nodeUpdate");
   // .attr('fill-opacity', 1);
 
   nodeUpdate.select('rect.node')
@@ -320,6 +344,7 @@ function update(source) {
     .duration(duration)
     .remove()
     .attr("transform", d => `translate(${source.x},${source.y})`)
+    .call(printMe, "nodeExit");
 
   nodeExit.select('rect.node')
     .attr('width', 1e-6)
