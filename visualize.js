@@ -2,8 +2,8 @@
 // The whole svg element
 
 const margin = { top: 20, right: 50, bottom: 30, left: 75};
-
-const tabWidth = 120;
+// const margin = { top: 300, right: 300, bottom: 500, left: 700};
+window.tabWidth = 120;
 const tabHeight = 40;
 const duration = 750;
 function width() { return document.body.clientWidth};
@@ -29,11 +29,21 @@ var baseSvg = d3.select('svg')
     .attr('class', 'overlay')
     .attr('width', width())
     .attr('height', height())
-    .attr('transform', `translate(${margin.left}, ${margin.top})`)
+    // .attr('transform', `translate(${margin.left}, ${margin.top})`)
+    // .attr('transform', `translate(${width()/2}, ${height()/2})`)
+
 var g = baseSvg.append('g')
+  .attr('transform', {
+    console.log("Transforming g")
+    `translate(${innerWidth/2}, ${innerHeight/2})`
+  })
+
 
 const zoom = d3.zoom().on("zoom", e => {
-  g.attr("transform", e.transform)}); // Changing svg.attr fucks things up.
+  g.attr("transform", {
+    console.log("Transforming through zoom")
+    e.transform
+  })}); // Changing svg.attr fucks things up.
 baseSvg.call(zoom);
           // .on('click', d, e => {
           //   console.log(e)
@@ -86,18 +96,20 @@ function initializeTree(localRoot) {
   update(root);
 }
 
-// function centerNode(source) {
-//   console.log("Source in centerNode = ", source)
-//   scale = d3.zoomTransform(source).k;
-//   x = -source.y0;
-//   y = -source.x0;
-//   x = x * scale + width/2;
-//   y = y * scale + height/2;
-//   d3.select('g').transition()
-//     .attr("transform", `translate(${margin.left}, ${margin.top})scale(${scale})`)
-//   zoom.scaleTo(g, scale)
-//   zoom.translateTo(g, [x, y])
-// }
+function centerNode(source) {
+  console.log("Source in centerNode = ", source)
+  scale = d3.zoomTransform(source).k;
+  x = -source.x0;
+  y = -source.y0;
+  x = x * scale + innerWidth/2;
+  y = y * scale + innerHeight/2;
+  d3.select('g').transition()
+    .attr("transform", {
+      console.log("Transforming by center node")
+    `translate(${x}, ${y})scale(${scale})`})
+  // zoom.scaleTo(g, scale)
+  // zoom.translateTo(g, [x, y])
+}
 
 // Traverse through all the nodes
 // Explain TODO
@@ -137,15 +149,12 @@ function zoomed()
 
 function update(source) {
 
-
-  d3.selectAll('.overlay')
-  .attr('width', width())
-  .attr('height', height());
-
+  innerWidth = width() - margin.left - margin.right;
+  innerHeight = height() - margin.top - margin.bottom;
 
   window.d3Root = d3.hierarchy(window.jsonRoot);
-  window.d3Root.x0 = height/2;
-  window.d3Root.y0 = 0;
+  window.d3Root.x0 = innerWidth/2;
+  window.d3Root.y0 = innerHeight/2;
 
   traverse(window.jsonRoot, function(d) { // Check tabLength with maxLength
     // totalNodes++;
@@ -236,13 +245,17 @@ function update(source) {
   // console.log("Source = ", source);
 
     .attr('class', 'node')
-    .attr('fill-opacity', 0)
-    .attr('stroke-opacity', 0)
-    .attr("transform", d => `translate(${source.x0},${source.y0})`)
+    .attr('fill-opacity', 1)
+    .attr('stroke-opacity', 1)
+    .attr("transform", d => {
+      console.log("Transforming by center node")
+      `translate(${source.x0},${source.y0})`
+    })
+    // .attr("transform", d => `translate(${d.x},${d.y})`)
+
+    // .attr("transform", d => `translate(${innerWidth/2},${innerHeight/2})`)
+
     .attr('cursor', 'pointer')
-    // .on('click', function(event, d) {
-    //   click(event, d)
-    // })
     .on('contextmenu', function(event, d) {
       window.contextMenu(event, d, menu);
     })
@@ -254,33 +267,46 @@ function update(source) {
   //.append('center')
     .append('rect')
     .attr('class', 'node')
-    .attr('width', d => tabWidth)//maxLevelTabLength[d.depth] * 6)
+    .attr('width', tabWidth)//maxLevelTabLength[d.depth] * 6)
     .attr('height', tabHeight)
-    // .attr('x', d => d.x - tabHeight/2) // or 10?
-    // .attr('y', d => d.depth * (maxTabLength * 11))
-    .style('fill', d => "orange")
-    .on("mouseover", function(d) {
-            div.transition()
-                .duration(200)
-                .attr('x',15)
-                .attr('y',5)
-                .style("opacity", .9)
-                .text(d => d.title)});
+    .style('fill', "orange")
+    .on('click', function(event, d) {
+      toggleChildren(d);
+      centerNode(d);
+    })
+  nodeEnter.append('text')
+    .attr('id', 'line1')
+    .attr('dy', '0.32em')
+    .text(d => d.data.lines[0])
+    .attr('fill-opacity', 1)
+
+
+  nodeEnter.append('text')
+    .attr('id', 'line2')
+    .attr('dy', '1.42em')
+    .text(d => d.data.lines[1])
+    .attr('fill-opacity', 1)
+
+
+  nodeEnter.append('text')
+    .attr('id', 'line3')
+
+    .attr('dy', '2.52em')
+    .text(d => d.data.lines[2])
+
+  nodeEnter.append('text')
+    .attr('id', 'line4')
+    .attr('dy', '3.62em')
+    .text(d => d.data.lines[3])
+
     // .on("mouseover", function(d) {
     //         div.transition()
     //             .duration(200)
     //             .attr('x',15)
     //             .attr('y',5)
     //             .style("opacity", .9)
-    //             .html(d => d.data.title)})
-    //.append('center');
-    // .attr('fill-opacity', 1)
+    //             .text(d => d.title)});
 
-  nodeEnter.append('text')
-    .attr('class', 'node')
-    .text(d => d.data.shortened_title)
-    .attr('dy', '0.32em');
-    // .attr('x', d => d.depth * (maxTabLength * 10))
 
   var nodeUpdate = nodeEnter.merge(node)
   .transition()
@@ -295,11 +321,30 @@ function update(source) {
 
   //   // .attr('x', d => d.depth * (maxTabLength * 10))
   //   .attr('y', d => d.x - tabHeight/2)
-  nodeUpdate.select('text.node')
-    .attr('fill-opacity', 1)
-    .text(d => d.data.shortened_title);
 
-  //   // .attr('x', d => d.depth * (maxTabLength * 10))
+  nodeUpdate.select('#line1')
+    .attr('dy', '0.32em')
+    .text(d => d.data.lines[0])
+    .attr('fill-opacity', 1)
+
+
+  nodeUpdate.select('#line2')
+    .attr('dy', '1.42em')
+    .text(d => d.data.lines[1])
+    .attr('fill-opacity', 1)
+
+
+  nodeUpdate.select('#line3')
+    .attr('dy', '2.52em')
+    .text(d => d.data.lines[2])
+    .attr('fill-opacity', 1)
+
+
+  nodeUpdate.select('#line4')
+    .attr('dy', '3.62em')
+    .text(d => d.data.lines[3])
+    .attr('fill-opacity', 1)
+
 
   var nodeExit = node.exit().transition()
     .duration(duration)
@@ -435,33 +480,4 @@ function toggleChildren(d) {
     d.data._children = null;
   }
   update(d);
-}
-
-function wrap(text, width) {
-  text.each(function() {
-    let text = d3.select(this),
-      words = text.text().split(/\s+/).reverse(),
-      word,
-      line = [],
-      lineNumber = 0,
-      lineHeight = 1.1, // ems
-      x = 0,
-      y = 0,
-      dy = 0.32,
-      tspan = text.text(null).append('tspan').attr('x', x).attr('y', y).attr('dy', dy + "em"); // + "em" if modifying dy here.
-
-    // console.log("Text: ", text, " and words: ", words);
-    while(word = words.pop()) {
-      line.push(word);
-      tspan.text(line.join(" "));
-      if(tspan.text().length >= width/5.5) {
-        line.pop();
-        tspan.text(line.join(" "));
-        line = [word];
-        tspan = text.append('tspan').attr('x', x).attr('y', y).attr('dy', ++lineNumber * lineHeight + dy + "em").text(word);
-      }
-    }
-    // console.log("wrapping done: ", tspan)
-
-  });
 }

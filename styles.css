@@ -22,3 +22,11 @@ text {
   pointer-events: none;
   font-family: 'Playfair Display', serif;
 }
+
+#ruler {
+  visibility: hidden,
+  white-space: nowrap
+  font-family: 'Playfair Display', serif,
+  font-size: '8px',
+  font-weight, '400';
+}
