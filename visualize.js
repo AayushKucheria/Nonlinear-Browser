@@ -17,7 +17,13 @@ var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0);
 
+
 window.currentRoot;
+
+
+
+
+let ancestors= ["Root"];
 
 var baseSvg = d3.select('svg')
     .attr('class', 'overlay')
@@ -110,13 +116,36 @@ function traverse(parent, traverseFn, childrenFn) {
   }
 }
 
+function centerNode(source)
+{
+  x = -source.y0;
+  y = -source.x0;
+
+  x = x + width()/2;
+  y = y + height()/2;
+
+  d3.select('g').transition()
+      .duration(duration)
+      .attr('transform', "translate(" + x + "," + y + ")");
+
+function zoomed()
+{
+  g.attr("transform", d3.event.transform);
+}
+
+}
+
 function update(source) {
+
+
+  d3.selectAll('.overlay')
+  .attr('width', width())
+  .attr('height', height());
+
 
   window.d3Root = d3.hierarchy(window.jsonRoot);
   window.d3Root.x0 = height/2;
   window.d3Root.y0 = 0;
-  innerWidth = width() - margin.left - margin.right;
-  innerHeight = height() - margin.top - margin.bottom;
 
   traverse(window.jsonRoot, function(d) { // Check tabLength with maxLength
     // totalNodes++;
@@ -188,6 +217,8 @@ function update(source) {
     {
       title: "View as Root",
       action: function(elem) {
+
+        condense_ancestors(elem);
         console.log("Clicked on View as root for ", elem);
       }
     },
@@ -204,7 +235,6 @@ function update(source) {
   var node = g.selectAll('g.node').data(descendants); // Node SVG join tree.descendants()
   // console.log("Source = ", source);
 
-  var nodeEnter = node.enter().append('g')
     .attr('class', 'node')
     .attr('fill-opacity', 0)
     .attr('stroke-opacity', 0)
@@ -220,6 +250,9 @@ function update(source) {
     .style('font-weight', 400);
 
   nodeEnter.append('rect')
+  nodeEnter
+  //.append('center')
+    .append('rect')
     .attr('class', 'node')
     .attr('width', d => tabWidth)//maxLevelTabLength[d.depth] * 6)
     .attr('height', tabHeight)
@@ -233,6 +266,14 @@ function update(source) {
                 .attr('y',5)
                 .style("opacity", .9)
                 .text(d => d.title)});
+    // .on("mouseover", function(d) {
+    //         div.transition()
+    //             .duration(200)
+    //             .attr('x',15)
+    //             .attr('y',5)
+    //             .style("opacity", .9)
+    //             .html(d => d.data.title)})
+    //.append('center');
     // .attr('fill-opacity', 1)
 
   nodeEnter.append('text')
@@ -303,6 +344,9 @@ function update(source) {
     d.x0 = d.x;
     d.y0 = d.y;
   });
+
+
+  centerNode(window.d3Root);
 }
 
 // function deleteNode(node) {
@@ -318,6 +362,68 @@ function update(source) {
 //   d => d.children && d.children.length > 0 ? d.children : null;
 // );
 // }
+
+function condense_ancestors(source)
+{
+  var rounded_rect = d3.select('svg')
+        .append('rect')
+        .attr("rx", 4)
+        .attr("ry", 4)
+        .attr("x", 10)
+        .attr("y", 100)
+        .attr("width", 1500)
+        .attr("height", 45)
+        .style("stroke", 'black')
+        .style("fill","none")
+        .style("stroke-width",1);
+        // .attr('transform', function d() {
+        //
+        //
+        // })
+
+  var ancestor_1 = d3.select('svg')
+            .append('rect')
+            .attr("rx",4)
+            .attr("ry",4)
+            .attr("x",30)
+            .attr("y",110)
+            .attr("width",500)
+            .attr("height",25)
+            .style("stroke", "black")
+            .style("fill","none")
+            .style("stroke-width",1);
+
+  var ancestor_2 = d3.select('svg')
+            .append('rect')
+            .attr("rx",4)
+            .attr("ry",4)
+            .attr("x",600)
+            .attr("y",110)
+            .attr("width",500)
+            .attr("height",25)
+            .attr("stroke", "black")
+            .style("fill","none")
+            .style("stroke-width",1);
+
+  // function hey(d)
+  // {
+  //   console.log("wtf is going on");
+  // }
+  source.data.forEach((item, i) => {
+
+    if(item.parentId != undefined)
+    {
+      ancestors.push(item);
+      console.log("added", ancestors[i]);
+    }
+
+  });
+
+
+
+}
+
+
 
 function toggleChildren(d) {
   if(d.data.children) {

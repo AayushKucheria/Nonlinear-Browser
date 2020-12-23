@@ -5,7 +5,6 @@
 // })();
 
 let data = []; // tree of tabs as objects
-window.localRoot = {"id": "Root", "title": "Root", "children": [], "_children": [], "x0": 0, "y0": 0};
 let idMapping = [];
 
 function bootStrap() {
@@ -111,7 +110,6 @@ function addNewTab(tab) {
 
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
-  if (tabObj.pendingUrl ==="chrome://newtab/") {
     tabObj.parentId = undefined;
     // console.log("New tab is empty. Removed parent");
   }
@@ -301,9 +299,12 @@ function getShortenedTitle(x)
  else {
 
   if(x.length > 10)
+  if(x.title.length > 10)
   {
     rem=(x.length)-10;
     y=x.substring(0,10);
+    rem=(x.title.length)-10;
+    y=x.title.substring(0,10);
 
     var i;
 
@@ -323,6 +324,7 @@ function getShortenedTitle(x)
   else
   {
     return x;
+    return x.title;
   }
 }
 }
