@@ -7,6 +7,7 @@
 let data = []; // tree of tabs as objects
 
 window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "children": [], "_children": [], "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"],"ancestors":[], "children": [], "_children": [], "x0": 0, "y0": 0};
 let idMapping = [];
 
 function bootStrap() {
@@ -35,6 +36,7 @@ function loadWindowList() {
                     "title": currentTab.title,
                     "lines":  wrapText(currentTab.title),
                     "parentId": currentTab.openerTabId,
+                    "ancestors": addAncestors(currentTab),
                     "children": [],
                     "_children": [],
                     "windowId": windowList[i].id,
@@ -126,6 +128,7 @@ function addNewTab(tab) {
                   "parentId": tab.openerTabId,
                   "children": [],
                   "_children": [],
+                  "ancestors":addAncestors(tab),
                   "windowId": tab.windowId,
                   "url": tab.url,
                   "pendingUrl":tab.pendingUrl,
@@ -157,6 +160,7 @@ function addNewTab(tab) {
     update(parentElement)
   }
 }
+
 /**
 TODO: Chrome listener gets called multiple times, and thus this
 method gets called multiple times.
@@ -317,6 +321,39 @@ function removeTab(tabId) {
 //   console.log("Removed 1 tab")
 //   console.log(data);
 // }
+
+function addAncestors(tabObj)
+{
+  temp=tabObj;
+
+  tabObj.ancestors.push(window.localRoot);
+
+  while(temp.parentId != undefined)
+  {
+
+    parent= data[idMapping[temp.parentId]];
+    tabObj.ancestors.push(parent);
+
+
+    if(temp.ancestors.length>1)
+    {
+      tabObj.ancestors.push(parent.ancestors);
+    }
+    else
+    {
+      temp=parent;
+    }
+}
+    return tabObj.ancestors;
+
+  }
+}
+
+
+
+
+
+
 
 function getShortenedTitle(x)
 {
