@@ -12,6 +12,11 @@ var innerWidth = width() - margin.left - margin.right;
 var innerHeight = height() - margin.top - margin.bottom;
 var maxTabLength = 0;
 var maxLevelTabLength = [0]
+
+var div = d3.select("rect").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
 window.currentRoot;
 
 var baseSvg = d3.select('svg')
@@ -264,14 +269,23 @@ function update(source) {
     .attr('dy', '3.62em')
     .text(d => d.data.lines[3])
 
+    // .on("mouseover", function(d) {
+    //         div.transition()
+    //             .duration(200)
+    //             .attr('x',15)
+    //             .attr('y',5)
+    //             .style("opacity", .9)
+    //             .text(d => d.title)});
+
+    
   var nodeUpdate = nodeEnter.merge(node)
-    .transition()
-    .duration(duration)
-    .attr("transform", d => `translate(${d.x},${d.y})`)
+  .transition()
+  .duration(duration)
+  .attr("transform", d => `translate(${d.x},${d.y})`);
   // .attr('fill-opacity', 1);
 
   nodeUpdate.select('rect.node')
-    .attr('fill-opacity', 0.4)
+    .attr('fill-opacity', 0.4);
     // .attr('x', d => d.x - tabHeight/2) // or 10?
     // .attr('y', d => d.depth * (maxTabLength * 11))
 
