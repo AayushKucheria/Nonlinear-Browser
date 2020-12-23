@@ -5,7 +5,7 @@
 // })();
 
 let data = []; // tree of tabs as objects
-window.localRoot = {"id": "Root", "title": "Root", "children": [], "_children": [], "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "children": [], "_children": [], "x0": 0, "y0": 0};
 let idMapping = [];
 
 function bootStrap() {
@@ -21,7 +21,7 @@ function printRoot() {
 // Load tree from scratch
 function loadWindowList() {
   //await SetupConnection();
-  console.log("Reloading")
+  // console.log("Reloading")
   data = [];
   // Get windows + tabs data from chrome api
   chrome.windows.getAll({ populate: true }, function(windowList) {
@@ -32,14 +32,15 @@ function loadWindowList() {
         let currentTab = windowList[i].tabs[j];
         data.push({ "id": currentTab.id,
                     "title": currentTab.title,
+                    "lines":  wrapText(currentTab.title),
                     "parentId": currentTab.openerTabId,
                     "children": [],
                     "_children": [],
                     "windowId": windowList[i].id,
                     "url": currentTab.url,
                     "favIconUrl": currentTab.favIconUrl,
-                    "x0": 0,
-                    "y0": 0
+                    "x0": innerWidth/2,
+                    "y0": innerHeight/2
                   });
       };
     };
@@ -79,6 +80,33 @@ function updateIdMapping() {
     acc[elem.id] = index;
     return acc;
   }, {});
+}
+
+function wrapText(text) {
+  let words = text.split(/\s+/),
+    res = ["", "", "", ""],
+    limit = false;
+    var line=0, word=0;
+  while(line < 4 && word < words.length) {
+    // console.log(res[line], " length is ", visualLength(res[line]))
+    // console.log(words[word], " length is ", words[word].visualLength)
+
+    if((visualLength(res[line]) + visualLength(words[word])) < window.tabWidth) {
+      res[line] +=  " " + words[word++];
+    }
+    else {
+      res[++line] += words[word++];
+    }
+  }
+  // console.log(text, " wrapped to ", res)
+  return res;
+}
+
+function visualLength(text) {
+  var ruler = document.getElementById('ruler')
+  ruler.innerHTML = text;
+  // console.log("", text, " width is ", ruler.offsetWidth);
+  return ruler.offsetWidth;
 }
 //await SetupConnection();
 function addNewTab(tab) {
