@@ -1,9 +1,32 @@
 
-
-var tree_root;
-
 function draw_tree(error, treeData) {
 
+    // Calculate total nodes, max label length
+    var totalNodes = 0;
+    var maxLabelLength = 0;
+    // variables for drag/drop
+    var selectedNode = null;
+    var draggingNode = null;
+    // panning variables
+    var panSpeed = 200;
+    var panBoundary = 20; // Within 20px from edges will pan when dragging.
+    // Misc. variables
+    var i = 0;
+    var duration = 750;
+    var root;
+
+    // size of the diagram
+    var viewerWidth = $(document).width();
+    var viewerHeight = $(document).height();
+
+    var tree = d3.layout.tree()
+        .size([viewerHeight, viewerWidth]);
+
+    // define a d3 diagonal projection for use by the node paths later on.
+    var diagonal = d3.svg.diagonal()
+        .projection(function(d) {
+            return [d.y, d.x];
+        });
 
     // Define the zoom function for the zoomable tree
 
@@ -26,6 +49,7 @@ function draw_tree(error, treeData) {
         .attr("fill", "white")
 
     baseSvg.call(zoomListener);
+
     // Function to center node when clicked/dropped so node doesn't get lost when collapsing/moving with large amount of children.
 
     function centerNode(source) {
@@ -39,13 +63,6 @@ function draw_tree(error, treeData) {
             .attr("transform", "translate(" + x + "," + y + ")scale(" + scale + ")");
         zoomListener.scale(scale);
         zoomListener.translate([x, y]);
-    }
-
-    function click(d) {
-        if (d3.event.defaultPrevented) return; // click suppressed
-        d = toggleChildren(d);
-        update(d);
-        centerNode(d);
     }
 
     function update(source) {
