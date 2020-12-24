@@ -7,7 +7,7 @@
 let data = []; // tree of tabs as objects
 
 window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "children": [], "_children": [], "x0": 0, "y0": 0};
-window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"],"ancestors":[], "children": [], "_children": [], "x0": 0, "y0": 0};
+// window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"],"ancestors":[], "children": [], "_children": [], "x0": 0, "y0": 0};
 let idMapping = [];
 
 function bootStrap() {
@@ -36,7 +36,7 @@ function loadWindowList() {
                     "title": currentTab.title,
                     "lines":  wrapText(currentTab.title),
                     "parentId": currentTab.openerTabId,
-                    "ancestors": addAncestors(currentTab),
+                    // "ancestors": addAncestors(currentTab),
                     "children": [],
                     "_children": [],
                     "windowId": windowList[i].id,
@@ -47,7 +47,7 @@ function loadWindowList() {
                   });
       };
     };
-    // console.log(data[0]);
+    console.log(data[0].favIconUrl);
 
     /* Making an ID-to-Index Map (for ease of access)
       Syntax: [tab_id: index_in_data]
@@ -85,6 +85,7 @@ function updateIdMapping() {
   }, {});
 }
 
+// TODO Fails if one word is bigger than the width, coz it only separates words.
 function wrapText(text) {
   let words = text.split(/\s+/),
     res = ["", "", "", ""],
@@ -107,6 +108,7 @@ function wrapText(text) {
 
 function visualLength(text) {
   var ruler = document.getElementById('ruler')
+  ruler.style.fontSize = window.fontSize;
   ruler.visibility = 'hidden';
   ruler.innerHTML = text;
   // console.log("", text, " width is ", ruler.offsetWidth);
@@ -144,21 +146,19 @@ function addNewTab(tab) {
 
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
-    tabObj.parentId = undefined;
+    // tabObj.parentId = undefined;
     // console.log("New tab is empty. Removed parent");
-  }
-
-  if(tabObj.parentId === undefined) {
+  // }
+  console.log(tabObj.pendingUrl)
+  if(tabObj.parentId === undefined || tabObj.pendingUrl === "chrome://newtab/") {
     localRoot.children.push(tabObj);
     // console.log("No parent. Added tab as root: ", tabObj);
     // console.log("The whole tree: ", localRoot);
-    update(localRoot)
+    updateTree(localRoot)
   }
   else {
     const parentElement = data[idMapping[tabObj.parentId]];
     parentElement.children.push(tabObj);
-    // console.log("Parent found. Adding as child");
-    // update(parentElement)
     updateTree(localRoot);
   }
 }
@@ -267,32 +267,30 @@ function removeTab(tabId) {
 
 }
 
-function addAncestors(tabObj)
-{
-  temp=tabObj;
-
-  tabObj.ancestors.push(window.localRoot);
-
-  while(temp.parentId != undefined)
-  {
-
-    parent= data[idMapping[temp.parentId]];
-    tabObj.ancestors.push(parent);
-
-
-    if(temp.ancestors.length>1)
-    {
-      tabObj.ancestors.push(parent.ancestors);
-    }
-    else
-    {
-      temp=parent;
-    }
-}
-    return tabObj.ancestors;
-
-  }
-}
+// function addAncestors(tabObj)
+// {
+//   temp=tabObj;
+//
+//   tabObj.ancestors.push(window.localRoot);
+//
+//   while(temp.parentId != undefined)
+//   {
+//
+//     parent= data[idMapping[temp.parentId]];
+//     tabObj.ancestors.push(parent);
+//
+//
+//     if(temp.ancestors.length>1)
+//     {
+//       tabObj.ancestors.push(parent.ancestors);
+//     }
+//     else
+//     {
+//       temp=parent;
+//     }
+//   }
+//     return tabObj.ancestors;
+// }
 
 
 
