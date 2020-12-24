@@ -5,7 +5,9 @@
 // })();
 
 let data = []; // tree of tabs as objects
+
 window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "children": [], "_children": [], "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"],"ancestors":[], "children": [], "_children": [], "x0": 0, "y0": 0};
 let idMapping = [];
 
 function bootStrap() {
@@ -34,6 +36,7 @@ function loadWindowList() {
                     "title": currentTab.title,
                     "lines":  wrapText(currentTab.title),
                     "parentId": currentTab.openerTabId,
+                    "ancestors": addAncestors(currentTab),
                     "children": [],
                     "_children": [],
                     "windowId": windowList[i].id,
@@ -141,7 +144,6 @@ function addNewTab(tab) {
 
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
-  if (tabObj.pendingUrl ==="chrome://newtab/") {
     tabObj.parentId = undefined;
     // console.log("New tab is empty. Removed parent");
   }
@@ -160,6 +162,7 @@ function addNewTab(tab) {
     updateTree(localRoot);
   }
 }
+
 /**
 TODO: Chrome listener gets called multiple times, and thus this
 method gets called multiple times.
@@ -264,6 +267,39 @@ function removeTab(tabId) {
 
 }
 
+function addAncestors(tabObj)
+{
+  temp=tabObj;
+
+  tabObj.ancestors.push(window.localRoot);
+
+  while(temp.parentId != undefined)
+  {
+
+    parent= data[idMapping[temp.parentId]];
+    tabObj.ancestors.push(parent);
+
+
+    if(temp.ancestors.length>1)
+    {
+      tabObj.ancestors.push(parent.ancestors);
+    }
+    else
+    {
+      temp=parent;
+    }
+}
+    return tabObj.ancestors;
+
+  }
+}
+
+
+
+
+
+
+
 function getShortenedTitle(x)
 {
 
@@ -275,9 +311,12 @@ function getShortenedTitle(x)
  else {
 
   if(x.length > 10)
+  if(x.title.length > 10)
   {
     rem=(x.length)-10;
     y=x.substring(0,10);
+    rem=(x.title.length)-10;
+    y=x.title.substring(0,10);
 
     var i;
 
@@ -297,6 +336,7 @@ function getShortenedTitle(x)
   else
   {
     return x;
+    return x.title;
   }
 }
 }
