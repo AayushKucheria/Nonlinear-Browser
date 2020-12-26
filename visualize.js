@@ -1,5 +1,5 @@
 
-const margin = { top: 20, right: 50, bottom: 30, left: 75};
+const margin = { top: 20, right: 20, bottom: 20, left: 20};
 // const margin = { top: 300, right: 300, bottom: 500, left: 700};
 window.tabWidth = 200;
 const tabHeight = 80;
@@ -12,8 +12,10 @@ var innerHeight = document.body.clientHeight - margin.top - margin.bottom;
 var maxTabLength = 0;
 var maxLevelTabLength = [0]
 var currentZoom = 1;
-treeLayout = d3.tree()//.size([innerHeight, innerWidth]);
-treeLayout.nodeSize([tabWidth, tabHeight])
+var currentPos = {x: 0, y: 0}
+treeLayout = d3.tree()
+  .nodeSize([tabWidth, tabHeight])
+  .separation(function(a, b) { return a.parent == b.parent ? 1.5 : 1.5}) // TODO works but can experiment with
 window.fontSize = 16;
 
 window.currentRoot;
@@ -34,48 +36,22 @@ var baseSvg = d3.select('body').append('svg')
 //   .attr('height', '100%')
 //   .style('fill', 'white')
 
-
-
 var g = baseSvg.append('g')
   .attr('id', 'treeContainer')
-  // .attr('transform', d => `translate(${innerWidth/2}, ${innerHeight/2})`)
 // .on('click', d, e => {
 //   console.log(e)
   // chrome.tabs.update(d.toElement.__data__.data.id, {
   //   active: true
   // });
 // });
-
-// Scale Extent (Out, In): .scaleExtent([0.1])
-let flag = true
 const zoom = d3.zoom()
   .on("zoom", function(e) {
-  // e.preventDefault();
-    // e.stopPropagation();
-    if(e.defaultPrevented) return;
-    // e.stopPropagation();
-    // if(e.sourceEvent instanceof WheelEvent) {
-      // console.log(e.sourceEvent);
-      // console.log(e)
-      // console.log(e.transform)
-      // if(e.transform.x < 20 || e.transform.y < 20) return;
-    console.log("Zoom Scale = ", e.transform.k)
     currentZoom = e.transform.k
+    currentPos = {x: e.transform.x, y: e.transform.y}
     g.attr('transform', d => e.transform)
   })
 
 baseSvg.call(zoom)
-  // .on("start", function(e) {
-  //   return;
-  // })
-// baseSvg.call(zoom);
-
-// root = d3.hierarchy(localRoot);
-// root.x0 = innerHeight / 2;
-// root.y0 = 0;
-// update(root);
-// centerNode(root);
-// let tree_root = root;
 
 
   function initializeTree(localRoot) {
@@ -84,7 +60,7 @@ baseSvg.call(zoom)
     root.x0 = innerWidth/2;
     root.y0 = innerHeight/2;
     window.currentRoot = root;
-    // console.log("Initialized Tree: ", root);
+
     drawTree(root);
     centerNode(root);
   }
@@ -94,7 +70,7 @@ baseSvg.call(zoom)
     let previousRootId = window.currentRoot.data.id;
     window.currentRoot = undefined;
 
-    function traverseTree(subRoot) {
+    function traverseTree(subRoot) { // TODO visit function?
       if(subRoot.data.id === previousRootId)
         return subRoot
       else
@@ -104,8 +80,6 @@ baseSvg.call(zoom)
     window.currentRoot = traverseTree(root)
     if(!window.currentRoot)
       window.currentRoot = root;
-
-    // console.log("Updated Tree: ", window.currentRoot);
     drawTree(window.currentRoot)
     // centerNode(window.currentRoot);
   }
@@ -119,8 +93,8 @@ baseSvg.call(zoom)
   function centerNode(source) {
     x = -source.x0;
     y = -source.y0;
-    x = x * currentZoom //+ innerWidth/2;
-    y = y * currentZoom //+ innerHeight/2;
+    x = x * currentZoom - tabWidth/2;
+    y = y * currentZoom - tabHeight/2;
     d3.select('g').transition()
       .attr("transform", d => `translate(${x}, ${y})scale(${currentZoom})`)
 
@@ -210,7 +184,8 @@ baseSvg.call(zoom)
     // })
     //   .target(d => [d.x + tabWidth/2, d.depth * 180])
       .x(d => d.x + tabWidth/2)
-      .y(d => (!d.parent || d.children)? d.depth * 180 + tabHeight: d.depth * 180 )
+      .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
+      // .y(d => (!d.parent || d.children)? d.depth * 180 + tabHeight: d.depth * 180 )
     descendants.forEach(d => d.y = d.depth * 180)
 
     // console.log("Drawing tree: ", tree);
@@ -296,6 +271,7 @@ baseSvg.call(zoom)
     nodeEnter.append('rect')
       .attr('class', 'node')
       .attr('width', tabWidth)
+      .attr('fill', '#97d0ef')
       .attr('height', tabHeight)
       .on('click', function(event, d) {
         toggleChildren(d);
@@ -304,6 +280,7 @@ baseSvg.call(zoom)
       })
     nodeEnter.append('text')
       .attr('id', 'line1')
+      .attr('class', 'nodeText')
       // .attr('dy', "2em")
       .attr('dy', '1em')
       .text(d => d.data.lines[0])
@@ -311,14 +288,15 @@ baseSvg.call(zoom)
 
     nodeEnter.append('text')
       .attr('id', 'line2')
+      .attr('class', 'nodeText')
       // .attr('y', 20)
       .attr('dy', '2em')
-
       .text(d => d.data.lines[1])
       .attr('fill-opacity', 1)
 
     nodeEnter.append('text')
       .attr('id', 'line3')
+      .attr('class', 'nodeText')
       // .attr('y', 30)
       .attr('dy', '3em')
 
@@ -327,6 +305,7 @@ baseSvg.call(zoom)
 
     nodeEnter.append('text')
       .attr('id', 'line4')
+      .attr('class', 'nodeText')
       // .attr('y', 40)
       .attr('dy', '4em')
       .text(d => d.data.lines[3])
@@ -385,10 +364,8 @@ baseSvg.call(zoom)
       .attr('width', 1e-6)
       .attr('height', 1e-6);
 
-    nodeExit.select('text.node')
+    nodeExit.select('.nodeText')
       .style('fill-opacity', 1e-6)
-
-
 
     descendants.forEach(d => {
       d.x0 = d.x;
