@@ -215,7 +215,7 @@ baseSvg.call(zoom)
       {
         title: "View as Root",
         action: function(event, elem) {
-          console.log("Clicked on View as root for ", elem);
+          //console.log("Clicked on View as root for ", elem);
           setAsRoot(elem)
           centerNode(window.currentRoot);
 
@@ -225,33 +225,33 @@ baseSvg.call(zoom)
         title: "Delete Tab",
         action: function(event, elem) {
           chrome.tabs.remove(elem.data.id)
-          console.log("current tab being deleted",elem);
+        //  console.log("current tab being deleted",elem);
           //removeTab(elem.data.id);
           //drawTree(window.currentRoot);
           // removeTab(elem.data.id) // TODO ??
         }
+      },
+      {
+        title: "Hide the hidden tabs",
+        action: function(event, elem)
+      {
+        hide(elem,0);
       }
-    //   {
-    //     title: "Hide the hidden tabs",
-    //     action: function(event, elem)
-    //   {
-    //     hide(elem,0);
-    //   }
-    // },
-    // {
-    //   title: "Show the hidden tabs",
-    //   action: function(event,elem)
-    //   {
-    //     hide(elem,1);
-    //   }
-    // },
-    //   {
-    //     title: "Add to tabs that want to be hidden",
-    //     action: function(event,elem)
-    //     {
-    //       list_hide(elem);
-    //     }
-    //   }
+    },
+    {
+      title: "Show the hidden tabs",
+      action: function(event,elem)
+      {
+        hide(elem,1);
+      }
+    },
+      {
+        title: "Add to tabs that want to be hidden",
+        action: function(event,elem)
+        {
+          list_hide(elem);
+        }
+      }
     ]
 
     // ******* LINKS ******
