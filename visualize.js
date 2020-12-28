@@ -7,8 +7,9 @@ const duration = 750;
 // function width() { return document.body.clientWidth};
 // function height() {return document.body.clientHeight};
 
-var innerWidth = document.body.clientWidth - margin.left - margin.right;
-var innerHeight = document.body.clientHeight - margin.top - margin.bottom;
+var innerWidth = window.innerWidth - margin.left - margin.right;
+var innerHeight = window.innerHeight - margin.top - margin.bottom;
+// console.log("Height = ", window.innerHeight, " and width = ", innerWidth);
 var maxTabLength = 0;
 var maxLevelTabLength = [0]
 var currentZoom = 1;
@@ -75,63 +76,64 @@ const zoom = d3.zoom()
 baseSvg.call(zoom)
 
 
-  function initializeTree(localRoot) {
+function initializeTree(localRoot) {
 
-    root = d3.hierarchy(localRoot)
-    root.x0 = innerWidth/2;
-    root.y0 = innerHeight/2;
+  root = d3.hierarchy(localRoot)
+  root.x0 = innerWidth/2;
+  root.y0 = innerHeight/2;
+  window.currentRoot = root;
+
+  drawTree(root);
+  centerNode(root);
+}
+
+function updateTree(localRoot) {
+  root = d3.hierarchy(localRoot);
+  let previousRootId = window.currentRoot.data.id;
+  window.currentRoot = undefined;
+
+  function traverseTree(subRoot) { // TODO visit function?
+    if(subRoot.data.id === previousRootId)
+      return subRoot
+    else
+      return subRoot.children.forEach(child => traverseTree(child))
+  }
+
+  window.currentRoot = traverseTree(root)
+  if(!window.currentRoot)
     window.currentRoot = root;
+  drawTree(window.currentRoot)
+  // centerNode(window.currentRoot);
+}
 
-    drawTree(root);
-    centerNode(root);
-  }
+function setAsRoot(newRoot) {
+  window.currentRoot = newRoot;
+  // console.log("Setting root = ", window.currentRoot);
+  drawTree(window.currentRoot);
+}
 
-  function updateTree(localRoot) {
-    root = d3.hierarchy(localRoot);
-    let previousRootId = window.currentRoot.data.id;
-    window.currentRoot = undefined;
+function centerNode(source) {
+  console.log("Calling centerNode")
+  x = -source.x0;
+  y = -source.y0;
+  x = x * currentZoom - tabWidth/2;
+  y = y * currentZoom - tabHeight/2;
+  d3.select('g').transition()
+    .attr("transform", d => `translate(${x}, ${y})scale(${currentZoom})`)
 
-    function traverseTree(subRoot) { // TODO visit function?
-      if(subRoot.data.id === previousRootId)
-        return subRoot
-      else
-        return subRoot.children.forEach(child => traverseTree(child))
-    }
+  // TODO Try
+  // zoom.scale(scale)
+  // zoom.translate([x, y])
+}
 
-    window.currentRoot = traverseTree(root)
-    if(!window.currentRoot)
-      window.currentRoot = root;
-    drawTree(window.currentRoot)
-    // centerNode(window.currentRoot);
-  }
-
-  function setAsRoot(newRoot) {
-    window.currentRoot = newRoot;
-    // console.log("Setting root = ", window.currentRoot);
-    drawTree(window.currentRoot);
-  }
-
-  function centerNode(source) {
-    x = -source.x0;
-    y = -source.y0;
-    x = x * currentZoom - tabWidth/2;
-    y = y * currentZoom - tabHeight/2;
-    d3.select('g').transition()
-      .attr("transform", d => `translate(${x}, ${y})scale(${currentZoom})`)
-
-    // TODO Try
-    // zoom.scale(scale)
-    // zoom.translate([x, y])
-  }
-
-  function printMe(elem, e) {
+function printMe(elem, e) {
     // console.log("Transform: ", elem, ", ", e)
   }
 
   // Traverse through all the nodes
   // Explain TODO
   // parent = Node, traverseFn = what to do while traversing, childrenFn = children if present else null
-  function traverse(parent, traverseFn, childrenFn) {
+function traverse(parent, traverseFn, childrenFn) {
     if(!parent) return;
 
     traverseFn(parent);
@@ -145,11 +147,11 @@ baseSvg.call(zoom)
     }
   }
 
-  function drawTree(source) {
+function drawTree(source) {
     // console.log("Source = ", source);
-    window.currentRoot = source
-    innerWidth = document.body.clientWidth - margin.left - margin.right;
-    innerHeight = document.body.clientHeight - margin.top - margin.bottom;
+    // window.currentRoot = source
+    // innerWidth = doc
+    // innerHeight = document.body.clientHeight - margin.top - margin.bottom;
 
     // window.d3Root = d3.hierarchy(window.jsonRoot);
     // window.d3Root.x0 = innerWidth/2;
@@ -192,8 +194,7 @@ baseSvg.call(zoom)
     //   }
     // }
     // childCount(0, window.d3Root);
-    d3.select('body').style("background","url(https://www.xxix.co/assets/svg/dot-grid-2x.svg)no-repeat");
-
+    d3.select('body').style('background', 'url(res/dot-grid.svg)')
 
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
@@ -210,7 +211,7 @@ baseSvg.call(zoom)
       // .y(d => (!d.parent || d.children)? d.depth * 180 + tabHeight: d.depth * 180 )
     descendants.forEach(d => d.y = d.depth * 180)
 
-    console.log("Ancestors: ", ancestors);
+    // console.log("Ancestors: ", ancestors);
 
     var menu = [
       {
@@ -225,6 +226,7 @@ baseSvg.call(zoom)
       {
         title: "Toggle",
         action: function(event, elem) {
+          console.log("Context toggle: ", elem)
           toggleChildren(elem);
         }
       },
@@ -364,31 +366,57 @@ baseSvg.call(zoom)
       .text(d => d.data.lines[3])
       .attr('fill-opacity', 1)
 
-    console.log("AncestorEnter = ", ancestorEnter)
-    console.log("AncestorUpdate = ", ancestorUpdate)
+    // console.log("AncestorEnter = ", ancestorEnter)
+    // console.log("AncestorUpdate = ", ancestorUpdate)
 
     // ******* LINKS ******
-    var link = g.selectAll('path.link').data(links)// Links join tree.links()
 
+    // Update the links…
+  var link = g.selectAll("path.link")
+      .data(links, function(d) { return d.target.id; });
+
+  // Enter any new links at the parent's previous position.
+  // link.enter().insert("path", "g")
+  //     .attr("class", "link")
+  //     .attr("d", function(d) {
+  //       var o = {x: source.x0, y: source.y0};
+  //       return linkPathGenerator({source: o, target: o});
+  //     });
+  //
+  // // Transition links to their new position.
+  // link.transition()
+  //     .duration(duration)
+  //     .attr("d", linkPathGenerator)
+  //     .style("stroke", "#ff4136");
+  //
+  // // Transition exiting nodes to the parent's new position.
+  // link.exit().transition()
+  //     .duration(duration)
+  //     .attr("d", function(d) {
+  //       var o = {x: source.x, y: source.y};
+  //       return linkPathGenerator({source: o, target: o});
+  //     })
+  //     .remove();
+    var link = g.selectAll('path.link').data(links)// Links join tree.links()
 
     var linkEnter = link.enter().append('path') // or insert
       .attr('class', 'link')
-      .attr('d', linkPathGenerator);
-      // .attr('stroke-opacity', 1);
-
-    var linkUpdate = link.merge(linkEnter)
       .transition()
       .duration(duration)
-      .attr('d', linkPathGenerator)
-      .attr('stroke-opacity', 1);
+        .attr('d', linkPathGenerator)
+      // .attr('toggle', 'false') // It's entered, so it's not toggled.
+      // .attr('stroke-opacity', 1);
+
+    // link.merge(linkEnter)
+    link.transition()
+      .duration(duration)
+      .attr('d', linkPathGenerator);
+      // .attr('stroke-opacity', 1);
 
     var linkExit = link.exit()
       .transition()
       .duration(duration)
-      .attr('d', d => {
-        var o = {x: source.x, y: source.y}
-        return linkPathGenerator({source: o, target: o})
-      })
+      .attr('d', d => linkPathGenerator({source: source, target: source}))
       .attr('stroke-opacity', 1e-6)
       .remove();
 
@@ -397,6 +425,12 @@ baseSvg.call(zoom)
     var node = g.selectAll('g.node')
       .data(descendants)
 
+    function getTranslation(transform) {
+      var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.setAttributeNS(null, "transform", transform);
+      var matrix = g.transform.baseVal.consolidate().matrix;
+      return [matrix.e, matrix.f];
+    }
 
 
     var nodeEnter = node.enter().append('g')
@@ -420,23 +454,29 @@ baseSvg.call(zoom)
         // d3.select(this).data(d.links()).attr('style', 'fill: green')
       })
 
+    // Tab Rectangle
     nodeEnter.append('rect')
       .attr('class', 'node')
       .attr('width', tabWidth)
-      .attr('rx', '20')
-      .attr('ry', '20')
+      // .attr('rx', '10')
+      // .attr('ry', '10')
       .attr('fill', '#97d0ef')
       .attr('height', tabHeight)
-      .on('click', function(event, d) {
-        toggleChildren(d);
-        console.log("Click event = ", event, " and scale: ", event.scale);
-        // centerNode(d);
-      })
 
+    // Website Favicon
+    nodeEnter.append('svg')
+      .append('svg:image')
+      .attr('class', 'favicon')
+      .attr('xlink:href', d => d.data.favIconUrl)
+      .attr('dy', '1em')
+      .attr('width', tabWidth/5)
+      .attr('height', tabHeight/3)
+
+    // =========== Tab title
     nodeEnter.append('text')
       .attr('id', 'line1')
       .attr('class', 'nodeText')
-      // .attr('dy', "2em")
+      .attr('dx', "2.5em")
       .attr('dy', '1em')
       .text(d => d.data.lines[0])
       .attr('fill-opacity', 1)
@@ -444,7 +484,7 @@ baseSvg.call(zoom)
     nodeEnter.append('text')
       .attr('id', 'line2')
       .attr('class', 'nodeText')
-      // .attr('y', 20)
+      .attr('dx', "2.5em")
       .attr('dy', '2em')
       .text(d => d.data.lines[1])
       .attr('fill-opacity', 1)
@@ -452,60 +492,95 @@ baseSvg.call(zoom)
     nodeEnter.append('text')
       .attr('id', 'line3')
       .attr('class', 'nodeText')
-      // .attr('y', 30)
+      .attr('dx', "0.5em")
       .attr('dy', '3em')
-
-      // .attr('dy', '2.62em')
       .text(d => d.data.lines[2])
 
     nodeEnter.append('text')
       .attr('id', 'line4')
       .attr('class', 'nodeText')
-      // .attr('y', 40)
+      .attr('dx', "0.5em")
       .attr('dy', '4em')
       .text(d => d.data.lines[3])
 
-    var commentBubble = nodeEnter.append('foreignObject')
-      .attr('class', 'commentBubble')
-      .attr('width', 120)
-      .attr('height', 60)
-      .attr('x', tabWidth)
-      .attr('y', -tabHeight/2)
-      .attr('rx', '20')
-      .attr('ry', '20')
-      .style('opacity', '0')
-      .append("xhtml:div")
-      .html("<input type='text' placeholder='Add your comments here!'></input>")
-      .on('click', function(event, d) {d3.select(this).style('opacity', '1')})
-      .on('mouseover', function(event, d) {d3.select(this).style('opacity', '1')})
-      .on('mouseout', function(event, d) {d3.select(this).style('opacity', '0')})
+    // ====== Comment Bubble
+    nodeEnter.append('svg')
+      .append('svg:image')
+      .attr('xlink:href', 'res/comment_bubble.svg')
+      .attr('x', 0.95*tabWidth)
+      .attr('y', 0.75 * tabHeight)
+      .attr('width', tabWidth/5)
+      .attr('height', tabHeight/4)
+
+      // ====== Toggle Arrows
+      nodeEnter.append('svg')
+        .append('svg:image')
+        .attr('id', 'arrow-up')
+        .attr('xlink:href', 'res/arrow-up-circle.svg')
+        .attr('x', tabWidth/2)
+        .attr('y', tabHeight)
+        .attr('width', tabWidth/5)
+        .attr('height', tabHeight/4)
+        .attr('display', function(d) {
+          if(d.children)
+            return 'unset';
+          else
+            return 'none';
+        })
+        .on('click', function(event,d) { toggleChildren(d)});
+
+      nodeEnter.append('svg')
+        .append('svg:image')
+        .attr('id', 'arrow-down')
+        .attr('xlink:href', 'res/arrow-down-circle.svg')
+        .attr('x', tabWidth/2)
+        .attr('y', tabHeight)
+        .attr('width', tabWidth/5)
+        .attr('height', tabHeight/4)
+        .attr('display', function(d) {
+          if(d._children)
+            return 'unset';
+          else
+            return 'none';
+        })
+        .on('click', function(event,d) { toggleChildren(d)});
 
 
-    nodeEnter.append('rect')
-      .attr('class', 'commentHover')
-      .attr('width', 20)
-      .attr('height', 10)
-      .attr('x', tabWidth - 10)
-      .attr('rx', '20')
-      .attr('ry', '20')
-      .on('mouseover', function(event, d) {
-        var nodeSelection = d3.select(this.parentNode)
-        nodeSelection.select('.commentBubble').style('opacity', '1')
-      })
-      .on('mouseout', function(event, d) {
-        setTimeout(() => {
-          var nodeSelection = d3.select(this.parentNode)
-          nodeSelection.select('.commentBubble').style('opacity', '0');},
-          2000)
-    })
+    // var commentBubble = nodeEnter.append('foreignObject')
+    //   .attr('class', 'commentBubble')
+    //   .attr('width', 120)
+    //   .attr('height', 60)
+    //   .attr('x', tabWidth)
+    //   .attr('y', -tabHeight/2)
+    //   .attr('rx', '20')
+    //   .attr('ry', '20')
+    //   .style('opacity', '0')
+    //   .append("xhtml:div")
+    //   .html("<input type='text' placeholder='Add your comments here!'></input>")
+    //   .on('click', function(event, d) {d3.select(this).style('opacity', '1')})
+    //   .on('mouseover', function(event, d) {d3.select(this).style('opacity', '1')})
+    //   .on('mouseout', function(event, d) {d3.select(this).style('opacity', '0')})
+
+
+    // nodeEnter.append('rect')
+    //   .attr('class', 'commentHover')
+    //   .attr('width', 20)
+    //   .attr('height', 10)
+    //   .attr('x', tabWidth - 10)
+    //   .attr('rx', '20')
+    //   .attr('ry', '20')
+    //   .on('mouseover', function(event, d) {
+    //     var nodeSelection = d3.select(this.parentNode)
+    //     nodeSelection.select('.commentBubble').style('opacity', '1')
+    //   })
+    //   .on('mouseout', function(event, d) {
+    //     setTimeout(() => {
+    //       var nodeSelection = d3.select(this.parentNode)
+    //       nodeSelection.select('.commentBubble').style('opacity', '0');},
+    //       2000)
+    // })
       // .attr('fill', 'white')
       // .attr('')
-
-
-
-
-
-
       // .on("mouseover", function(d) {
       //         div.transition()
       //             .duration(200)
@@ -552,10 +627,32 @@ baseSvg.call(zoom)
       .text(d => d.data.lines[3])
       .attr('fill-opacity', 1)
 
+    nodeUpdate.select('#arrow-up')
+      .attr('display', function(d) {
+        if(d.children)
+          return 'unset';
+        else
+          return 'none';
+      })
+
+    nodeUpdate.select('#arrow-down')
+      .attr('display', function(d) {
+        if(d._children)
+          return 'unset';
+        else
+          return 'none';
+      })
+
+
     var nodeExit = node.exit().transition()
       .duration(duration)
-      .remove()
+      // .attr('x', function(d) {
+      //   if(d.parent && d.parent.toggle)
+      //     return d.parent.x
+      // })
       .attr("transform", d => `translate(${source.x},${source.y})`) // d.parent.x, d.parent.y to toggle to root
+      .remove();
+
 
     nodeExit.select('rect.node')
       .attr('width', 1e-6)
@@ -626,10 +723,16 @@ baseSvg.call(zoom)
     if(d.children) {
       d._children = d.children;
       d.children = null;
+      d.toggle = true;
     }
     else if(d._children) {
       d.children = d._children;
       d._children = null;
+      d.toggle = false;
+
     }
-    drawTree(window.currentRoot);
+    console.log("Toggle switched to ", d.toggle)
+    // console.log(d)
+    // console.log("Toggle result = ", d);
+    drawTree(d);
   }
