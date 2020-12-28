@@ -54,6 +54,11 @@ var g = baseSvg.append('g')
   .attr('id', 'treeContainer')
 // .on('click', d, e => {
 //   console.log(e)
+g.on("mouseover", function(d)
+{
+  d3.select(this).style("cursor","pointer");
+});
+
   // chrome.tabs.update(d.toElement.__data__.data.id, {
   //   active: true
   // });
@@ -187,6 +192,7 @@ baseSvg.call(zoom)
     //   }
     // }
     // childCount(0, window.d3Root);
+    d3.select('body').style("background","url(https://www.xxix.co/assets/svg/dot-grid-2x.svg)no-repeat");
 
 
     const tree = treeLayout(window.currentRoot)
@@ -225,7 +231,7 @@ baseSvg.call(zoom)
       {
         title: "View as Root",
         action: function(event, elem) {
-          console.log("Clicked on View as root for ", elem);
+          //console.log("Clicked on View as root for ", elem);
           setAsRoot(elem)
           centerNode(window.currentRoot);
 
@@ -235,9 +241,31 @@ baseSvg.call(zoom)
         title: "Delete Tab",
         action: function(event, elem) {
           chrome.tabs.remove(elem.data.id)
-          drawTree(window.currentRoot)
-          // rem
-          oveTab(elem.data.id) // TODO ??
+        //  console.log("current tab being deleted",elem);
+          //removeTab(elem.data.id);
+          //drawTree(window.currentRoot);
+          // removeTab(elem.data.id) // TODO ??
+        }
+      },
+      {
+        title: "Hide the hidden tabs",
+        action: function(event, elem)
+      {
+        hide(elem,0);
+      }
+    },
+    {
+      title: "Show the hidden tabs",
+      action: function(event,elem)
+      {
+        hide(elem,1);
+      }
+    },
+      {
+        title: "Add to tabs that want to be hidden",
+        action: function(event,elem)
+        {
+          list_hide(elem);
         }
       }
     ]
@@ -342,9 +370,10 @@ baseSvg.call(zoom)
     // ******* LINKS ******
     var link = g.selectAll('path.link').data(links)// Links join tree.links()
 
+
     var linkEnter = link.enter().append('path') // or insert
       .attr('class', 'link')
-      .attr('d', linkPathGenerator)
+      .attr('d', linkPathGenerator);
       // .attr('stroke-opacity', 1);
 
     var linkUpdate = link.merge(linkEnter)
@@ -486,6 +515,8 @@ baseSvg.call(zoom)
       //             .text(d => d.title)});
 
 
+
+
     var nodeUpdate = nodeEnter.merge(node)
       .transition()
       .duration(duration)
@@ -575,6 +606,21 @@ baseSvg.call(zoom)
 
   // console.log("Current Root = ", localRoot)//, " and source = ", source);
 
+  // function hideChildren(d)
+  // {
+  //   console.log(d);
+  //
+  //   for(i=0;i<hidden_tabs.length;i++)
+  //   {
+  //     if(d==hidden_tabs[i])
+  //     {
+  //       d._links = d.links
+  //       d.links = null;
+  //     }
+  //   }
+  //   drawTree(window.currentRoot);
+  //
+  // }
 
   function toggleChildren(d) {
     if(d.children) {
