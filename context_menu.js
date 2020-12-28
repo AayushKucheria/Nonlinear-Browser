@@ -4,7 +4,7 @@
 
 */
 window.contextMenu = function(event, d, menu, openCallback) {
-  console.log("Starting custom menu function");
+  //console.log("Starting custom menu function");
   // Create div element that'll hold the context menu
   d3.selectAll('contextMenu').data([1])
     .enter()
@@ -28,8 +28,8 @@ window.contextMenu = function(event, d, menu, openCallback) {
     @param clickEvent = MouseClick on choice
     @param choice = {title: , action: } */
     .on('click', function(clickEvent, choice) {
-      console.log("Event = ", event, " and d = ", d);
-      console.log("ClickEvent = ", clickEvent, " and choice = ", choice)
+    //  console.log("Event = ", event, " and d = ", d);
+      //console.log("ClickEvent = ", clickEvent, " and choice = ", choice)
       choice.action(clickEvent, d);
       d3.select('.contextMenu').style('display', 'none');
     });
