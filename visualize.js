@@ -24,12 +24,26 @@ var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0)
 
+var ancestorSvg = d3.select('body').append('svg')
+.attr('height', 3 * tabHeight / 2)
+.attr('width', innerWidth)
+.attr('viewBox', d => "" + margin.left + " " + margin.top + " " + innerWidth + " " + 3*tabHeight/2)
+
+  // .attr("transform",d => `translate(${+margin.left},${+margin.top})`)
+  // .attr('x', -innerWidth)
+  // .attr('y', -innerHeight)
+
+var a = ancestorSvg.append('g')
+  .attr('id', 'ancestorContainer')
+  // .attr("transform",d => `translate(40,40)`)
+  // .attr('x', margin.left + 20)
+  // .attr('y', margin.top + 20)
+
 var baseSvg = d3.select('body').append('svg')
   .attr('class', 'overlay')
   .attr('width', innerWidth)
   .attr('height', innerHeight)
   .attr('viewBox', d => "" + (-innerWidth / 2) + " " + (-innerHeight / 2) + " " + innerWidth + " " + innerHeight)
-
 
 // baseSvg.append('rect')
 //   .attr('width', '100%')
@@ -44,6 +58,8 @@ var g = baseSvg.append('g')
   //   active: true
   // });
 // });
+
+
 const zoom = d3.zoom()
   .on("zoom", function(e) {
     currentZoom = e.transform.k
@@ -188,7 +204,7 @@ baseSvg.call(zoom)
       // .y(d => (!d.parent || d.children)? d.depth * 180 + tabHeight: d.depth * 180 )
     descendants.forEach(d => d.y = d.depth * 180)
 
-    // console.log("Drawing tree: ", tree);
+    console.log("Ancestors: ", ancestors);
 
     var menu = [
       {
@@ -220,10 +236,108 @@ baseSvg.call(zoom)
         action: function(event, elem) {
           chrome.tabs.remove(elem.data.id)
           drawTree(window.currentRoot)
-          // removeTab(elem.data.id) // TODO ??
+          // rem
+          oveTab(elem.data.id) // TODO ??
         }
       }
     ]
+
+    // ******* ANCESTORS *******
+    // ancestors.forEach(function(d, i) {
+    //   d.x = margin.left + tabWidth * i + 20;
+    //   d.y = margin.top + 60;
+    // })
+    var ancestor = a.selectAll('g.ancestor').data(ancestors)
+      // .attr('x', d => d.x)
+      // .attr('y', d => d.y)
+
+
+    var ancestorEnter = ancestor.enter().append('g')
+      .attr('class', 'node')
+      .attr('fill-opacity', 1)
+      .attr('stroke-opacity', 1)
+      .attr('dx', function(d, i) {margin.left + 40 * i})
+      .attr('y', 20)
+      .attr('cursor', 'pointer')
+      .on('contextmenu', function(event, d) {
+        window.contextMenu(event, d, menu);
+      })
+      .style('font-size', window.fontSize)
+      .style('font-weight', 400)
+
+    ancestorEnter.append('rect')
+      .attr('class', 'node')
+      .attr('width', tabWidth)
+      .attr('rx', '20')
+      .attr('ry', '20')
+      .attr('fill', '#97d0ef')
+      .attr('height', tabHeight)
+
+    ancestorEnter.append('text')
+      .attr('id', 'line1')
+      .attr('class', 'nodeText')
+      // .attr('dy', "2em")
+      .attr('dy', '1em')
+      .text(d => d.data.lines[0])
+      .attr('fill-opacity', 1)
+
+    ancestorEnter.append('text')
+      .attr('id', 'line2')
+      .attr('class', 'nodeText')
+      // .attr('y', 20)
+      .attr('dy', '2em')
+      .text(d => d.data.lines[1])
+      .attr('fill-opacity', 1)
+
+    ancestorEnter.append('text')
+      .attr('id', 'line3')
+      .attr('class', 'nodeText')
+      // .attr('y', 30)
+      .attr('dy', '3em')
+      // .attr('dy', '2.62em')
+      .text(d => d.data.lines[2])
+
+    ancestorEnter.append('text')
+      .attr('id', 'line4')
+      .attr('class', 'nodeText')
+      // .attr('y', 40)
+      .attr('dy', '4em')
+      .text(d => d.data.lines[3])
+
+    var ancestorUpdate = ancestorEnter.merge(ancestor)
+      .transition()
+      .duration(duration)
+      .attr("transform",d => `translate(${d.x},${d.y})`)
+
+    ancestorUpdate.select('rect.ancestor')
+      .attr('fill-opacity', 0.4)
+
+    ancestorUpdate.select('#line1')
+      // .attr('y', 5)
+      // .attr('dy', '0.42em')
+      .text(d => d.data.lines[0])
+      .attr('fill-opacity', 1)
+
+    ancestorUpdate.select('#line2')
+      // .attr('y', 6)
+      // .attr('dy', '1.52em')
+      .text(d => d.data.lines[1])
+      .attr('fill-opacity', 1)
+
+    ancestorUpdate.select('#line3')
+      // .attr('y', 7)
+      // .attr('dy', '2.62em')
+      .text(d => d.data.lines[2])
+      .attr('fill-opacity', 1)
+
+    ancestorUpdate.select('#line4')
+      // .attr('y', 8)
+      // .attr('dy', '3.72em')
+      .text(d => d.data.lines[3])
+      .attr('fill-opacity', 1)
+
+    console.log("AncestorEnter = ", ancestorEnter)
+    console.log("AncestorUpdate = ", ancestorUpdate)
 
     // ******* LINKS ******
     var link = g.selectAll('path.link').data(links)// Links join tree.links()
@@ -266,18 +380,30 @@ baseSvg.call(zoom)
         window.contextMenu(event, d, menu);
       })
       .style('font-size', window.fontSize)
-      .style('font-weight', 400);
+      .style('font-weight', 400)
+      .on('mouseover', function(event, d) {
+        // console.log(d)
+        // console.log(this)
+        // console.log(thi)
+        // d3.select(this).selectAll('text').style('textDecoration', 'underline')
+          // .style('stroke', 'green')
+          // .style('border-width', '8')
+        // d3.select(this).data(d.links()).attr('style', 'fill: green')
+      })
 
     nodeEnter.append('rect')
       .attr('class', 'node')
       .attr('width', tabWidth)
+      .attr('rx', '20')
+      .attr('ry', '20')
       .attr('fill', '#97d0ef')
       .attr('height', tabHeight)
       .on('click', function(event, d) {
         toggleChildren(d);
         console.log("Click event = ", event, " and scale: ", event.scale);
-        centerNode(d);
+        // centerNode(d);
       })
+
     nodeEnter.append('text')
       .attr('id', 'line1')
       .attr('class', 'nodeText')
@@ -310,6 +436,47 @@ baseSvg.call(zoom)
       .attr('dy', '4em')
       .text(d => d.data.lines[3])
 
+    var commentBubble = nodeEnter.append('foreignObject')
+      .attr('class', 'commentBubble')
+      .attr('width', 120)
+      .attr('height', 60)
+      .attr('x', tabWidth)
+      .attr('y', -tabHeight/2)
+      .attr('rx', '20')
+      .attr('ry', '20')
+      .style('opacity', '0')
+      .append("xhtml:div")
+      .html("<input type='text' placeholder='Add your comments here!'></input>")
+      .on('click', function(event, d) {d3.select(this).style('opacity', '1')})
+      .on('mouseover', function(event, d) {d3.select(this).style('opacity', '1')})
+      .on('mouseout', function(event, d) {d3.select(this).style('opacity', '0')})
+
+
+    nodeEnter.append('rect')
+      .attr('class', 'commentHover')
+      .attr('width', 20)
+      .attr('height', 10)
+      .attr('x', tabWidth - 10)
+      .attr('rx', '20')
+      .attr('ry', '20')
+      .on('mouseover', function(event, d) {
+        var nodeSelection = d3.select(this.parentNode)
+        nodeSelection.select('.commentBubble').style('opacity', '1')
+      })
+      .on('mouseout', function(event, d) {
+        setTimeout(() => {
+          var nodeSelection = d3.select(this.parentNode)
+          nodeSelection.select('.commentBubble').style('opacity', '0');},
+          2000)
+    })
+      // .attr('fill', 'white')
+      // .attr('')
+
+
+
+
+
+
       // .on("mouseover", function(d) {
       //         div.transition()
       //             .duration(200)
@@ -323,7 +490,6 @@ baseSvg.call(zoom)
       .transition()
       .duration(duration)
       .attr("transform",d => `translate(${d.x},${d.y})`)
-      .call(printMe, "nodeUpdate");
       // .attr('fill-opacity', 1);
 
     nodeUpdate.select('rect.node')

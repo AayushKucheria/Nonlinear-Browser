@@ -9,6 +9,7 @@ let data = []; // tree of tabs as objects
 window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "children": [], "_children": [], "x0": 0, "y0": 0};
 // window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"],"ancestors":[], "children": [], "_children": [], "x0": 0, "y0": 0};
 let idMapping = [];
+// let extensionTabID;
 
 function bootStrap() {
   loadWindowList();
@@ -45,9 +46,12 @@ function loadWindowList() {
                     "x0": innerWidth/2,
                     "y0": innerHeight/2
                   });
+
+        if(currentTab.title === "Nonlinear Browser")
+          extensionTabID = currentTab.id;
       };
     };
-    console.log(data[0].favIconUrl);
+    // console.log(data[0].favIconUrl);
 
     /* Making an ID-to-Index Map (for ease of access)
       Syntax: [tab_id: index_in_data]
@@ -139,7 +143,8 @@ function addNewTab(tab) {
                   "y0": 0,
                   "favIconUrl": tab.favIconUrl};
 
-  // console.log("New Tab Added = ", tabObj);
+  // if(tabObj.title === "Nonlinear Browser")
+    // extensionTabID = tabObj.id;
   data.push(tabObj);
 
   // insertinDB(tabObj);
@@ -184,10 +189,14 @@ function updateTab(tabId, changeInfo) {
       updatedTab[i] = changeInfo[i];
       if(i === 'title' || i === 'favIconUrl')
         displayChanged = true
-      if(i === 'title')
+      if(i === 'title') {
         updatedTab['lines'] = wrapText(changeInfo[i]);
+        // if(changeInfo[i] === "Nonlinear Browser")
+          // extensionTabID = tabId;
+      }
     }
   }
+
   if(displayChanged) {
     // update(localRoot)
     updateTree(localRoot);
@@ -249,7 +258,8 @@ function removeTab(tabId) {
   updateIdMapping();
   let parent;
   let parentId = removedTab.parentId;
-
+  // if(tabId === extensionTabID)
+    // extensionTabID = undefined;
   if(parentId === undefined)
     parent = localRoot;
   else
@@ -338,6 +348,10 @@ function getShortenedTitle(x)
   }
 }
 }
+
+function highlightTab(id) {
+
+}
 chrome.tabs.onCreated.addListener(function(tab) {
   addNewTab(tab);
 });
@@ -352,6 +366,12 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 chrome.windows.onBoundsChanged.addListener(function(wId) {
   update(window.currentRoot);
 });
+let currentTabId;
+chrome.tabs.onActivated.addListener(function(tabId) {
+  // if(tabId == extensionTabID) // Reached extension, highlight previous tab
+    highlightTab(currentTabId) // Previous value
+    // currentTabId = tabId; // Update to current value
+})
 // chrome.tabs.onRemoved.addListener(function)
 // document.getElementById('myButton').addEventListener('click', start());
 document.addEventListener('DOMContentLoaded', function() {
