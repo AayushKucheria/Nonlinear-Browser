@@ -161,6 +161,10 @@ function drawTree(source) {
       {
         title: "Go to tab",
         action: function(event, elem) {
+          // console.log("window.localRoot",window.localRoot)
+          // console.log("what is elem",elem)
+          if(!(elem.data===window.localRoot))
+          {
           // console.log("Clicked on go to tab for ", elem);
           chrome.tabs.update(elem.data.id, {
             active: true
@@ -168,6 +172,11 @@ function drawTree(source) {
           chrome.windows.update(elem.data.windowId, {
             focused: true
           });
+        }
+        else {
+          console.log("aa bhi raha hai kya")
+          visible:false;
+            }
         }
       },
       {
@@ -206,7 +215,7 @@ function drawTree(source) {
         }
       },
       {
-        title: "Add to tabs that want to be hidden",
+        title: "Select hidden tabs",
         action: function(event,elem)
         {
           list_hide(elem);
@@ -343,6 +352,7 @@ function drawTree(source) {
     // **** NODES *****
     var node = g.selectAll('g.node')
       .data(descendants, function(d) {
+        console.log(d.data.id);
         return d.data.id;
       })
 
@@ -358,6 +368,9 @@ function drawTree(source) {
       .attr('class', 'node')
       .attr('fill-opacity', 1)
       .attr('stroke-opacity', 1)
+      .attr('id', function(d,i)
+      { return d.data.id;
+      })
       .attr("transform",d => `translate(${source.x0},${source.y0})`)
       .attr('cursor', 'pointer')
       .on('contextmenu', function(event, d) {
@@ -368,14 +381,16 @@ function drawTree(source) {
       .on('mouseover', function(event, d) {
         d3.select(this)
           .select('rect').style('stroke-opacity', 1);
-
+        d3.select(this)
+          .selectAll('.icon').attr('opacity',1);
         g.selectAll(".link").classed("active", function(p) { return p.target === d; }); // Add p.source === d to highlight children path too
         g.selectAll(".link.active").style('stroke', 'black');
       })
       .on('mouseout', function(event, d) {
         d3.select(this)
         .select('rect').style('stroke-opacity', 0);
-
+        d3.select(this)
+        .selectAll('.icon').attr('opacity',0);
         g.selectAll(".link.active")
           .classed("inactive", true)
           .style('stroke', '#ccc');
@@ -434,19 +449,74 @@ function drawTree(source) {
       .text(d => d.data.lines[3])
 
     // ====== Comment Bubble
-    nodeEnter.append('svg')
+    // nodeEnter.append('svg')
+    //   .append('svg:image')
+    //   .attr('xlink:href', 'res/comment_bubble.svg')
+    //   .attr('x', 0.95*tabWidth)
+    //   .attr('y', 0.75 * tabHeight)
+    //   .attr('width', tabWidth/5)
+    //   .attr('height', tabHeight/4)
+
+      // ====== Toggle Arrows
+      // nodeEnter.append('svg')
+      //   .append('svg:image')
+      //   .attr('id', 'arrow-up')
+      //   .attr('xlink:href', 'res/arrow-up-circle.svg')
+      //   .attr('x', tabWidth/2)
+      //   .attr('y', tabHeight)
+      //   .attr('width', tabWidth/5)
+      //   .attr('height', tabHeight/4)
+      //   .attr('display', function(d) {
+      //     if(d.children)
+      //       return 'unset';
+      //     else
+      //       return 'none';
+      //   })
+      //   .on('click', function(event,d) { toggleChildren(d)});
+      //
+      // nodeEnter.append('svg')
+      //   .append('svg:image')
+      //   .attr('id', 'arrow-down')
+      //   .attr('xlink:href', 'res/arrow-down-circle.svg')
+      //   .attr('x', tabWidth/2)
+      //   .attr('y', tabHeight)
+      //   .attr('width', tabWidth/5)
+      //   .attr('height', tabHeight/4)
+      //   .attr('display', function(d) {
+      //     if(d._children)
+      //       return 'unset';
+      //     else
+      //       return 'none';
+      //   })
+      //   .on('click', function(event,d) { toggleChildren(d)});
+
+
+        nodeEnter.append('svg')
       .append('svg:image')
       .attr('xlink:href', 'res/comment_bubble.svg')
       .attr('x', 0.95*tabWidth)
       .attr('y', 0.75 * tabHeight)
+      .attr('class','icon')
+      .attr('x', 0.96*tabWidth)
+      .attr('y', 0.4005 * tabHeight)
       .attr('width', tabWidth/5)
       .attr('height', tabHeight/4)
+      .attr('opacity',0)
+    //   .attr('mouseover', function(d)
+    // {
+    //   d3.select(this).attr('opacity',1)
+    // })
+    //   .attr('mouseout', function(d)
+    // {
+    //   d3.select(this).attr('opacity',0)
+    // })
 
       // ====== Toggle Arrows
       nodeEnter.append('svg')
         .append('svg:image')
         .attr('id', 'arrow-up')
         .attr('xlink:href', 'res/arrow-up-circle.svg')
+        .attr('class','icon')
         .attr('x', tabWidth/2)
         .attr('y', tabHeight)
         .attr('width', tabWidth/5)
@@ -463,6 +533,7 @@ function drawTree(source) {
         .append('svg:image')
         .attr('id', 'arrow-down')
         .attr('xlink:href', 'res/arrow-down-circle.svg')
+        .attr('class','icon')
         .attr('x', tabWidth/2)
         .attr('y', tabHeight)
         .attr('width', tabWidth/5)
@@ -474,6 +545,149 @@ function drawTree(source) {
             return 'none';
         })
         .on('click', function(event,d) { toggleChildren(d)});
+
+        nodeEnter.append('svg')
+        .append('svg:image')
+        .attr('id','cross')
+        .attr('xlink:href', 'res/close.svg')
+        .attr('class','icon')
+        .attr('x', 0.96*tabWidth)
+        .attr('y', 0)
+        .attr('width', tabWidth/5)
+        .attr('height', tabHeight/4)
+        .attr('opacity',0)
+        // .on('mouseover', function(d)
+        // {
+        // d3.select(this).attr('opacity',1)
+        // })
+        // .on('mouseout', function(d)
+        // {
+        // d3.select(this).attr('opacity',0)
+        // })
+        .on('click', function(event,d) { chrome.tabs.remove(d.data.id)});
+
+
+        nodeEnter.append('svg')
+        .append('svg:image')
+        .attr('id','hide')
+        .attr('xlink:href','res/eye-crossed.svg')
+        .attr('class','icon')
+        .attr('x',0.96*tabWidth)
+        .attr('y',0.8*tabHeight)
+        .attr('width', tabWidth/5)
+        .attr('height', tabHeight/4)
+        .attr('opacity',0)
+      //   .attr('mouseover',function(d)
+      //   {
+      //   d3.select(this).attr('opacity',1)
+      //   })
+      //   .on('mouseout', function(d)
+      //   {
+      //   d3.select(this).attr('opacity',0)
+      //   })
+        .on('click', function(event,d) { hide(d,0)});
+
+      nodeEnter.append('svg')
+      .append('svg:image')
+      .attr('id','rename')
+      .attr('xlink:href', 'res/edit.svg')
+      .attr('class','icon')
+      .attr('x',0)
+      .attr('y',0.8*tabHeight)
+      .attr('width', tabWidth/5)
+      .attr('height', tabHeight/4)
+      .attr('opacity',0)
+      .on('click', function(event,elem)
+    {
+      var result= prompt('Change the name of the tab',elem.name)
+      if(result)
+      {
+        elem.data.lines=[]
+        elem.data.title=result;
+        if(elem.data.title.length<10)
+        {
+          elem.data.lines[0]=elem.data.title;
+        }
+        else if(elem.data.title.length<20)
+        {
+          elem.data.lines[0]=elem.data.title.substring(0,10);
+          rem= elem.data.title.substring(10,20);
+          elem.data.lines[1]=rem;
+        }
+        else
+        {
+          elem.data.lines[0]=elem.data.title.substring(0,10);
+          rem= elem.data.title.substring(10,20);
+          elem.data.lines[1]=rem;
+          sum= elem.data.lines[0].concat(elem.data.lines[1]);
+          diff= elem.data.title.length - sum.length;
+          elem.data.lines[2]= elem.data.title.substring(20,20+diff)
+        }
+
+        d3.select(this).attr('id', function(d)
+        {
+          return d.data.id;
+        }).append('text')
+        .attr('id', 'line1')
+        .attr('class', 'nodeText')
+        .attr('dx', "2.5em")
+        .attr('dy', '1em')
+        .text(d => elem.data.lines[0])
+        .attr('fill-opacity', 1)
+
+        d3.select(this).attr('id', function(d)
+        {
+          return d.data.id;
+        }).append('text')
+        .attr('id', 'line2')
+        .attr('class', 'nodeText')
+        .attr('dx', "2.5em")
+        .attr('dy', '2em')
+        .text(d => elem.data.lines[1])
+        .attr('fill-opacity', 1)
+
+        d3.select(this).attr('id', function(d)
+        {
+          return d.data.id;
+        })
+        .append('text')
+        .attr('id', 'line3')
+        .attr('class', 'nodeText')
+        .attr('dx', "0.5em")
+        .attr('dy', '3em')
+        .text(d => d.data.lines[2])
+      //
+      // nodeEnter.append('text')
+      //   .attr('id', 'line4')
+      //   .attr('class', 'nodeText')
+      //   .attr('dx', "0.5em")
+      //   .attr('dy', '4em')
+      //   .text(d => d.data.lines[3])
+      //   d3.select(this).attr('id', function(d)
+      // {
+      //   return d.data.id;
+      // }).append('text', elem.data.title);
+      console.log(elem);
+      drawTree(localRoot);
+      //console.log()
+      }
+    });
+
+      nodeEnter.append('svg')
+      .append('svg:image')
+      .attr('id','rename')
+      .attr('xlink:href', 'res/anchor.svg')
+      .attr('class','icon')
+      .attr('x',0)
+      .attr('y',0)
+      .attr('width', tabWidth/5)
+      .attr('height', tabHeight/4)
+      .attr('opacity',0)
+      .on('click', function(event,d)
+    {
+      setAsRoot(d);
+      centerNode(window.currentRoot);
+    })
 
 
     // var commentBubble = nodeEnter.append('foreignObject')
@@ -644,6 +858,43 @@ function drawTree(source) {
   //   drawTree(window.currentRoot);
   //
   // }
+
+  function rename_node(nodex)
+  {
+    x= nodex.
+    nodex.append('text')
+      .attr('id', 'line1')
+      .attr('class', 'nodeText')
+      .attr('dx', "2.5em")
+      .attr('dy', '1em')
+      .text(d => d.data.lines[0])
+      .attr('fill-opacity', 1)
+
+    nodex.append('text')
+      .attr('id', 'line2')
+      .attr('class', 'nodeText')
+      .attr('dx', "2.5em")
+      .attr('dy', '2em')
+      .text(d => d.data.lines[1])
+      .attr('fill-opacity', 1)
+
+    nodex.append('text')
+      .attr('id', 'line3')
+      .attr('class', 'nodeText')
+      .attr('dx', "0.5em")
+      .attr('dy', '3em')
+      .text(d => d.data.lines[2])
+
+    nodex.append('text')
+      .attr('id', 'line4')
+      .attr('class', 'nodeText')
+      .attr('dx', "0.5em")
+      .attr('dy', '4em')
+      .text(d => d.data.lines[3])
+  }
+
+
+
 
   function toggleChildren(d) {
     if(d.children) {

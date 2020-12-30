@@ -42,41 +42,43 @@ function hide(source,flag) {
 
   //console.log("the parent is",source.parent);
 
-  for(i=0;i<hidden_tabs.length;i++)
-  {
-  parent=hidden_tabs[i].parent;
+  // for(i=0;i<hidden_tabs.length;i++)
+  // {
+  parent=source.parent;
   parent.temp=[];
 
   // console.log("parent",parent);
   if(flag==0)
   {
-    hidden_children=parent.children.filter(a => a == hidden_tabs[i]);
+    hidden_children=parent.children.filter(a => a == source);
     //console.log("the one that should be hidden",hidden_children);
     parent.temp.push(hidden_children); //select the tabs that need to be hidden and push them in a separate array so that it can be accessed again
     //console.log("hidden tab",parent.temp);
-    parent.children = parent.children.filter(a => a != hidden_tabs[i]); //adding only the remaining children to the parent of the node
+    parent.children = parent.children.filter(a => a != source); //adding only the remaining children to the parent of the node
     //console.log("parent.temp",parent.temp[0]);
   //  console.log("current children in the tree",parent.children);
   }
-  // else
-  // {
-  //     if(parent.temp[0])
-  //     {
-  //       parent.children.push(parent.temp[0]);
-  //       console.log("parent.temp",parent.temp[0]);
-  //     }
-  //     else {
-  //       break;
-  //     }
-  // }
-}
+  else
+  {
+      if(parent.temp[0])
+      {
+        parent.children.push(parent.temp[0]);
+        console.log("parent.temp",parent.temp[0]);
+      }
+  }
   drawTree(window.currentRoot); // use drawTree(source)
 }
 
 function list_hide(tab)
 {
   hidden_tabs.push(tab);
+  hide_toggle(tab);
   //console.log("added to hidden list",tab);
+}
+
+function hide_toggle(tab)
+{
+  nodeEnter.select()
 }
 
 // Load tree from scratch
