@@ -31,3 +31,18 @@ function visualLength(text) {
 }
 
 // ================
+// Traverse through all the nodes
+// parent = Node, traverseFn = what to do while traversing, childrenFn = children if present else null
+function traverse(parent, traverseFn, childrenFn) {
+    if(!parent) return;
+
+    traverseFn(parent);
+
+    var children = childrenFn(parent);
+    if(children) {
+      var count = children.length;
+      for(var i = 0; i < count; i++) {
+        traverse(children[i], traverseFn, childrenFn);
+      }
+    }
+  }

@@ -1,4 +1,4 @@
-
+let mapping = new Map();
 const margin = { top: 20, right: 20, bottom: 20, left: 20};
 window.tabWidth = 200;
 const tabHeight = 80;
@@ -9,6 +9,7 @@ var currentZoom = 1;
 var currentPos = {x: 0, y: 0}
 window.fontSize = 16;
 window.currentRoot;
+
 
 treeLayout = d3.tree()
   .nodeSize([tabWidth, tabHeight])
@@ -57,94 +58,36 @@ const zoom = d3.zoom().scaleExtent([0.5, 1.5])
     currentZoom = e.transform.k
     currentPos = {x: e.transform.x, y: e.transform.y}
     g.attr('transform', d => e.transform)
+
   })
 
 baseSvg.call(zoom)
 
+function initializeTree(root) {
 
-function initializeTree(localRoot) {
-
-  root = d3.hierarchy(localRoot)
   root.x0 = innerWidth/2;
   root.y0 = innerHeight/2;
   window.currentRoot = root;
-
   drawTree(root);
   centerNode(root);
 }
 
-function updateTree(localRoot) {
-  root = d3.hierarchy(localRoot);
-  let previousRootId = window.currentRoot.data.id;
-  window.currentRoot = undefined;
-
-  function traverseTree(subRoot) { // TODO visit function?
-    if(subRoot.data.id === previousRootId)
-      return subRoot
-    else
-      return subRoot.children.forEach(child => traverseTree(child))
-  }
-
-  window.currentRoot = traverseTree(root)
-  if(!window.currentRoot)
-    window.currentRoot = root;
-  drawTree(window.currentRoot)
-  // centerNode(window.currentRoot);
-}
-
 function setAsRoot(newRoot) {
   window.currentRoot = newRoot;
-  // console.log("Setting root = ", window.currentRoot);
   drawTree(window.currentRoot);
+  centerNode(window.currentRoot);
 }
 
 function centerNode(source) {
-  console.log("Calling centerNode")
   x = -source.x0;
   y = -source.y0;
   x = x * currentZoom - tabWidth/2;
   y = y * currentZoom - tabHeight/2;
   d3.select('g').transition()
     .attr("transform", d => `translate(${x}, ${y})scale(${currentZoom})`)
-
-  // TODO Try
-  // zoom.scale(scale)
-  // zoom.translate([x, y])
-}
-
-function printMe(elem, e) {
-    // console.log("Transform: ", elem, ", ", e)
-  }
-
-  // Traverse through all the nodes
-  // Explain TODO
-  // parent = Node, traverseFn = what to do while traversing, childrenFn = children if present else null
-function traverse(parent, traverseFn, childrenFn) {
-    if(!parent) return;
-
-    traverseFn(parent);
-
-    var children = childrenFn(parent);
-    if(children) {
-      var count = children.length;
-      for(var i = 0; i < count; i++) {
-        traverse(children[i], traverseFn, childrenFn);
-      }
-    }
-  }
-
-function delete_tab(node) {
-  var parent = node.parent;
-  parent.children = parent.children.filter(d => d != node);
-  drawTree(window.currentRoot);
-}
-
-function add_tab() {
-
 }
 
 function drawTree(source) {
-
 
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
@@ -155,7 +98,6 @@ function drawTree(source) {
       .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
     descendants.forEach(d => d.y = d.depth * 180)
 
-    // console.log("Ancestors: ", ancestors);
 
     var menu = [
       {
@@ -174,40 +116,17 @@ function drawTree(source) {
           });
         }
         else {
-          console.log("aa bhi raha hai kya")
+          // console.log("aa bhi raha hai kya")
           visible:false;
             }
         }
       },
-      {
-        title: "Toggle",
-        action: function(event, elem) {
-          console.log("Context toggle: ", elem)
-          toggleChildren(elem);
-        }
-      },
-      {
-        title: "View as Root",
-        action: function(event, elem) {
-          //console.log("Clicked on View as root for ", elem);
-          setAsRoot(elem)
-          centerNode(window.currentRoot);
-
-        }
-      },
-      {
-        title: "Delete Tab",
-        action: function(event, elem) {
-          chrome.tabs.remove(elem.data.id)
-          // delete_node(elem); TODO ?
-        }
-      },
-      {
-        title: "Hide the hidden tabs",
-        action: function(event, elem) {
-          // hide(elem,0);
-        }
-      },
+      // {
+      //   title: "Hide the hidden tabs",
+      //   action: function(event, elem) {
+      //     // hide(elem,0);
+      //   }
+      // },
       {
         title: "Show the hidden tabs",
         action: function(event,elem) {
@@ -261,7 +180,10 @@ function drawTree(source) {
       .attr('class', 'nodeText')
       // .attr('dy', "2em")
       .attr('dy', '1em')
-      .text(d => d.data.lines[0])
+      .text(d => {
+        console.log(d);
+        return d.data.lines[0];
+      })
       .attr('fill-opacity', 1)
 
     ancestorEnter.append('text')
@@ -319,13 +241,10 @@ function drawTree(source) {
       .text(d => d.data.lines[3])
       .attr('fill-opacity', 1)
 
-    // console.log("AncestorEnter = ", ancestorEnter)
-    // console.log("AncestorUpdate = ", ancestorUpdate)
-
     // ******* LINKS ******
     var link = g.selectAll('path.link').data(links, function(d) {
       return d.target.data.id;
-    })// Links join tree.links()
+    })
 
     var linkEnter = link.enter().append('path') // or insert
       .attr('class', 'link')
@@ -335,7 +254,6 @@ function drawTree(source) {
       // .attr('toggle', 'false') // It's entered, so it's not toggled.
       // .attr('stroke-opacity', 1);
 
-    // link.merge(linkEnter)
     link.transition()
       .duration(duration)
       .attr('d', linkPathGenerator);
@@ -352,7 +270,6 @@ function drawTree(source) {
     // **** NODES *****
     var node = g.selectAll('g.node')
       .data(descendants, function(d) {
-        console.log(d.data.id);
         return d.data.id;
       })
 
@@ -449,49 +366,7 @@ function drawTree(source) {
       .text(d => d.data.lines[3])
 
     // ====== Comment Bubble
-    // nodeEnter.append('svg')
-    //   .append('svg:image')
-    //   .attr('xlink:href', 'res/comment_bubble.svg')
-    //   .attr('x', 0.95*tabWidth)
-    //   .attr('y', 0.75 * tabHeight)
-    //   .attr('width', tabWidth/5)
-    //   .attr('height', tabHeight/4)
-
-      // ====== Toggle Arrows
-      // nodeEnter.append('svg')
-      //   .append('svg:image')
-      //   .attr('id', 'arrow-up')
-      //   .attr('xlink:href', 'res/arrow-up-circle.svg')
-      //   .attr('x', tabWidth/2)
-      //   .attr('y', tabHeight)
-      //   .attr('width', tabWidth/5)
-      //   .attr('height', tabHeight/4)
-      //   .attr('display', function(d) {
-      //     if(d.children)
-      //       return 'unset';
-      //     else
-      //       return 'none';
-      //   })
-      //   .on('click', function(event,d) { toggleChildren(d)});
-      //
-      // nodeEnter.append('svg')
-      //   .append('svg:image')
-      //   .attr('id', 'arrow-down')
-      //   .attr('xlink:href', 'res/arrow-down-circle.svg')
-      //   .attr('x', tabWidth/2)
-      //   .attr('y', tabHeight)
-      //   .attr('width', tabWidth/5)
-      //   .attr('height', tabHeight/4)
-      //   .attr('display', function(d) {
-      //     if(d._children)
-      //       return 'unset';
-      //     else
-      //       return 'none';
-      //   })
-      //   .on('click', function(event,d) { toggleChildren(d)});
-
-
-        nodeEnter.append('svg')
+    nodeEnter.append('svg')
       .append('svg:image')
       .attr('xlink:href', 'res/comment_bubble.svg')
       .attr('x', 0.95*tabWidth)
@@ -556,15 +431,9 @@ function drawTree(source) {
         .attr('width', tabWidth/5)
         .attr('height', tabHeight/4)
         .attr('opacity',0)
-        // .on('mouseover', function(d)
-        // {
-        // d3.select(this).attr('opacity',1)
-        // })
-        // .on('mouseout', function(d)
-        // {
-        // d3.select(this).attr('opacity',0)
-        // })
-        .on('click', function(event,d) { chrome.tabs.remove(d.data.id)});
+        .on('click', function(event,d) {
+          chrome.tabs.remove(d.data.id)
+        });
 
         // ============ HIDE tab
         nodeEnter.append('svg')
@@ -577,14 +446,6 @@ function drawTree(source) {
         .attr('width', tabWidth/5)
         .attr('height', tabHeight/4)
         .attr('opacity',0)
-      //   .attr('mouseover',function(d)
-      //   {
-      //   d3.select(this).attr('opacity',1)
-      //   })
-      //   .on('mouseout', function(d)
-      //   {
-      //   d3.select(this).attr('opacity',0)
-      //   })
         .on('click', function(event,d) {
 
           var parent = d3.select(this).select(function()
@@ -619,12 +480,11 @@ function drawTree(source) {
       .attr('opacity',0)
       .on('click', function(event,elem)
     {
-      var result= prompt('Change the name of the tab: ')
+      var result= prompt('Enter new tab name: ')
       if(result) {
-        elem.data.lines=[]
         elem.data.title=result;
         elem.data.lines = wrapText(result)
-        drawTree(localRoot);
+        drawTree(window.currentRoot);
       }
     });
 
@@ -633,16 +493,14 @@ function drawTree(source) {
       .attr('id','rename')
       .attr('xlink:href', 'res/anchor.svg')
       .attr('class','icon')
-      .attr('x',0)
+      .attr('x', tabWidth/2)
       .attr('y',0)
       .attr('width', tabWidth/5)
       .attr('height', tabHeight/4)
       .attr('opacity',0)
-      .on('click', function(event,d)
-    {
-      setAsRoot(d);
-      centerNode(window.currentRoot);
-    })
+      .on('click', function(event,d) {
+        setAsRoot(d);
+      })
 
 
     // var commentBubble = nodeEnter.append('foreignObject')
@@ -793,57 +651,8 @@ function drawTree(source) {
     //     .remove();
   }
 
-  // console.log("Current Root = ", localRoot)//, " and source = ", source);
 
-  // function hideChildren(d)
-  // {
-  //   console.log(d);
-  //
-  //   for(i=0;i<hidden_tabs.length;i++)
-  //   {
-  //     if(d==hidden_tabs[i])
-  //     {
-  //       d._links = d.links
-  //       d.links = null;
-  //     }
-  //   }
-  //   drawTree(window.currentRoot);
-  //
-  // }
 
-  function rename_node(nodex)
-  {
-    x= nodex.
-    nodex.append('text')
-      .attr('id', 'line1')
-      .attr('class', 'nodeText')
-      .attr('dx', "2.5em")
-      .attr('dy', '1em')
-      .text(d => d.data.lines[0])
-      .attr('fill-opacity', 1)
-
-    nodex.append('text')
-      .attr('id', 'line2')
-      .attr('class', 'nodeText')
-      .attr('dx', "2.5em")
-      .attr('dy', '2em')
-      .text(d => d.data.lines[1])
-      .attr('fill-opacity', 1)
-
-    nodex.append('text')
-      .attr('id', 'line3')
-      .attr('class', 'nodeText')
-      .attr('dx', "0.5em")
-      .attr('dy', '3em')
-      .text(d => d.data.lines[2])
-
-    nodex.append('text')
-      .attr('id', 'line4')
-      .attr('class', 'nodeText')
-      .attr('dx', "0.5em")
-      .attr('dy', '4em')
-      .text(d => d.data.lines[3])
-  }
 
 
 
@@ -858,8 +667,6 @@ function drawTree(source) {
       d.children = d._children;
       d._children = null;
       d.toggle = false;
-
     }
-    console.log("Toggle switched to ", d.toggle)
     drawTree(d);
   }
