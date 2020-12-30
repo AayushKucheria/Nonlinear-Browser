@@ -586,6 +586,26 @@ function drawTree(source) {
       //   d3.select(this).attr('opacity',0)
       //   })
         .on('click', function(event,d) { hide(d,0)});
+        .on('click', function(event,d) {
+
+          var parent = d3.select(this).select(function()
+        {
+          return this.parentNode.parentNode;
+        });
+        parent.attr('opacity',0);
+
+        g.selectAll(".link").classed('hide_link', function(e)
+      {
+        return ((e.source == d)||(e.target == d))
+      });
+        g.selectAll(".link.hide_link").attr('opacity',0)
+          .style('stroke-width',0)
+          .display('none')
+        });
+          //g.selectAll(".link.active").style('stroke', 'black');
+
+          //d3.select(this).parentNode.parentNode.attr('display','none');
+
 
       nodeEnter.append('svg')
       .append('svg:image')
@@ -622,6 +642,9 @@ function drawTree(source) {
           sum= elem.data.lines[0].concat(elem.data.lines[1]);
           diff= elem.data.title.length - sum.length;
           elem.data.lines[2]= elem.data.title.substring(20,20+diff)
+          diff= rem.data.title.length - sum.length;
+          elem.data.lines[2]= elem.data.title.substring(20,2)
+
         }
 
         d3.select(this).attr('id', function(d)
@@ -656,6 +679,12 @@ function drawTree(source) {
         .attr('dx', "0.5em")
         .attr('dy', '3em')
         .text(d => d.data.lines[2])
+      // nodeEnter.append('text')
+      //   .attr('id', 'line3')
+      //   .attr('class', 'nodeText')
+      //   .attr('dx', "0.5em")
+      //   .attr('dy', '3em')
+      //   .text(d => d.data.lines[2])
       //
       // nodeEnter.append('text')
       //   .attr('id', 'line4')

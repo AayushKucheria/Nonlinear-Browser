@@ -7,6 +7,27 @@ window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "temp": []
 
 
 function hide(source,flag) {
+// function hide(source,flag)
+// {
+//   d3.selectAll('path.link').attr('display',function(d)
+//     {
+//         if ((d.source == source)||(d.target == source))
+//         {
+//           return 'none';
+//         }
+//     });
+//
+//   d3.selectAll('g.node').attr('display', function(d)
+//  }
+
+  // d3.selectAll('path.link').attr('display',function(d)
+  //   {
+  //       if ((d.source == hidden_tabs[i])||(d.target == hidden_tabs[i]))
+  //       {
+  //         return 'none';
+  //       }
+  //   }
+  // }
 
     //console.log("hiding the hidden tabs array elements now  ")
   //     d3.selectAll('g.node').attr('display',function (d)
@@ -28,6 +49,7 @@ function hide(source,flag) {
   //               return 'none';
   //             }
   //           };
+
   //
   //     console.log("hiding the tab links now");
   // });
@@ -68,13 +90,37 @@ function hide(source,flag) {
   }
   drawTree(window.currentRoot); // use drawTree(source)
 }
+  // parent=source.parent;
+  // parent.temp=[];
+  //
+  // // console.log("parent",parent);
+  // if(flag==0)
+  // {
+  //   hidden_children=parent.children.filter(a => a == source);
+  //   //console.log("the one that should be hidden",hidden_children);
+  //   parent.temp.push(hidden_children); //select the tabs that need to be hidden and push them in a separate array so that it can be accessed again
+  //   //console.log("hidden tab",parent.temp);
+  //   parent.children = parent.children.filter(a => a != source); //adding only the remaining children to the parent of the node
+  //   //console.log("parent.temp",parent.temp[0]);
+  // //  console.log("current children in the tree",parent.children);
+  // }
+//   else
+//   {
+//       if(parent.temp[0])
+//       {
+//         parent.children.push(parent.temp[0]);
+//         console.log("parent.temp",parent.temp[0]);
+//       }
+//   }
+//   drawTree(window.currentRoot); // use drawTree(source)
+// }
 
-function list_hide(tab)
-{
-  hidden_tabs.push(tab);
-  hide_toggle(tab);
-  //console.log("added to hidden list",tab);
-}
+// function list_hide(tab)
+// {
+//   hidden_tabs.push(tab);
+//   hide_toggle(tab);
+//   //console.log("added to hidden list",tab);
+// }
 
 function hide_toggle(tab)
 {
