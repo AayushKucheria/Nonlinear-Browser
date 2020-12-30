@@ -205,7 +205,7 @@ function drawTree(source) {
       {
         title: "Hide the hidden tabs",
         action: function(event, elem) {
-          hide(elem,0);
+          // hide(elem,0);
         }
       },
       {
@@ -566,7 +566,7 @@ function drawTree(source) {
         // })
         .on('click', function(event,d) { chrome.tabs.remove(d.data.id)});
 
-
+        // ============ HIDE tab
         nodeEnter.append('svg')
         .append('svg:image')
         .attr('id','hide')
@@ -585,8 +585,15 @@ function drawTree(source) {
       //   {
       //   d3.select(this).attr('opacity',0)
       //   })
-        .on('click', function(event,d) { hide(d,0)});
+        .on('click', function(event,d) {
+          var parent = d3.select(this).select(function() {
+            return this.parentNode.parentNode;
+          });
+          parent.attr('opacity', 0);
+        });
+        
 
+      // =========== Rename tab
       nodeEnter.append('svg')
       .append('svg:image')
       .attr('id','rename')
@@ -599,77 +606,12 @@ function drawTree(source) {
       .attr('opacity',0)
       .on('click', function(event,elem)
     {
-      var result= prompt('Change the name of the tab',elem.name)
-      if(result)
-      {
+      var result= prompt('Change the name of the tab: ')
+      if(result) {
         elem.data.lines=[]
         elem.data.title=result;
-        if(elem.data.title.length<10)
-        {
-          elem.data.lines[0]=elem.data.title;
-        }
-        else if(elem.data.title.length<20)
-        {
-          elem.data.lines[0]=elem.data.title.substring(0,10);
-          rem= elem.data.title.substring(10,20);
-          elem.data.lines[1]=rem;
-        }
-        else
-        {
-          elem.data.lines[0]=elem.data.title.substring(0,10);
-          rem= elem.data.title.substring(10,20);
-          elem.data.lines[1]=rem;
-          sum= elem.data.lines[0].concat(elem.data.lines[1]);
-          diff= elem.data.title.length - sum.length;
-          elem.data.lines[2]= elem.data.title.substring(20,20+diff)
-        }
-
-        d3.select(this).attr('id', function(d)
-        {
-          return d.data.id;
-        }).append('text')
-        .attr('id', 'line1')
-        .attr('class', 'nodeText')
-        .attr('dx', "2.5em")
-        .attr('dy', '1em')
-        .text(d => elem.data.lines[0])
-        .attr('fill-opacity', 1)
-
-        d3.select(this).attr('id', function(d)
-        {
-          return d.data.id;
-        }).append('text')
-        .attr('id', 'line2')
-        .attr('class', 'nodeText')
-        .attr('dx', "2.5em")
-        .attr('dy', '2em')
-        .text(d => elem.data.lines[1])
-        .attr('fill-opacity', 1)
-
-        d3.select(this).attr('id', function(d)
-        {
-          return d.data.id;
-        })
-        .append('text')
-        .attr('id', 'line3')
-        .attr('class', 'nodeText')
-        .attr('dx', "0.5em")
-        .attr('dy', '3em')
-        .text(d => d.data.lines[2])
-      //
-      // nodeEnter.append('text')
-      //   .attr('id', 'line4')
-      //   .attr('class', 'nodeText')
-      //   .attr('dx', "0.5em")
-      //   .attr('dy', '4em')
-      //   .text(d => d.data.lines[3])
-      //   d3.select(this).attr('id', function(d)
-      // {
-      //   return d.data.id;
-      // }).append('text', elem.data.title);
-      console.log(elem);
-      drawTree(localRoot);
-      //console.log()
+        elem.data.lines = wrapText(result)
+        drawTree(localRoot);
       }
     });
 
@@ -732,9 +674,6 @@ function drawTree(source) {
       //             .attr('y',5)
       //             .style("opacity", .9)
       //             .text(d => d.title)});
-
-
-
 
     var nodeUpdate = nodeEnter.merge(node)
       .transition()
