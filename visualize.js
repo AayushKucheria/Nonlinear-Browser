@@ -586,12 +586,25 @@ function drawTree(source) {
       //   d3.select(this).attr('opacity',0)
       //   })
         .on('click', function(event,d) {
-          var parent = d3.select(this).select(function() {
-            return this.parentNode.parentNode;
-          });
-          parent.attr('opacity', 0);
+
+          var parent = d3.select(this).select(function()
+        {
+          return this.parentNode.parentNode;
         });
-        
+        parent.attr('opacity',0);
+
+        g.selectAll(".link").classed('hide_link', function(e)
+      {
+        return ((e.source == d)||(e.target == d))
+      });
+        g.selectAll(".link.hide_link").attr('opacity',0)
+          .style('stroke-width',0)
+          .display('none')
+        });
+          //g.selectAll(".link.active").style('stroke', 'black');
+
+          //d3.select(this).parentNode.parentNode.attr('display','none');
+
 
       // =========== Rename tab
       nodeEnter.append('svg')
