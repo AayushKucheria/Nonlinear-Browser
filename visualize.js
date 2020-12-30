@@ -1,38 +1,33 @@
 
 const margin = { top: 20, right: 20, bottom: 20, left: 20};
-// const margin = { top: 300, right: 300, bottom: 500, left: 700};
 window.tabWidth = 200;
 const tabHeight = 80;
 const duration = 750;
-// function width() { return document.body.clientWidth};
-// function height() {return document.body.clientHeight};
-
 var innerWidth = window.innerWidth - margin.left - margin.right;
 var innerHeight = window.innerHeight - margin.top - margin.bottom;
-// console.log("Height = ", window.innerHeight, " and width = ", innerWidth);
-var maxTabLength = 0;
-var maxLevelTabLength = [0]
 var currentZoom = 1;
 var currentPos = {x: 0, y: 0}
-treeLayout = d3.tree()
-  .nodeSize([tabWidth, tabHeight])
-  .separation(function(a, b) { return a.parent == b.parent ? 1.5 : 1.5}) // TODO works but can experiment with
 window.fontSize = 16;
-
 window.currentRoot;
 
+treeLayout = d3.tree()
+  .nodeSize([tabWidth, tabHeight])
+  .separation(function(a, b) { return 1.5})
+
+d3.select('body').style('background', 'url(res/dot-grid.svg)')
+
+// For checking length of text for wrapText
 var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0)
 
-var ancestorSvg = d3.select('body').append('svg')
-.attr('height', 3 * tabHeight / 2)
-.attr('width', innerWidth)
-.attr('viewBox', d => "" + margin.left + " " + margin.top + " " + innerWidth + " " + 3*tabHeight/2)
+var baseDiv = d3.select('body').append('div')
+  .classed('svg-container', true)
 
-  // .attr("transform",d => `translate(${+margin.left},${+margin.top})`)
-  // .attr('x', -innerWidth)
-  // .attr('y', -innerHeight)
+var ancestorSvg = baseDiv.append('svg')
+  .attr("preserveAspectRatio", "xMinYMin meet")
+  .classed("svg-content-responsive", true)
+  .attr('viewBox', d => "" + margin.left + " " + margin.top + " " + innerWidth + " " + 3*tabHeight/2)
 
 var a = ancestorSvg.append('g')
   .attr('id', 'ancestorContainer')
@@ -40,11 +35,10 @@ var a = ancestorSvg.append('g')
   // .attr('x', margin.left + 20)
   // .attr('y', margin.top + 20)
 
-var baseSvg = d3.select('body').append('svg')
-  .attr('class', 'overlay')
-  .attr('width', innerWidth)
-  .attr('height', innerHeight)
-  .attr('viewBox', d => "" + (-innerWidth / 2) + " " + (-innerHeight / 2) + " " + innerWidth + " " + innerHeight)
+var baseSvg = baseDiv.append('svg')
+  .attr("preserveAspectRatio", "xMinYMin meet")
+  .classed("svg-content-responsive", true)
+  .attr('viewBox', d => "" + (tabWidth - innerWidth)/2 + " " + (tabHeight-innerHeight)/4 + " " + innerWidth + " " + innerHeight)
 
 // baseSvg.append('rect')
 //   .attr('width', '100%')
@@ -53,20 +47,12 @@ var baseSvg = d3.select('body').append('svg')
 
 var g = baseSvg.append('g')
   .attr('id', 'treeContainer')
-// .on('click', d, e => {
-//   console.log(e)
-g.on("mouseover", function(d)
-{
+  .on("mouseover", function(d) {
   d3.select(this).style("cursor","pointer");
-});
-
-  // chrome.tabs.update(d.toElement.__data__.data.id, {
-  //   active: true
-  // });
-// });
+  })
 
 
-const zoom = d3.zoom()
+const zoom = d3.zoom().scaleExtent([0.5, 1.5])
   .on("zoom", function(e) {
     currentZoom = e.transform.k
     currentPos = {x: e.transform.x, y: e.transform.y}
@@ -147,68 +133,26 @@ function traverse(parent, traverseFn, childrenFn) {
     }
   }
 
+function delete_tab(node) {
+  var parent = node.parent;
+  parent.children = parent.children.filter(d => d != node);
+  drawTree(window.currentRoot);
+}
+
+function add_tab() {
+
+}
+
 function drawTree(source) {
-    // console.log("Source = ", source);
-    // window.currentRoot = source
-    // innerWidth = doc
-    // innerHeight = document.body.clientHeight - margin.top - margin.bottom;
 
-    // window.d3Root = d3.hierarchy(window.jsonRoot);
-    // window.d3Root.x0 = innerWidth/2;
-    // window.d3Root.y0 = innerHeight/2;
-
-    // traverse(window.jsonRoot, function(d) { // Check tabLength with maxLength
-    //   // totalNodes++;
-    //   // console.log(d);
-    //   maxTabLength = Math.max(d.title.length, maxTabLength)
-    // },
-    //   function(d) { // Return children if any
-    //   return d.children && d.children.length > 0 ? d.children : null;
-    // });
-
-
-    // Get number of nodes at each level, where level is index
-    // var levelWidth = [1]; // 1 at index 0 because of root node.
-    // var childCount = function(level, node) {
-    //
-    //
-    //     while(maxLevelTabLength.length <= level)
-    //       maxLevelTabLength.push(0);
-    //     maxLevelTabLength[level] = Math.max(maxLevelTabLength[level], node.data.title.length)
-    //
-    //   // If node has children, continue
-    //   if(node.children && node.children.length > 0) {
-    //
-    //
-    //
-    //     // If levelWidth doesn't have width for this level
-    //     // Initialize width with value 0
-    //     if(levelWidth.length <= level + 1)
-    //       levelWidth.push(0);
-    //
-    //     // Increment next level's width by this level's node's children
-    //     levelWidth[level + 1] += node.children.length;
-    //     // console.log(node)
-    //     // For each child, keep the cycle going
-    //     node.children.forEach(d => childCount(level+1, d))
-    //   }
-    // }
-    // childCount(0, window.d3Root);
-    d3.select('body').style('background', 'url(res/dot-grid.svg)')
 
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     const descendants = tree.descendants()
     const ancestors = tree.ancestors();
     const linkPathGenerator = d3.linkVertical()
-    //   .source(d => {
-    //     console.log(d)
-    //   [d.x + tabWidth/2, d.depth * 180 + tabHeight]
-    // })
-    //   .target(d => [d.x + tabWidth/2, d.depth * 180])
       .x(d => d.x + tabWidth/2)
       .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
-      // .y(d => (!d.parent || d.children)? d.depth * 180 + tabHeight: d.depth * 180 )
     descendants.forEach(d => d.y = d.depth * 180)
 
     // console.log("Ancestors: ", ancestors);
@@ -220,6 +164,9 @@ function drawTree(source) {
           // console.log("Clicked on go to tab for ", elem);
           chrome.tabs.update(elem.data.id, {
             active: true
+          });
+          chrome.windows.update(elem.data.windowId, {
+            focused: true
           });
         }
       },
@@ -243,26 +190,21 @@ function drawTree(source) {
         title: "Delete Tab",
         action: function(event, elem) {
           chrome.tabs.remove(elem.data.id)
-        //  console.log("current tab being deleted",elem);
-          //removeTab(elem.data.id);
-          //drawTree(window.currentRoot);
-          // removeTab(elem.data.id) // TODO ??
+          // delete_node(elem); TODO ?
         }
       },
       {
         title: "Hide the hidden tabs",
-        action: function(event, elem)
+        action: function(event, elem) {
+          hide(elem,0);
+        }
+      },
       {
-        hide(elem,0);
-      }
-    },
-    {
-      title: "Show the hidden tabs",
-      action: function(event,elem)
-      {
-        hide(elem,1);
-      }
-    },
+        title: "Show the hidden tabs",
+        action: function(event,elem) {
+          hide(elem,1);
+        }
+      },
       {
         title: "Add to tabs that want to be hidden",
         action: function(event,elem)
@@ -277,7 +219,9 @@ function drawTree(source) {
     //   d.x = margin.left + tabWidth * i + 20;
     //   d.y = margin.top + 60;
     // })
-    var ancestor = a.selectAll('g.ancestor').data(ancestors)
+    var ancestor = a.selectAll('g.ancestor').data(ancestors, function(d) {
+      return d.data.id;
+    })
       // .attr('x', d => d.x)
       // .attr('y', d => d.y)
 
@@ -370,34 +314,9 @@ function drawTree(source) {
     // console.log("AncestorUpdate = ", ancestorUpdate)
 
     // ******* LINKS ******
-
-    // Update the links…
-  var link = g.selectAll("path.link")
-      .data(links, function(d) { return d.target.id; });
-
-  // Enter any new links at the parent's previous position.
-  // link.enter().insert("path", "g")
-  //     .attr("class", "link")
-  //     .attr("d", function(d) {
-  //       var o = {x: source.x0, y: source.y0};
-  //       return linkPathGenerator({source: o, target: o});
-  //     });
-  //
-  // // Transition links to their new position.
-  // link.transition()
-  //     .duration(duration)
-  //     .attr("d", linkPathGenerator)
-  //     .style("stroke", "#ff4136");
-  //
-  // // Transition exiting nodes to the parent's new position.
-  // link.exit().transition()
-  //     .duration(duration)
-  //     .attr("d", function(d) {
-  //       var o = {x: source.x, y: source.y};
-  //       return linkPathGenerator({source: o, target: o});
-  //     })
-  //     .remove();
-    var link = g.selectAll('path.link').data(links)// Links join tree.links()
+    var link = g.selectAll('path.link').data(links, function(d) {
+      return d.target.data.id;
+    })// Links join tree.links()
 
     var linkEnter = link.enter().append('path') // or insert
       .attr('class', 'link')
@@ -423,7 +342,9 @@ function drawTree(source) {
 
     // **** NODES *****
     var node = g.selectAll('g.node')
-      .data(descendants)
+      .data(descendants, function(d) {
+        return d.data.id;
+      })
 
     function getTranslation(transform) {
       var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -445,13 +366,19 @@ function drawTree(source) {
       .style('font-size', window.fontSize)
       .style('font-weight', 400)
       .on('mouseover', function(event, d) {
-        // console.log(d)
-        // console.log(this)
-        // console.log(thi)
-        // d3.select(this).selectAll('text').style('textDecoration', 'underline')
-          // .style('stroke', 'green')
-          // .style('border-width', '8')
-        // d3.select(this).data(d.links()).attr('style', 'fill: green')
+        d3.select(this)
+          .select('rect').style('stroke-opacity', 1);
+
+        g.selectAll(".link").classed("active", function(p) { return p.target === d; }); // Add p.source === d to highlight children path too
+        g.selectAll(".link.active").style('stroke', 'black');
+      })
+      .on('mouseout', function(event, d) {
+        d3.select(this)
+        .select('rect').style('stroke-opacity', 0);
+
+        g.selectAll(".link.active")
+          .classed("inactive", true)
+          .style('stroke', '#ccc');
       })
 
     // Tab Rectangle
@@ -462,6 +389,9 @@ function drawTree(source) {
       // .attr('ry', '10')
       .attr('fill', '#97d0ef')
       .attr('height', tabHeight)
+      .style('stroke', 'steelblue')
+      .style('stroke-opacity', 0)
+
 
     // Website Favicon
     nodeEnter.append('svg')
@@ -646,10 +576,6 @@ function drawTree(source) {
 
     var nodeExit = node.exit().transition()
       .duration(duration)
-      // .attr('x', function(d) {
-      //   if(d.parent && d.parent.toggle)
-      //     return d.parent.x
-      // })
       .attr("transform", d => `translate(${source.x},${source.y})`) // d.parent.x, d.parent.y to toggle to root
       .remove();
 
@@ -732,7 +658,5 @@ function drawTree(source) {
 
     }
     console.log("Toggle switched to ", d.toggle)
-    // console.log(d)
-    // console.log("Toggle result = ", d);
     drawTree(d);
   }

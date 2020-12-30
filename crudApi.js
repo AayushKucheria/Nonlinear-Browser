@@ -143,7 +143,7 @@ function updateIdMapping() {
 function addNewTab(tab) {
 
   let tabObj = {  "id": tab.id,
-                  "shortened_title":getShortenedTitle(tab),
+                  // "shortened_title":getShortenedTitle(tab),
                   "title": tab.title,
                   "parentId": tab.openerTabId,
                   "children": [],
@@ -177,7 +177,6 @@ function updateTab(tabId, changeInfo) {
   let indexInData = idMapping[tabId];
   let updatedTab = data[indexInData];
   var displayChanged = false
-
   for(var i in changeInfo) {
     if(updatedTab.hasOwnProperty(i)) {
       updatedTab[i] = changeInfo[i];

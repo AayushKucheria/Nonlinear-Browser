@@ -1,4 +1,26 @@
 
+
+.svg-container {
+  display: inline-block;
+  position: relative;
+  width: 100%;
+  /* padding-bottom: 100%; */
+  vertical-align: top;
+  overflow: hidden;
+}
+.svg-content-responsive {
+  display: inline-block
+  position: absolute;
+  /* top: 10px; */
+  /* left: 0; */
+}
+
+highlight {
+  fill: none;
+  stroke: 'black';
+  stroke-opacity: 1;
+}
+
 path {
   fill: none;
   stroke: #ccc;
@@ -8,7 +30,6 @@ path {
 text {
   pointer-events: none;
   font-family: 'Playfair Display', serif;
-
 }
 
 .nodeText:hover, .nodeText:active {
@@ -23,8 +44,6 @@ text {
   font-weight, '400';
 }
 
-#treeContainer {
-}
 
 /* .cursor{
   z-index : 999;
