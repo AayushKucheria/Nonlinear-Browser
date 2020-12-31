@@ -126,22 +126,12 @@ function drawTree(source) {
       {
         title: "Go to tab",
         action: function(event, elem) {
-          // console.log("window.localRoot",window.localRoot)
-          // console.log("what is elem",elem)
-          if(!(elem.data===window.localRoot))
-          {
-          // console.log("Clicked on go to tab for ", elem);
           chrome.tabs.update(elem.data.id, {
-            active: true
+          active: true
           });
-          chrome.windows.update(elem.data.windowId, {
-            focused: true
+        chrome.windows.update(elem.data.windowId, {
+          focused: true
           });
-        }
-        else {
-          // console.log("aa bhi raha hai kya")
-          visible:false;
-            }
         }
       },
       // {
@@ -154,13 +144,6 @@ function drawTree(source) {
         title: "Show the hidden tabs",
         action: function(event,elem) {
           hide(elem,1);
-        }
-      },
-      {
-        title: "Select hidden tabs",
-        action: function(event,elem)
-        {
-          list_hide(elem);
         }
       }
     ]
@@ -391,25 +374,25 @@ function drawTree(source) {
       .text(d => d.data.lines[3])
 
     // ====== Comment Bubble
-    nodeEnter.append('svg')
-      .append('svg:image')
-      .attr('xlink:href', 'res/comment_bubble.svg')
-      .attr('x', 0.95*tabWidth)
-      .attr('y', 0.75 * tabHeight)
-      .attr('class','icon')
-      .attr('x', 0.96*tabWidth)
-      .attr('y', 0.4005 * tabHeight)
-      .attr('width', tabWidth/5)
-      .attr('height', tabHeight/4)
-      .attr('opacity',0)
-    //   .attr('mouseover', function(d)
-    // {
-    //   d3.select(this).attr('opacity',1)
-    // })
-    //   .attr('mouseout', function(d)
-    // {
-    //   d3.select(this).attr('opacity',0)
-    // })
+    // nodeEnter.append('svg')
+    //   .append('svg:image')
+    //   .attr('xlink:href', 'res/comment_bubble.svg')
+    //   .attr('x', 0.95*tabWidth)
+    //   .attr('y', 0.75 * tabHeight)
+    //   .attr('class','icon')
+    //   .attr('x', 0.96*tabWidth)
+    //   .attr('y', 0.4005 * tabHeight)
+    //   .attr('width', tabWidth/5)
+    //   .attr('height', tabHeight/4)
+    //   .attr('opacity',0)
+    // //   .attr('mouseover', function(d)
+    // // {
+    // //   d3.select(this).attr('opacity',1)
+    // // })
+    // //   .attr('mouseout', function(d)
+    // // {
+    // //   d3.select(this).attr('opacity',0)
+    // // })
 
       // ====== Toggle Arrows
       nodeEnter.append('svg')
@@ -417,7 +400,7 @@ function drawTree(source) {
         .attr('id', 'arrow-up')
         .attr('xlink:href', 'res/arrow-up-circle.svg')
         .attr('class','icon')
-        .attr('x', tabWidth/2)
+        .attr('x', tabWidth/2 - 20)
         .attr('y', tabHeight)
         .attr('width', tabWidth/5)
         .attr('height', tabHeight/4)
@@ -434,7 +417,7 @@ function drawTree(source) {
         .attr('id', 'arrow-down')
         .attr('xlink:href', 'res/arrow-down-circle.svg')
         .attr('class','icon')
-        .attr('x', tabWidth/2)
+        .attr('x', tabWidth/2 - 20)
         .attr('y', tabHeight)
         .attr('width', tabWidth/5)
         .attr('height', tabHeight/4)
@@ -449,7 +432,7 @@ function drawTree(source) {
         nodeEnter.append('svg')
         .append('svg:image')
         .attr('id','cross')
-        .attr('xlink:href', 'res/close.svg')
+        .attr('xlink:href', 'res/bin.svg')
         .attr('class','icon')
         .attr('x', 0.96*tabWidth)
         .attr('y', 0)
@@ -460,36 +443,80 @@ function drawTree(source) {
           chrome.tabs.remove(d.data.id)
         });
 
-        // ============ HIDE tab
-        nodeEnter.append('svg')
-        .append('svg:image')
-        .attr('id','hide')
-        .attr('xlink:href','res/eye-crossed.svg')
-        .attr('class','icon')
-        .attr('x',0.96*tabWidth)
-        .attr('y',0.8*tabHeight)
-        .attr('width', tabWidth/5)
-        .attr('height', tabHeight/4)
-        .attr('opacity',0)
-        .on('click', function(event,d) {
-
-          var parent = d3.select(this).select(function()
-        {
-          return this.parentNode.parentNode;
-        });
-        parent.attr('opacity',0);
-
-        g.selectAll(".link").classed('hide_link', function(e)
-      {
-        return ((e.source == d)||(e.target == d))
-      });
-        g.selectAll(".link.hide_link").attr('opacity',0)
-          .style('stroke-width',0)
-          .display('none')
-        });
-          //g.selectAll(".link.active").style('stroke', 'black');
-
-          //d3.select(this).parentNode.parentNode.attr('display','none');
+        // // ============ HIDE tab
+        // nodeEnter.append('svg')
+        // .append('svg:image')
+        // .attr('id','hide')
+        // .attr('xlink:href','res/eye-crossed.svg')
+        // .attr('class','icon')
+        // .attr('x',0.96*tabWidth)
+        // .attr('y',0.3*tabHeight)
+        // .attr('width', tabWidth/5)
+        // .attr('height', tabHeight/4)
+        // .attr('display', function(d) {
+        //   var parent = d3.select(this).select(function() {
+        //     return this.parentNode.parentNode;
+        //   });
+        //   if(parent.attr('fill-opacity') === '1') {
+        //     return 'unset';
+        //   }
+        //   else
+        //     return 'none';
+        //   })
+        // .on('click', function(event,d) {
+        //   var parent = d3.select(this).select(function()
+        //   {
+        //     return this.parentNode.parentNode;
+        //   });
+        //   console.log(parent);
+        //   parent.attr('opacity',0);
+        //   parent.attr('fill-opacity',0);
+        //
+        //   g.selectAll(".link").classed('hide_link', function(e)
+        //   {
+        //     return ((e.source == d)||(e.target == d))
+        //   });
+        //   g.selectAll(".link.hide_link").attr('opacity',0)
+        //     .style('stroke-width',0)
+        //     // .display('none')
+        //   });
+        //
+        // // ============ SHOW tab
+        // nodeEnter.append('svg')
+        // .append('svg:image')
+        // .attr('id','show')
+        // .attr('xlink:href','res/eye.svg')
+        // .attr('class','icon')
+        // .attr('x',0.96*tabWidth)
+        // .attr('y',0.3*tabHeight)
+        // .attr('width', tabWidth/5)
+        // .attr('height', tabHeight/4)
+        // .attr('display', function(d) {
+        //   var parent = d3.select(this).select(function() {
+        //     return this.parentNode.parentNode;
+        //   });
+        //   console.log(parent.attr('fill-opacity') === '0')
+        //   if(parent.attr('fill-opacity') === '0')
+        //     return 'unset';
+        //   else
+        //     return 'none';
+        //   })
+        // .on('click', function(event,d) {
+        //   var parent = d3.select(this).select(function()
+        //   {
+        //     return this.parentNode.parentNode;
+        //   });
+        //   parent.attr('fill-opacity',1);
+        //   parent.attr('opacity',1);
+        //
+        //   g.selectAll(".link").classed('show_link', function(e)
+        // {
+        //   return ((e.source == d)||(e.target == d))
+        // });
+        //   g.selectAll(".link.show_link").attr('opacity',1)
+        //     .style('stroke-width',1)
+        //     // .display('none')
+        // });
 
 
       // =========== Rename tab
@@ -498,8 +525,8 @@ function drawTree(source) {
       .attr('id','rename')
       .attr('xlink:href', 'res/edit.svg')
       .attr('class','icon')
-      .attr('x',0)
-      .attr('y',0.8*tabHeight)
+      .attr('x', 0.96 * tabWidth)
+      .attr('y',0.9*tabHeight)
       .attr('width', tabWidth/5)
       .attr('height', tabHeight/4)
       .attr('opacity',0)
@@ -513,19 +540,19 @@ function drawTree(source) {
       }
     });
 
-      nodeEnter.append('svg')
-      .append('svg:image')
-      .attr('id','rename')
-      .attr('xlink:href', 'res/anchor.svg')
-      .attr('class','icon')
-      .attr('x', tabWidth/2)
-      .attr('y',0)
-      .attr('width', tabWidth/5)
-      .attr('height', tabHeight/4)
-      .attr('opacity',0)
-      .on('click', function(event,d) {
-        setAsRoot(d);
-      })
+      // nodeEnter.append('svg')
+      // .append('svg:image')
+      // .attr('id','rename')
+      // .attr('xlink:href', 'res/anchor.svg')
+      // .attr('class','icon')
+      // .attr('x',0.96*tabWidth)
+      // .attr('y',0.6*tabHeight)
+      // .attr('width', tabWidth/5)
+      // .attr('height', tabHeight/4)
+      // .attr('opacity',0)
+      // .on('click', function(event,d) {
+      //   // setAsRoot(d);
+      // });
 
 
     // var commentBubble = nodeEnter.append('foreignObject')
@@ -621,6 +648,30 @@ function drawTree(source) {
         else
           return 'none';
       })
+
+    // nodeUpdate.select('#hide')
+    // .attr('display', function(d) {
+    //   var parent = d3.select(this).select(function() {
+    //     return this.parentNode.parentNode;
+    //   });
+    //   if(parent.attr('fill-opacity') === '1') {
+    //     return 'unset';
+    //   }
+    //   else
+    //     return 'none';
+    //   })
+    //
+    // nodeUpdate.select('#show')
+    // .attr('display', function(d) {
+    //   var parent = d3.select(this).select(function() {
+    //     return this.parentNode.parentNode;
+    //   });
+    //   console.log(parent.attr('fill-opacity') === '0')
+    //   if(parent.attr('fill-opacity') === '0')
+    //     return 'unset';
+    //   else
+    //     return 'none';
+    //   })
 
 
     var nodeExit = node.exit().transition()
