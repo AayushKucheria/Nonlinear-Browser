@@ -1,165 +1,146 @@
+let data = []; // tree of tabs as objects
+let idMapping = [];
+window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "temp": [], "children": [], "_children": [], "__children":[], "x0": 0, "y0": 0};
 
 // Load tree from scratch
 function loadWindowList() {
-
-  let d3Root = { id: 'Root', title: "Root", children: [], lines: ["Root"] };
-  mapping[d3Root.id] = d3Root;
   //await SetupConnection();
-  // Get data from chrome api
+  data = [];
+  // Get windows + tabs data from chrome api
   chrome.windows.getAll({ populate: true }, function(windowList) {
+    // For each tab in each window
+    // Add the tab's id, parent's id, and set it's children as empty (for now)
     for(var i=0; i < windowList.length; i++) {
       for (var j=0; j < windowList[i].tabs.length; j++) {
+
         let currentTab = windowList[i].tabs[j];
-        let tabObj = { id: currentTab.id,
-                      title: currentTab.title,
-                      lines:  wrapText(currentTab.title),
-                      children: [],
-                      parentId: currentTab.openerTabId,
-                      windowId: windowList[i].id,
-                      url: currentTab.url,
-                      favIconUrl: currentTab.favIconUrl,
-                      x0: innerWidth/2,
-                      y0: innerHeight/2
-                    };
-        mapping[tabObj.id] = tabObj;
+        data.push({ "id": currentTab.id,
+                    "title": currentTab.title,
+                    "lines":  wrapText(currentTab.title),
+                    "parentId": currentTab.openerTabId,
+                    "temp":[],
+                    "children": [],
+                    "_children": [],
+                    "__children": [],
+                    "windowId": windowList[i].id,
+                    "url": currentTab.url,
+                    "favIconUrl": currentTab.favIconUrl,
+                    "x0": innerWidth/2,
+                    "y0": innerHeight/2
+                  });
       };
     };
-    for(i in mapping) {
-      let element = mapping[i];
-      if(element.id === 'Root') continue;
-      let parentId = element.parentId;
-      let parent = parentId ? mapping[parentId] : d3Root;
-      parent.children.push(element);
-    };
-    d3Root = d3.hierarchy(d3Root);
-    updateMapping(d3Root);
-    initializeTree(d3Root)
+    updateIdMapping()
+
+    // For each tab, if it's a root (i.e. it doesn't have a parent),
+    // Then add it to the list of roots
+    // Else, Find its parent and insert the tab in the parent's children list.
+    localRoot.children = []
+    data.forEach(element => {
+     if(element.parentId === undefined) {
+       localRoot.children.push(element);
+     }
+     else {
+      // Use our mapping to locate the parent element in our data array
+      // And add this tab as it's
+        const parentElement = data[idMapping[element.parentId]];
+        parentElement.children.push(element);
+      };
+    });
+    initializeTree(localRoot)
  });
 };
 
-function updateMapping(d3Root) {
-  traverse(d3Root, function(d) {
-    mapping[d.data.id] = d;
-  }, function(d){
-    return d.children && d.children.length > 0 ? d.children : null;
-  });
+/* Making an ID-to-Index Map (for ease of access)
+  Syntax: [tab_id: index_in_data]
+  Example: [5648: 0, 5710: 4, 5736: 2, ..., 5788: 6]
+*/
+function updateIdMapping() {
+  idMapping = data.reduce((acc, elem, index) => {
+    acc[elem.id] = index;
+    return acc;
+  }, {});
 }
 
-// Not updating height of ancestors.
-// Code to update: https://stackoverflow.com/questions/43140325/add-node-to-d3-tree-v4
-function addNewTab(tabObj) {
-  tabObj = d3.hierarchy(tabObj);
-  mapping[tabObj.data.id] = tabObj;
+//await SetupConnection();
+function addNewTab(tab) {
 
-  let parent;
-  if(tabObj.data.parentId === undefined || tabObj.data.pendingUrl === "chrome://newtab/") {
-    tabObj.data.parentId = undefined;
-    parent = mapping['Root'];
+  let tabObj = {  "id": tab.id,
+                  // "shortened_title":getShortenedTitle(tab),
+                  "title": tab.title,
+                  "parentId": tab.openerTabId,
+                  "children": [],
+                  "_children": [],
+                  "lines":  wrapText(tab.title),
+                  "windowId": tab.windowId,
+                  "url": tab.url,
+                  "pendingUrl":tab.pendingUrl,
+                  "x0": 0,
+                  "y0": 0,
+                  "favIconUrl": tab.favIconUrl};
+
+  data.push(tabObj);
+  // insertinDB(tabObj);
+  idMapping[tabObj.id] = data.indexOf(tabObj);
+
+  if(tabObj.parentId === undefined || tabObj.pendingUrl === "chrome://newtab/") {
+    // console.log("New tab is a root: ", tabObj);
+    tabObj.parentId = undefined;
+    localRoot.children.push(tabObj);
+    updateTree(localRoot)
   }
-  else
-    parent = mapping[tabObj.data.parentId];
-
-  tabObj.depth = parent.depth + 1;
-  tabObj.parent = parent;
-  tabObj.children = [];
-
-  if(!parent.children) {
-    parent.children = [];
-    parent.data.children = [];
+  else {
+    const parentElement = data[idMapping[tabObj.parentId]];
+    parentElement.children.push(tabObj);
+    // console.log("New tab is a child: ", tabObj);
+    updateTree(localRoot);
   }
-
-  parent.children.push(tabObj);
-  parent.data.children.push(tabObj.data);
-  drawTree(window.currentRoot);
 }
 
 function updateTab(tabId, changeInfo) {
 
-  let updatedTab = mapping[tabId];
+  let indexInData = idMapping[tabId];
+  let updatedTab = data[indexInData];
   var displayChanged = false
-
   for(var i in changeInfo) {
-    if(updatedTab.data.hasOwnProperty(i)) {
-      updatedTab.data[i] = changeInfo[i];
+    if(updatedTab.hasOwnProperty(i)) {
+      updatedTab[i] = changeInfo[i];
       if(i === 'title' || i === 'favIconUrl')
         displayChanged = true
       if(i === 'title') {
-        updatedTab.data['lines'] = wrapText(changeInfo[i]);
+        updatedTab['lines'] = wrapText(changeInfo[i]);
       }
     }
   }
 
   if(displayChanged) {
-    drawTree(window.currentRoot);
+    updateTree(localRoot);
   }
 }
 
 function removeTab(tabId) {
 
-  let removedTab = mapping[tabId];
-  var parent = removedTab.parent;
+  let indexInData = idMapping[tabId];
+  let removedTab = data.splice(indexInData, 1)
+  removedTab= removedTab[0];
+  updateIdMapping();
+  let parent;
+  let parentId = removedTab.parentId;
 
-  if(removedTab.children && removedTab.children.length > 0) {
+  if(parentId === undefined) {
+    parentId=undefined;
+    parent = localRoot;
+  }
+  else {
+    parent = data[idMapping[parentId]];
+  }
+
+  if(removedTab.children.length > 0) {
     removedTab.children.forEach(child => {
-      child.parent = parent;
-      child.data.parentId = parent.data.id;
-
-      child.depth -= 1;
-
+      child.parentId = parentId;
       parent.children.push(child);
-      parent.data.children.push(child);
     })
-  };
-
-  parent.children = parent.children.filter(d => d != removedTab);
-  parent.data.children = parent.data.children.filter(d => d != removedTab);
-  mapping.delete(tabId);
-
-  drawTree(window.currentRoot);
+  }
+  parent.children.splice(parent.children.indexOf(removedTab), 1)
+  updateTree(localRoot);
 }
-
-// async function SetupConnection()
-  // {
-  // console.log("iuaufsdifuhadsif");
-  // const {MongoClient} = require('mongodb');
-  // const uri = "mongodb+srv://sparrsh:rYbk0Zsh3jh4m7ES@tabdata.ttdvm.mongodb.net/test";
-  // const window.client= new MongoClient(uri,{ useNewUrlParser: true, useUnifiedTopology: true });
-  //
-  // try {
-  //        // Connect to the MongoDB cluster
-  //        await client.connect();
-  //        console.log("wtf");
-  //       } catch (e) {
-  //        console.error(e);
-  //      } finally {
-  //        await client.close();
-  //    }
-  //  }
-   // async function insertinDB(client,tabObj)
-   // {
-   //   db = await client.db("TabData");
-   //
-   //   individual_element= {ID: tabObj.id,ParentID: tabObj.parentId, children: tabObj.children,WindowID: tabObj.windowId};
-   //   if(tabObj.parentId===undefined)
-   //  {
-   //   await db.collection("tab_data_test").insertOne(individual_element);
-   //   console.log("hey");
-   //  }
-   //  else
-   //  {
-   //    parentid_newtab= tabObj.parentId;
-   //    primary_key_parent =parentid_newtab._id;
-   //    console.log("primary_key_parent");
-   //    prev_children=parentid_newtab.children;
-   //    new_children=prev_children.append(tabObj);
-   //    await db.collection("tab_data_test").updateOne(
-   //      {_id : primary_key_parent},
-   //      { $set: {children: new_children}}
-   //    )
-   //  }
-  //console.log({"Inserted":1})
-  //SetupConnection(client).catch(console.error);
-// }
-  //insert(client);
-//   printRoot();
-// };

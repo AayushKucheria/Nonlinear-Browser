@@ -1,4 +1,3 @@
-let mapping = new Map();
 const margin = { top: 20, right: 20, bottom: 20, left: 20};
 window.tabWidth = 200;
 const tabHeight = 80;
@@ -32,9 +31,6 @@ var ancestorSvg = baseDiv.append('svg')
 
 var a = ancestorSvg.append('g')
   .attr('id', 'ancestorContainer')
-  // .attr("transform",d => `translate(40,40)`)
-  // .attr('x', margin.left + 20)
-  // .attr('y', margin.top + 20)
 
 var baseSvg = baseDiv.append('svg')
   .attr("preserveAspectRatio", "xMinYMin meet")
@@ -63,20 +59,7 @@ const zoom = d3.zoom().scaleExtent([0.5, 1.5])
 
 baseSvg.call(zoom)
 
-function initializeTree(root) {
 
-  root.x0 = innerWidth/2;
-  root.y0 = innerHeight/2;
-  window.currentRoot = root;
-  drawTree(root);
-  centerNode(root);
-}
-
-function setAsRoot(newRoot) {
-  window.currentRoot = newRoot;
-  drawTree(window.currentRoot);
-  centerNode(window.currentRoot);
-}
 
 function centerNode(source) {
   x = -source.x0;
@@ -87,8 +70,48 @@ function centerNode(source) {
     .attr("transform", d => `translate(${x}, ${y})scale(${currentZoom})`)
 }
 
-function drawTree(source) {
+function initializeTree(localRoot) {
+  root = d3.hierarchy(localRoot)
+  root.x0 = innerWidth/2;
+  root.y0 = innerHeight/2;
+  window.currentRoot = root;
+  drawTree(root);
+  centerNode(root);
+}
 
+function updateTree(localRoot) {
+  root = d3.hierarchy(localRoot);
+  let previousRootId = window.currentRoot.data.id;
+  window.currentRoot = undefined;
+
+  function traverseTree(subRoot) { // TODO visit function?
+    if(subRoot.data.id === previousRootId)
+      return subRoot
+    else
+      return subRoot.children.forEach(child => traverseTree(child))
+  }
+  window.currentRoot = traverseTree(root)
+  if(!window.currentRoot)
+  window.currentRoot = root;
+  drawTree(window.currentRoot)
+// centerNode(window.currentRoot);
+}
+
+function setAsRoot(newRoot) {
+  window.currentRoot = newRoot;
+  // console.log("Setting root = ", window.currentRoot);
+  drawTree(window.currentRoot);
+}
+
+function delete_tab(node) {
+  var parent = node.parent;
+  parent.children = parent.children.filter(d => d != node);
+  drawTree(window.currentRoot);
+}
+
+
+
+function drawTree(source) {
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     const descendants = tree.descendants()
@@ -153,12 +176,14 @@ function drawTree(source) {
       // .attr('x', d => d.x)
       // .attr('y', d => d.y)
 
-
     var ancestorEnter = ancestor.enter().append('g')
       .attr('class', 'node')
       .attr('fill-opacity', 1)
       .attr('stroke-opacity', 1)
-      .attr('dx', function(d, i) {margin.left + 40 * i})
+      .attr('dx', function(d, i) {
+        // console.log("d = ", d, " and index = ", i);
+        return (2 * i) + 'em';
+      })
       .attr('y', 20)
       .attr('cursor', 'pointer')
       .on('contextmenu', function(event, d) {
