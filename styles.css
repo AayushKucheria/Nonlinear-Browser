@@ -1,23 +1,19 @@
 
-
-body {
-}
-
-.svg-container {
+/* .svg-container {
   display: inline-block;
   position: absolute; /* Relative if it needs to be scaled */
-  width: 100%;
+  /* width: 100%; */
   /* padding-bottom: 100%; */
-  vertical-align: top;
+  /* vertical-align: top;
   overflow: hidden;
-}
+} */
 .svg-content-responsive {
   display: inline-block
   position: absolute;
-  /* fill: #f5f5f5; */
+  fill: #f5f5f5;
 
-  /* top: 10px; */
-  /* left: 0; */
+  /* // top: 10px; */
+  /* // left: 0; */
 }
 
 hide_link {
@@ -38,7 +34,7 @@ path {
   stroke-opacity: 1;
 }
 
-rect {
+rect.node {
   fill: #21b3dc;
   stroke: Black;
   stroke-opacity: 0;
@@ -61,6 +57,11 @@ text {
   font-family: 'Roboto';
   font-size: '16px';
   font-weight, '500';
+}
+
+.overlay {
+  fill: none;
+  pointer-events: all;
 }
 
 /* TODO CSS doesn't work for some reason? */

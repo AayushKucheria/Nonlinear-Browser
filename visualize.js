@@ -21,8 +21,8 @@ var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0)
 
-var baseDiv = d3.select('body').append('div')
-  .classed('svg-container', true)
+// var baseDiv = d3.select('body').append('div')
+//   .classed('svg-container', true)
 
 // var ancestorSvg = baseDiv.append('svg')
 //   .attr("preserveAspectRatio", "xMinYMin meet")
@@ -31,13 +31,14 @@ var baseDiv = d3.select('body').append('div')
 
 // var a = ancestorSvg.append('g')
 //   .attr('id', 'ancestorContainer')
-
-var baseSvg = baseDiv.append('svg')
+var baseSvg = d3.select('body').append('svg')
+// var baseSvg = baseDiv.append('svg')
   .attr("preserveAspectRatio", "xMinYMin meet")
   .classed("svg-content-responsive", true)
   .attr('viewBox', d => "" + (tabWidth - innerWidth)/2 + " " + (tabHeight-innerHeight)/4 + " " + innerWidth + " " + innerHeight)
 
 // baseSvg.append('rect')
+//   .attr('class', 'overlay')
 //   .attr('width', '100%')
 //   .attr('height', '100%')
 //   .style('fill', 'white')
@@ -47,6 +48,11 @@ var g = baseSvg.append('g')
   .on("mouseover", function(d) {
   d3.select(this).style("cursor","pointer");
   })
+
+g.append("rect")
+    .attr("class", "overlay")
+    .attr("width", innerWidth)
+    .attr("height", innerHeight);
 
 
 var defs = g.append("defs");
@@ -82,16 +88,36 @@ filter.append("feGaussianBlur")
     .attr("result", "blur");
 
 
-const zoom = d3.zoom().scaleExtent([0.5, 1.5])
-  .on("zoom", function(e) {
-    currentZoom = e.transform.k
-    currentPos = {x: e.transform.x, y: e.transform.y}
-    g.attr('transform', d => e.transform)
+// const zoom = d3.zoom().scaleExtent([0.5, 1.5])
+  // .on("zoom", function(e) {
+  //   currentZoom = e.transform.k
+  //   currentPos = {x: e.transform.x, y: e.transform.y}
+  //   g.attr('transform', d => e.transform)
+  //
+  // })
 
+const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
+  .on("zoom", function(event){
+    console.log("Zoom called");
+    zoom(event)
   })
 
-baseSvg.call(zoom)
+baseSvg.call(zoomer)
+  .on('wheel.zoom', null)
+  .on('wheel', function(event, d) {
+    console.log("Wheel pan detected.");
+     pan(event, d)
+   });
 
+function zoom(event) {
+  currentZoom = event.transform.k
+  currentPos = {x: event.transform.x, y: event.transform.y}
+  g.attr('transform', d => event.transform)
+}
+function pan(event, d) {
+  // can also select 'baseSvg' here, works.
+  zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
+}
 
 
 function centerNode(source) {
@@ -183,107 +209,6 @@ function drawTree(source) {
       }
     ]
 
-    // // ******* ANCESTORS *******
-    // // ancestors.forEach(function(d, i) {
-    // //   d.x = margin.left + tabWidth * i + 20;
-    // //   d.y = margin.top + 60;
-    // // })
-    // var ancestor = a.selectAll('g.ancestor').data(ancestors, function(d) {
-    //   return d.data.id;
-    // })
-    //   // .attr('x', d => d.x)
-    //   // .attr('y', d => d.y)
-    //
-    // var ancestorEnter = ancestor.enter().append('g')
-    //   .attr('class', 'node')
-    //   .attr('fill-opacity', 1)
-    //   .attr('stroke-opacity', 1)
-    //   .attr('dx', function(d, i) {
-    //     // console.log("d = ", d, " and index = ", i);
-    //     return (2 * i) + 'em';
-    //   })
-    //   .attr('y', 20)
-    //   .attr('cursor', 'pointer')
-    //   .on('contextmenu', function(event, d) {
-    //     window.contextMenu(event, d, menu);
-    //   })
-    //   .style('font-size', window.fontSize)
-    //   .style('font-weight', 400)
-    //
-    // ancestorEnter.append('rect')
-    //   .attr('class', 'node')
-    //   .attr('width', tabWidth)
-    //   .attr('rx', '20')
-    //   .attr('ry', '20')
-    //   .attr('fill', '#97d0ef')
-    //   .attr('height', tabHeight)
-    //
-    // ancestorEnter.append('text')
-    //   .attr('id', 'line1')
-    //   .attr('class', 'nodeText')
-    //   // .attr('dy', "2em")
-    //   .attr('dy', '1em')
-    //   .text(d => {
-    //     console.log(d);
-    //     return d.data.lines[0];
-    //   })
-    //   .attr('fill-opacity', 1)
-    //
-    // ancestorEnter.append('text')
-    //   .attr('id', 'line2')
-    //   .attr('class', 'nodeText')
-    //   // .attr('y', 20)
-    //   .attr('dy', '2em')
-    //   .text(d => d.data.lines[1])
-    //   .attr('fill-opacity', 1)
-    //
-    // ancestorEnter.append('text')
-    //   .attr('id', 'line3')
-    //   .attr('class', 'nodeText')
-    //   // .attr('y', 30)
-    //   .attr('dy', '3em')
-    //   // .attr('dy', '2.62em')
-    //   .text(d => d.data.lines[2])
-    //
-    // ancestorEnter.append('text')
-    //   .attr('id', 'line4')
-    //   .attr('class', 'nodeText')
-    //   // .attr('y', 40)
-    //   .attr('dy', '4em')
-    //   .text(d => d.data.lines[3])
-    //
-    // var ancestorUpdate = ancestorEnter.merge(ancestor)
-    //   .transition()
-    //   .duration(duration)
-    //   .attr("transform",d => `translate(${d.x},${d.y})`)
-    //
-    // ancestorUpdate.select('rect.ancestor')
-    //   .attr('fill-opacity', 0.4)
-    //
-    // ancestorUpdate.select('#line1')
-    //   // .attr('y', 5)
-    //   // .attr('dy', '0.42em')
-    //   .text(d => d.data.lines[0])
-    //   .attr('fill-opacity', 1)
-    //
-    // ancestorUpdate.select('#line2')
-    //   // .attr('y', 6)
-    //   // .attr('dy', '1.52em')
-    //   .text(d => d.data.lines[1])
-    //   .attr('fill-opacity', 1)
-    //
-    // ancestorUpdate.select('#line3')
-    //   // .attr('y', 7)
-    //   // .attr('dy', '2.62em')
-    //   .text(d => d.data.lines[2])
-    //   .attr('fill-opacity', 1)
-    //
-    // ancestorUpdate.select('#line4')
-    //   // .attr('y', 8)
-    //   // .attr('dy', '3.72em')
-    //   .text(d => d.data.lines[3])
-    //   .attr('fill-opacity', 1)
-
     // ******* LINKS ******
     var link = g.selectAll('path.link').data(links, function(d) {
       return d.target.data.id;
@@ -295,12 +220,10 @@ function drawTree(source) {
       .duration(duration)
         .attr('d', linkPathGenerator)
       // .attr('toggle', 'false') // It's entered, so it's not toggled.
-      // .attr('stroke-opacity', 1);
 
     link.transition()
       .duration(duration)
       .attr('d', linkPathGenerator);
-      // .attr('stroke-opacity', 1);
 
     var linkExit = link.exit()
       .transition()
@@ -370,7 +293,7 @@ function drawTree(source) {
         d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',0);
         // Set active links to inactive again
         g.selectAll(".link.active")
-          .classed("inactive", true)
+          .classed("active", false)
           .transition().duration(animationDuration).style('stroke', '#ccc');
       })
 
