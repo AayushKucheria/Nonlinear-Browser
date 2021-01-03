@@ -2,22 +2,18 @@
 function bootStrap() {
     loadWindowList();
 }
-
 chrome.tabs.onCreated.addListener(function(tab) {
-  // let tabObj = {  id: tab.id,
-  //                 title: tab.title,
-  //                 parentId: tab.openerTabId,
-  //                 children: [],
-  //                 lines:  wrapText(tab.title),
-  //                 windowId: tab.windowId,
-  //                 url: tab.url,
-  //                 pendingUrl:tab.pendingUrl,
-  //                 favIconUrl: tab.favIconUrl};
-  // console.log("Adding new tab: ", tabObj, " received from chrome: ", tab);
+  if(tab.url === chrome.extension.getURL('tabs_api.html')) {
+    window.extensionId = tab.id;
+  }
   addNewTab(tab);
 });
 chrome.tabs.onRemoved.addListener(function(tabId) {
-    removeTab(tabId);
+  // TODO Not working. How tf to debug??
+  if(tabId === window.extensionId) {
+    chrome.browserAction.setBadgeText({text: ''});
+  }
+    // removeTab(tabId);
 });
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   updateTab(tabId, changeInfo)

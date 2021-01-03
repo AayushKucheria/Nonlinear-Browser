@@ -16,7 +16,7 @@ function loadWindowList() {
         let currentTab = windowList[i].tabs[j];
         data.push({ "id": currentTab.id,
                     "title": currentTab.title,
-                    "lines":  wrapText(currentTab.title),
+                    "lines":  currentTab.title ? wrapText(currentTab.title) : wrapText(currentTab.pendingUrl), // TODO Working? Not checked.
                     "parentId": currentTab.openerTabId,
                     "temp":[],
                     "children": [],
@@ -119,6 +119,8 @@ function updateTab(tabId, changeInfo) {
 }
 
 function removeTab(tabId) {
+
+  
 
   let indexInData = idMapping[tabId];
   let removedTab = data.splice(indexInData, 1)
