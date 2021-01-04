@@ -21,6 +21,7 @@ var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0)
 
+//resize
 var baseDiv = d3.select('body').append('div')
   .classed('svg-container', true)
 
@@ -31,6 +32,13 @@ var ancestorSvg = baseDiv.append('svg')
 
 var a = ancestorSvg.append('g')
   .attr('id', 'ancestorContainer')
+// var ancestorSvg = baseDiv.append('svg')
+//   .attr("preserveAspectRatio", "xMinYMin meet")
+//   .classed("svg-content-responsive", true)
+//   //.attr('viewBox', d => "" + margin.left + " " + margin.top + " " + innerWidth + " " + 3*tabHeight/2)
+//
+// var a = ancestorSvg.append('g')
+//   .attr('id', 'ancestorContainer')
   // .attr("transform",d => `translate(40,40)`)
   // .attr('x', margin.left + 20)
   // .attr('y', margin.top + 20)
@@ -50,6 +58,48 @@ var g = baseSvg.append('g')
   .on("mouseover", function(d) {
   d3.select(this).style("cursor","pointer");
   })
+
+  var rounded_rect = d3.select('svg')
+          .append('rect')
+          .attr("rx", 4)
+          .attr("ry", 4)
+          .attr("x", 10)
+          .attr("y", 100)
+          .attr("width", 1500)
+          .attr("height", 45)
+          .style("stroke", 'black')
+          .style("fill","none")
+          .style("stroke-width",1);
+          // .attr('transform', function d() {
+          //
+          //
+          // })
+
+    // var ancestor_1 = d3.select('svg')
+    //           .append('rect')
+    //           .attr("rx",4)
+    //           .attr("ry",4)
+    //           .attr("x",30)
+    //           .attr("y",110)
+    //           .attr("width",500)
+    //           .attr("height",25)
+    //           .style("stroke", "black")
+    //           .style("fill","none")
+    //           .style("stroke-width",1);
+
+    // var ancestor_2 = d3.select('svg')
+    //           .append('rect')
+    //           .attr("rx",4)
+    //           .attr("ry",4)
+    //           .attr("x",600)
+    //           .attr("y",110)
+    //           .attr("width",500)
+    //           .attr("height",25)
+    //           .attr("stroke", "black")
+    //           .style("fill","none")
+    //           .style("stroke-width",1);
+
+
 
 
 const zoom = d3.zoom().scaleExtent([0.5, 1.5])
@@ -231,6 +281,9 @@ function drawTree(source) {
     var ancestor = a.selectAll('g.ancestor').data(ancestors, function(d) {
       return d.data.id;
     })
+    // var ancestor = a.selectAll('g.ancestor').data(ancestors, function(d) {
+    //   return d.data.id;
+    // })
       // .attr('x', d => d.x)
       // .attr('y', d => d.y)
 
@@ -318,6 +371,89 @@ function drawTree(source) {
       // .attr('dy', '3.72em')
       .text(d => d.data.lines[3])
       .attr('fill-opacity', 1)
+    // var ancestorEnter = ancestor.enter().append('g')
+    //   .attr('class', 'node')
+    //   .attr('fill-opacity', 1)
+    //   .attr('stroke-opacity', 1)
+    //   .attr('dx', function(d, i) {margin.left + 40 * i})
+    //   .attr('y', 20)
+    //   .attr('cursor', 'pointer')
+    //   .on('contextmenu', function(event, d) {
+    //     window.contextMenu(event, d, menu);
+    //   })
+    //   .style('font-size', window.fontSize)
+    //   .style('font-weight', 400)
+    //
+    // ancestorEnter.append('rect')
+    //   .attr('class', 'node')
+    //   .attr('width', tabWidth)
+    //   //.attr('rx', '20')
+    //   //.attr('ry', '20')
+    //   .attr('fill', '#97d0ef')
+    //   .attr('height', tabHeight)
+    //
+    // ancestorEnter.append('text')
+    //   .attr('id', 'line1')
+    //   .attr('class', 'nodeText')
+    //   // .attr('dy', "2em")
+    //   .attr('dy', '1em')
+    //   .text(d => d.data.lines[0])
+    //   .attr('fill-opacity', 1)
+    //
+    // ancestorEnter.append('text')
+    //   .attr('id', 'line2')
+    //   .attr('class', 'nodeText')
+    //   // .attr('y', 20)
+    //   .attr('dy', '2em')
+    //   .text(d => d.data.lines[1])
+    //   .attr('fill-opacity', 1)
+    //
+    // ancestorEnter.append('text')
+    //   .attr('id', 'line3')
+    //   .attr('class', 'nodeText')
+    //   // .attr('y', 30)
+    //   .attr('dy', '3em')
+    //   // .attr('dy', '2.62em')
+    //   .text(d => d.data.lines[2])
+    //
+    // ancestorEnter.append('text')
+    //   .attr('id', 'line4')
+    //   .attr('class', 'nodeText')
+    //   // .attr('y', 40)
+    //   .attr('dy', '4em')
+    //   .text(d => d.data.lines[3])
+    //
+    // var ancestorUpdate = ancestorEnter.merge(ancestor)
+    //   .transition()
+    //   .duration(duration)
+    //   .attr("transform",d => `translate(${d.x},${d.y})`)
+    //
+    // ancestorUpdate.select('rect.ancestor')
+    //   .attr('fill-opacity', 0.4)
+    //
+    // ancestorUpdate.select('#line1')
+    //   // .attr('y', 5)
+    //   // .attr('dy', '0.42em')
+    //   .text(d => d.data.lines[0])
+    //   .attr('fill-opacity', 1)
+    //
+    // ancestorUpdate.select('#line2')
+    //   // .attr('y', 6)
+    //   // .attr('dy', '1.52em')
+    //   .text(d => d.data.lines[1])
+    //   .attr('fill-opacity', 1)
+    //
+    // ancestorUpdate.select('#line3')
+    //   // .attr('y', 7)
+    //   // .attr('dy', '2.62em')
+    //   .text(d => d.data.lines[2])
+    //   .attr('fill-opacity', 1)
+    //
+    // ancestorUpdate.select('#line4')
+    //   // .attr('y', 8)
+    //   // .attr('dy', '3.72em')
+    //   .text(d => d.data.lines[3])
+    //   .attr('fill-opacity', 1)
 
     // console.log("AncestorEnter = ", ancestorEnter)
     // console.log("AncestorUpdate = ", ancestorUpdate)
