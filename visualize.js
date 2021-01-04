@@ -16,18 +16,17 @@ treeLayout = d3.tree()
   .nodeSize([tabWidth, tabHeight])
   .separation(function(a, b) { return 1.5})
 
-d3.select('body').style('fill-color', '#f5f5f5')
+// d3.select('body').style('fill-color', '#f5f5f5')
 
 // For checking length of text for wrapText
 var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0)
 
-var baseDiv = d3.select('body').append('div')
-  .classed('svg-container', true)
+// var baseDiv = d3.select('body').append('div')
+//   .classed('svg-container', true)
 
-
-var baseSvg = baseDiv.append('svg')
+var baseSvg = d3.select('body').append('svg')
   .attr("preserveAspectRatio", "xMinYMin meet")
   .classed("svg-content-responsive", true)
   // .classed('svg-container', true)
@@ -46,10 +45,10 @@ var g = baseSvg.append('g')
   d3.select(this).style("cursor","pointer");
   })
 
-g.append("rect")
-    .attr("class", "overlay")
-    .attr("width", innerWidth)
-    .attr("height", innerHeight);
+// g.append("rect")
+//     .attr("class", "overlay")
+//     .attr("width", innerWidth)
+//     .attr("height", innerHeight);
 
 baseSvg.selectAll('.button')
   .data(['zoom-in', 'zoom-out'])
@@ -422,7 +421,7 @@ function drawTree(source) {
         .on('click', function(event,d) {
           chrome.tabs.remove(d.data.id);
           var removeChildren = d.data.children ? d.data.children : (d.data._children ? d.data._children : null)
-          removeTabs = removeChildren.map(child => child.data.id)
+          removeTabs = removeChildren.map(child => child.id)
           // removeTabs.append(d.id);
           chrome.tabs.remove(removeTabs);
           removeTab(d.data.id);

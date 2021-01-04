@@ -19,7 +19,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   updateTab(tabId, changeInfo)
 })
 chrome.windows.onBoundsChanged.addListener(function(wId) {
-  update(window.currentRoot);
+  // update(window.currentRoot);
 });
 // let currentTabId;
 chrome.tabs.onActivated.addListener(function(tabId) {

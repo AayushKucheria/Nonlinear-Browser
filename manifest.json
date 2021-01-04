@@ -12,5 +12,5 @@
     "default_title": "Open Nonlinear Browser"
   },
   "manifest_version": 2,
-  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js; object-src 'self' "
+  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/w.js https://w.appzi.io/v1-v2-compat.js; object-src 'self' "
 }
