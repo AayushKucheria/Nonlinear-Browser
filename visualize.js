@@ -1,4 +1,4 @@
-const margin = { top: 20, right: 20, bottom: 20, left: 20};
+const margin = { top: 20, right: 100, bottom: 100, left: 100};
 window.tabWidth = 200;
 const tabHeight = 80;
 const duration = 750;
@@ -23,10 +23,10 @@ var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0)
 
-// var baseDiv = d3.select('body').append('div')
-//   .classed('svg-container', true)
+var baseDiv = d3.select('body').append('div')
+  .classed('svg-container', true)
 
-var baseSvg = d3.select('body').append('svg')
+var baseSvg = baseDiv.append('svg')
   .attr("preserveAspectRatio", "xMinYMin meet")
   .classed("svg-content-responsive", true)
   // .classed('svg-container', true)
@@ -68,15 +68,9 @@ baseSvg.selectAll('.button')
       else {
         currentZoom = 0.5;
       }
+      // console.log("Button clicked ", currentZoom);
       zoomer.scaleBy(g.transition().duration(750), currentZoom);
     })
-
-
-//
-// baseDiv.selectAll('zoomButtons').data(['zoom-in', 'zoom-out'])
-//   .enter()
-//     .append('svg')
-//     .append('svg:image')
 
 
 
@@ -123,13 +117,14 @@ filter.append("feGaussianBlur")
 
 const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
   .on("zoom", function(event){
+    // console.log("Zoomer with event  ", event);
     zoom(event)
   })
 
 baseSvg.call(zoomer)
   .on('wheel.zoom', null)
   .on('wheel', function(event, d) {
-    console.log("Wheel pan detected.");
+    // console.log("Wheel pan detected.");
      pan(event, d)
    });
 
@@ -140,11 +135,13 @@ zoomButtons.append('svg')
 
 
 function zoom(event) {
+  // console.log("Zooming by ", event.transform);
   currentZoom = event.transform.k
   currentPos = {x: event.transform.x, y: event.transform.y}
   g.attr('transform', d => event.transform)
 }
 function pan(event, d) {
+  // console.log("Panning by ", event);
   // can also select 'baseSvg' here, works.
   zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
 }
