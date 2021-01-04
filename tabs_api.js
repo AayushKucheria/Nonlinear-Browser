@@ -29,4 +29,5 @@ chrome.tabs.onActivated.addListener(function(tabId) {
 })
 document.addEventListener('DOMContentLoaded', function() {
   bootStrap();
+
 });

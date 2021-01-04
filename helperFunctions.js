@@ -30,6 +30,9 @@ function visualLength(text) {
   return ruler.offsetWidth;
 }
 
+function $(x) {return document.getElementById(x);}
+
+
 // ================
 // Traverse through all the nodes
 // parent = Node, traverseFn = what to do while traversing, childrenFn = children if present else null
