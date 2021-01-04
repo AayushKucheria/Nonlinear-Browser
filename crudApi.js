@@ -120,11 +120,12 @@ function updateTab(tabId, changeInfo) {
 
 function removeTab(tabId) {
 
-  
-
   let indexInData = idMapping[tabId];
   let removedTab = data.splice(indexInData, 1)
   removedTab= removedTab[0];
+  for(var child in removedTab.children) {
+    data.splice(idMapping[child.id], 1);
+  }
   updateIdMapping();
   let parent;
   let parentId = removedTab.parentId;
@@ -137,12 +138,12 @@ function removeTab(tabId) {
     parent = data[idMapping[parentId]];
   }
 
-  if(removedTab.children.length > 0) {
-    removedTab.children.forEach(child => {
-      child.parentId = parentId;
-      parent.children.push(child);
-    })
-  }
+  // if(removedTab.children.length > 0) {
+  //   removedTab.children.forEach(child => {
+  //     child.parentId = parentId;
+  //     parent.children.push(child);
+  //   })
+  // }
   parent.children.splice(parent.children.indexOf(removedTab), 1)
   updateTree(localRoot);
 }

@@ -8,6 +8,8 @@ var currentZoom = 1;
 var currentPos = {x: 0, y: 0}
 window.fontSize = 16;
 window.currentRoot;
+var iconWidth = tabWidth/4;
+var iconHeight = tabHeight/3;
 
 
 treeLayout = d3.tree()
@@ -21,20 +23,14 @@ var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0)
 
-// var baseDiv = d3.select('body').append('div')
-//   .classed('svg-container', true)
+var baseDiv = d3.select('body').append('div')
+  .classed('svg-container', true)
 
-// var ancestorSvg = baseDiv.append('svg')
-//   .attr("preserveAspectRatio", "xMinYMin meet")
-//   .classed("svg-content-responsive", true)
-//   .attr('viewBox', d => "" + margin.left + " " + margin.top + " " + innerWidth + " " + 3*tabHeight/2)
 
-// var a = ancestorSvg.append('g')
-//   .attr('id', 'ancestorContainer')
-var baseSvg = d3.select('body').append('svg')
-// var baseSvg = baseDiv.append('svg')
+var baseSvg = baseDiv.append('svg')
   .attr("preserveAspectRatio", "xMinYMin meet")
   .classed("svg-content-responsive", true)
+  // .classed('svg-container', true)
   .attr('viewBox', d => "" + (tabWidth - innerWidth)/2 + " " + (tabHeight-innerHeight)/4 + " " + innerWidth + " " + innerHeight)
 
 // baseSvg.append('rect')
@@ -42,6 +38,7 @@ var baseSvg = d3.select('body').append('svg')
 //   .attr('width', '100%')
 //   .attr('height', '100%')
 //   .style('fill', 'white')
+
 
 var g = baseSvg.append('g')
   .attr('id', 'treeContainer')
@@ -53,6 +50,35 @@ g.append("rect")
     .attr("class", "overlay")
     .attr("width", innerWidth)
     .attr("height", innerHeight);
+
+baseSvg.selectAll('.button')
+  .data(['zoom-in', 'zoom-out'])
+  .enter()
+    .append('svg:image')
+      .attr('id', d => d)
+      .attr('class', 'icon')
+      .attr('xlink:href', d => 'res/' + d + '.svg')
+      .attr('x', 0.5 * window.innerWidth) // 950
+      .attr('y', function(d, i) {return 0.6*window.innerHeight + 60*i})//function(d, i) { return 500 + 60*i})
+      .attr('width', 60)
+      .attr('height', 60)
+    .on('click', function(d, i) {
+      if(i === 'zoom-in') {
+        currentZoom = 2;
+      }
+      else {
+        currentZoom = 0.5;
+      }
+      zoomer.scaleBy(g.transition().duration(750), currentZoom);
+    })
+
+
+//
+// baseDiv.selectAll('zoomButtons').data(['zoom-in', 'zoom-out'])
+//   .enter()
+//     .append('svg')
+//     .append('svg:image')
+
 
 
 var defs = g.append("defs");
@@ -98,7 +124,6 @@ filter.append("feGaussianBlur")
 
 const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
   .on("zoom", function(event){
-    console.log("Zoom called");
     zoom(event)
   })
 
@@ -109,6 +134,12 @@ baseSvg.call(zoomer)
      pan(event, d)
    });
 
+var zoomButtons = baseSvg.append('g')
+
+zoomButtons.append('svg')
+  .append('circle')
+
+
 function zoom(event) {
   currentZoom = event.transform.k
   currentPos = {x: event.transform.x, y: event.transform.y}
@@ -118,7 +149,6 @@ function pan(event, d) {
   // can also select 'baseSvg' here, works.
   zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
 }
-
 
 function centerNode(source) {
   x = -source.x0;
@@ -167,10 +197,6 @@ function delete_tab(node) {
   parent.children = parent.children.filter(d => d != node);
   drawTree(window.currentRoot);
 }
-
-
-
-
 
 function drawTree(source) {
     const tree = treeLayout(window.currentRoot)
@@ -249,9 +275,8 @@ function drawTree(source) {
     var animationDuration = 500
     var nodeEnter = node.enter().append('g')
       .attr('class', 'node')
-      // .attr('fill-opacity', 1)
-      .attr('id', function(d,i)
-      { return d.data.id;
+      .attr('id', function(d,i) {
+        return d.data.id;
       })
       .attr("transform",d => `translate(${source.x0},${source.y0})`)
       .attr('cursor', 'pointer')
@@ -367,8 +392,7 @@ function drawTree(source) {
     // // })
 
       // ====== Toggle Arrows
-      var iconWidth = tabWidth/4;
-      var iconHeight = tabHeight/3;
+
       nodeEnter.append('svg')
         .append('svg:image')
         .attr('id', 'toggle')
@@ -397,6 +421,10 @@ function drawTree(source) {
         .attr('opacity',0)
         .on('click', function(event,d) {
           chrome.tabs.remove(d.data.id);
+          var removeChildren = d.data.children ? d.data.children : (d.data._children ? d.data._children : null)
+          removeTabs = removeChildren.map(child => child.data.id)
+          // removeTabs.append(d.id);
+          chrome.tabs.remove(removeTabs);
           removeTab(d.data.id);
         });
 
@@ -411,11 +439,23 @@ function drawTree(source) {
         .attr('height', iconHeight)
         .attr('opacity',0)
         .on('click', function(event,d) {
-          chrome.tabs.update(d.data.id, {
-            active: true
-          });
-          chrome.windows.update(d.data.windowId, {
-          focused: true
+          chrome.tabs.query({'url': d.data.url}, function(tabs) {
+            if(tabs.length > 0) {
+              chrome.tabs.update(tabs[0].id, {
+                active: true
+              });
+              chrome.windows.update(tabs[0].windowId, {
+              focused: true
+              });
+            }
+            else {
+              var newTab = {
+                'active': true,
+                'openerTabId': d.data.parentId,
+                'url': d.data.url,
+              }
+              chrome.tabs.create(newTab);
+            };
           });
         });
 

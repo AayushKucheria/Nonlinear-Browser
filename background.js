@@ -23,6 +23,8 @@ chrome.browserAction.onClicked.addListener(function(tab) {
       chrome.browserAction.setBadgeText({text: 'ON'});
     }
   });
+
+
   // if(!openedTabId) {
   //   chrome.tabs.create({url:chrome.extension.getURL("tabs_api.html")}, function(tab) => {
   //     openedTabId = tab.id;
@@ -30,3 +32,9 @@ chrome.browserAction.onClicked.addListener(function(tab) {
   //   });
   // }
 });
+// window.onbeforeunload = "bye bye";
+// TODO doesn't work.
+window.addEventListener('beforeunload', function(event) {
+  event.preventDefault();
+  event.returnValue = '';
+})
