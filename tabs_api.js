@@ -9,18 +9,17 @@ chrome.tabs.onCreated.addListener(function(tab) {
   addNewTab(tab);
 });
 chrome.tabs.onRemoved.addListener(function(tabId) {
-  // TODO Not working. How tf to debug??
+  // TODO BUG not working
   if(tabId === window.extensionId) {
     chrome.browserAction.setBadgeText({text: ''});
   }
-    // removeTab(tabId);
 });
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   updateTab(tabId, changeInfo)
 })
-chrome.windows.onBoundsChanged.addListener(function(wId) {
-  // update(window.currentRoot);
-});
+// chrome.windows.onBoundsChanged.addListener(function(wId) {
+//   // update(window.currentRoot);
+// });
 // let currentTabId;
 chrome.tabs.onActivated.addListener(function(tabId) {
   // if(tabId == extensionTabID) // Reached extension, highlight previous tab
