@@ -156,19 +156,7 @@ function initializeTree(localRoot) {
 }
 
 function updateTree(localRoot) {
-  root = d3.hierarchy(localRoot);
-  let previousRootId = window.currentRoot.data.id;
-  window.currentRoot = undefined;
-
-  function traverseTree(subRoot) { // TODO visit function?
-    if(subRoot.data.id === previousRootId)
-      return subRoot
-    else
-      return subRoot.children.forEach(child => traverseTree(child))
-  }
-  window.currentRoot = traverseTree(root)
-  if(!window.currentRoot)
-  window.currentRoot = root;
+  window.currentRoot = d3.hierarchy(localRoot);
   drawTree(window.currentRoot)
 // centerNode(window.currentRoot);
 }
@@ -186,6 +174,7 @@ function delete_tab(node) {
 }
 
 function drawTree(source) {
+  console.log("Drawing tree ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     const descendants = tree.descendants()
@@ -194,6 +183,8 @@ function drawTree(source) {
       .x(d => d.x + tabWidth/2)
       .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
     descendants.forEach(d => d.y = d.depth * 180)
+
+  console.log("With links ", links);
 
 
     var menu = [
@@ -250,10 +241,12 @@ function drawTree(source) {
 
       // Show tool icons
       d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',1);
+
+      // BUG this implementation causes the paths to fuck up.
       // Set connected links as active
-      g.selectAll(".link").classed("active", function(p) { return (p.target === d || p.source === d); });
+      // g.selectAll(".link").classed("active", function(p) { return (p.target === d || p.source === d); });
       // Highlight active links
-      g.selectAll(".link.active").transition().duration(animationDuration).style('stroke', 'black');
+      // g.selectAll(".link.active").transition().duration(animationDuration).style('stroke', 'black');
     })
     .on('mouseout', function(event, d) {
 
@@ -268,10 +261,12 @@ function drawTree(source) {
 
       // Hide tool icons
       d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',0);
+
+      // BUG this implementation causes the paths to fuck up.
       // Set active links to inactive again
-      g.selectAll(".link.active")
-        .classed("active", false)
-        .transition().duration(animationDuration).style('stroke', '#ccc');
+      // g.selectAll(".link.active")
+      //   .classed("active", false)
+      //   .transition().duration(animationDuration).style('stroke', '#ccc');
     })
     .attr("transform",d => `translate(${source.x0},${source.y0})`)
 
@@ -630,32 +625,58 @@ function drawTree(source) {
 
     var linkEnter = link.enter().append('path') // or insert
       .attr('class', 'link')
-      .transition()
-      .duration(duration)
+      .attr('stroke-opacity', 1)
       .attr('d', function(d) {
-        // console.log("Entering ", d);
+        // console.log("Entering ");
+        // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
+        // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
+
         return linkPathGenerator(d);
       });
-
+    // console.log("Link Enter = ", linkEnter);
+      // .attr('d', linkPathGenerator);
+    count = 0;
     var linkUpdate = link.transition()
       .duration(duration)
+      .delay(d => 100 * count++)
+      .ease(d3.easeBackOut) // p2
+      .attr('stroke-opacity', 1)
       .attr('d', function(d) {
-        // console.log("Updating ", d);
+        // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
+        // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
+
         return linkPathGenerator(d);
-      });
+      })
+
+    // console.log("LinkUpdate = ", linkUpdate);
+      // .attr('d', linkPathGenerator);
 
     var linkExit = link.exit()
       .transition()
       .duration(duration)
-      .attr('d', function(d) {
-        return linkPathGenerator({source: source, target: source});
+      .delay(function(d, i) {
+        if(d.source.toggle || d.target.toggle)
+          return 100* count++;
+        else {
+          return 0;
+        }
       })
-      .attr('stroke-opacity', 1e-6)
+      .ease(d3.easeBackIn) // p2
+      .attr('d', function(d) {
+        if(d.source.toggle || d.target.toggle)
+        return linkPathGenerator({source: source, target: source});
+        // else {
+        //   return 0;
+        // }
+      })
+      // .attr('stroke-opacity', 1e-6)
       .remove();
 
     descendants.forEach(d => {
       d.x0 = d.x;
       d.y0 = d.y;
+      d.data.x0 = d.x;
+      d.data.y0 = d.y;
     });
   }
 
