@@ -622,9 +622,13 @@ function drawTree(source) {
     var link = g.selectAll('path.link').data(links, function(d) {
       return d.target.data.id;
     });
-
+    count = 0;
     var linkEnter = link.enter().append('path') // or insert
       .attr('class', 'link')
+      // .transition()
+      // .duration(duration)
+      // .delay(d => 100 * count++)
+      // .ease(d3.easeBackOut) // p2
       .attr('stroke-opacity', 1)
       .attr('d', function(d) {
         // console.log("Entering ");
@@ -633,14 +637,15 @@ function drawTree(source) {
 
         return linkPathGenerator(d);
       });
-    // console.log("Link Enter = ", linkEnter);
-      // .attr('d', linkPathGenerator);
+    console.log("Link Enter = ", linkEnter);
+
     count = 0;
-    var linkUpdate = link.transition()
+    var linkUpdate = linkEnter.merge(link)
+      .transition()
       .duration(duration)
       .delay(d => 100 * count++)
       .ease(d3.easeBackOut) // p2
-      .attr('stroke-opacity', 1)
+      // .attr('stroke-opacity', 1)
       .attr('d', function(d) {
         // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
         // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
@@ -648,9 +653,10 @@ function drawTree(source) {
         return linkPathGenerator(d);
       })
 
-    // console.log("LinkUpdate = ", linkUpdate);
-      // .attr('d', linkPathGenerator);
 
+    console.log("LinkUpdate = ", linkUpdate);
+      // .attr('d', linkPathGenerator);
+    count = 0;
     var linkExit = link.exit()
       .transition()
       .duration(duration)
@@ -664,14 +670,14 @@ function drawTree(source) {
       .ease(d3.easeBackIn) // p2
       .attr('d', function(d) {
         if(d.source.toggle || d.target.toggle)
-        return linkPathGenerator({source: source, target: source});
+          return linkPathGenerator({source: source, target: source});
         // else {
         //   return 0;
         // }
       })
       // .attr('stroke-opacity', 1e-6)
       .remove();
-
+    console.log("LinkExit: ", linkExit);
     descendants.forEach(d => {
       d.x0 = d.x;
       d.y0 = d.y;
