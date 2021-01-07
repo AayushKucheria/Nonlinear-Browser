@@ -107,15 +107,6 @@ filter.append("feGaussianBlur")
     .attr("stdDeviation", 2)
     .attr("result", "blur");
 
-
-// const zoom = d3.zoom().scaleExtent([0.5, 1.5])
-  // .on("zoom", function(e) {
-  //   currentZoom = e.transform.k
-  //   currentPos = {x: e.transform.x, y: e.transform.y}
-  //   g.attr('transform', d => e.transform)
-  //
-  // })
-
 const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
   .on("zoom", function(event){
     // console.log("Zoomer with event  ", event);
@@ -166,19 +157,7 @@ function initializeTree(localRoot) {
 }
 
 function updateTree(localRoot) {
-  root = d3.hierarchy(localRoot);
-  let previousRootId = window.currentRoot.data.id;
-  window.currentRoot = undefined;
-
-  function traverseTree(subRoot) { // TODO visit function?
-    if(subRoot.data.id === previousRootId)
-      return subRoot
-    else
-      return subRoot.children.forEach(child => traverseTree(child))
-  }
-  window.currentRoot = traverseTree(root)
-  if(!window.currentRoot)
-  window.currentRoot = root;
+  window.currentRoot = d3.hierarchy(localRoot);
   drawTree(window.currentRoot)
 // centerNode(window.currentRoot);
 }
@@ -196,6 +175,7 @@ function delete_tab(node) {
 }
 
 function drawTree(source) {
+  console.log("Drawing tree ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     const descendants = tree.descendants()
@@ -204,6 +184,8 @@ function drawTree(source) {
       .x(d => d.x + tabWidth/2)
       .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
     descendants.forEach(d => d.y = d.depth * 180)
+
+  console.log("With links ", links);
 
 
     var menu = [
@@ -217,43 +199,10 @@ function drawTree(source) {
             drawTree(window.currentRoot);
           }
         }
-      },
-      // {
-      //   title: "Hide the hidden tabs",
-      //   action: function(event, elem) {
-      //     // hide(elem,0);
-      //   }
-      // },
-      // {
-      //   title: "Show the hidden tabs",
-      //   action: function(event,elem) {
-      //     hide(elem,1);
-      //   }
-      // }
+      }
     ]
 
-    // ******* LINKS ******
-    var link = g.selectAll('path.link').data(links, function(d) {
-      return d.target.data.id;
-    })
-
-    var linkEnter = link.enter().append('path') // or insert
-      .attr('class', 'link')
-      .transition()
-      .duration(duration)
-        .attr('d', linkPathGenerator)
-      // .attr('toggle', 'false') // It's entered, so it's not toggled.
-
-    link.transition()
-      .duration(duration)
-      .attr('d', linkPathGenerator);
-
-    var linkExit = link.exit()
-      .transition()
-      .duration(duration)
-      .attr('d', d => linkPathGenerator({source: source, target: source}))
-      .attr('stroke-opacity', 1e-6)
-      .remove();
+    console.log(links);
 
 
     // **** NODES *****
@@ -271,53 +220,56 @@ function drawTree(source) {
 
     var animationDuration = 500
     var nodeEnter = node.enter().append('g')
-      .attr('class', 'node')
-      .attr('id', function(d,i) {
-        return d.data.id;
-      })
-      .attr("transform",d => `translate(${source.x0},${source.y0})`)
-      .attr('cursor', 'pointer')
-      .on('contextmenu', function(event, d) {
-        window.contextMenu(event, d, menu);
-      })
-      .on('mouseover', function(event, d) {
+    .attr('class', 'node')
+    .attr('id', function(d,i) {
+      return d.data.id;
+    })
+    .attr('cursor', 'pointer')
+    .on('contextmenu', function(event, d) {
+      window.contextMenu(event, d, menu);
+    })
+    .on('mouseover', function(event, d) {
 
-        d3.select(this).select('rect').transition().duration(animationDuration)
-          // Show tab border
-          .style('stroke-opacity', 1)
-          // Display Shadow
-        // TODO Doesn't follow transition..
-          // .style("filter", "url(#drop-shadow)");
+      d3.select(this).select('rect').transition().duration(animationDuration)
+        // Show tab border
+        .style('stroke-opacity', 1)
+        // Display Shadow
+      // TODO Doesn't follow transition..
+        // .style("filter", "url(#drop-shadow)");
 
-        // Blur text
-        d3.select(this).selectAll('text').transition().duration(animationDuration).style("filter", "url(#blur)");
+      // Blur text and favicon
+      d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style("filter", "url(#blur)");
 
-        // Show tool icons
-        d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',1);
-        // Set connected links as active
-        g.selectAll(".link").classed("active", function(p) { return p.target === d; }); // Add p.source === d to highlight children path
-        // Highlight active links
-        g.selectAll(".link.active").transition().duration(animationDuration).style('stroke', 'black');
+      // Show tool icons
+      d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',1);
 
-      })
-      .on('mouseout', function(event, d) {
+      // BUG this implementation causes the paths to fuck up.
+      // Set connected links as active
+      // g.selectAll(".link").classed("active", function(p) { return (p.target === d || p.source === d); });
+      // Highlight active links
+      // g.selectAll(".link.active").transition().duration(animationDuration).style('stroke', 'black');
+    })
+    .on('mouseout', function(event, d) {
 
-        d3.select(this).select('rect').transition().duration(animationDuration)
-          // Hide tab border
-          .style('stroke-opacity', 0)
-          // Hide shadow TODO doesn't follow transition.
-          .style('filter', 'unset');
+      d3.select(this).select('rect').transition().duration(animationDuration)
+        // Hide tab border
+        .style('stroke-opacity', 0)
+        // Hide shadow TODO doesn't follow transition.
+        .style('filter', 'unset');
 
-        // Remove text blur
-        d3.select(this).selectAll('text').transition().duration(animationDuration).style('filter', 'unset');
+      // Remove text blur
+      d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style('filter', 'unset');
 
-        // Hide tool icons
-        d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',0);
-        // Set active links to inactive again
-        g.selectAll(".link.active")
-          .classed("active", false)
-          .transition().duration(animationDuration).style('stroke', '#ccc');
-      })
+      // Hide tool icons
+      d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',0);
+
+      // BUG this implementation causes the paths to fuck up.
+      // Set active links to inactive again
+      // g.selectAll(".link.active")
+      //   .classed("active", false)
+      //   .transition().duration(animationDuration).style('stroke', '#ccc');
+    })
+    .attr("transform",d => `translate(${source.x0},${source.y0})`)
 
     // Tab Rectangle
     nodeEnter.append('rect')
@@ -388,8 +340,24 @@ function drawTree(source) {
     // //   d3.select(this).attr('opacity',0)
     // // })
 
-      // ====== Toggle Arrows
+      // Toggle Arrows
+    nodeEnter.append('svg')
+      .append('svg:image')
+      .attr('id', 'toggle')
+      .attr('xlink:href', function(d) {
+        if(d.children)
+          return 'res/arrow-up-circle.svg';
+        else if(d._children)
+          return 'res/arrow-down-circle.svg';
+      })
+      .attr('class','icon')
+      .attr('x', tabWidth/2 - 20)
+      .attr('y', tabHeight)
+      .attr('width', iconWidth)
+      .attr('height', iconHeight)
+      .on('click', function(event,d) { toggleChildren(d)});
 
+    // Delete Icon
       nodeEnter.append('svg')
         .append('svg:image')
         .attr('id', 'toggle')
@@ -531,22 +499,6 @@ function drawTree(source) {
         //     // .display('none')
         // });
 
-
-      // nodeEnter.append('svg')
-      // .append('svg:image')
-      // .attr('id','rename')
-      // .attr('xlink:href', 'res/anchor.svg')
-      // .attr('class','icon')
-      // .attr('x',0.96*tabWidth)
-      // .attr('y',0.6*tabHeight)
-      // .attr('width', tabWidth/5)
-      // .attr('height', tabHeight/4)
-      // .attr('opacity',0)
-      // .on('click', function(event,d) {
-      //   // setAsRoot(d);
-      // });
-
-
     // var commentBubble = nodeEnter.append('foreignObject')
     //   .attr('class', 'commentBubble')
     //   .attr('width', 120)
@@ -561,7 +513,6 @@ function drawTree(source) {
     //   .on('click', function(event, d) {d3.select(this).style('opacity', '1')})
     //   .on('mouseover', function(event, d) {d3.select(this).style('opacity', '1')})
     //   .on('mouseout', function(event, d) {d3.select(this).style('opacity', '0')})
-
 
     // nodeEnter.append('rect')
     //   .attr('class', 'commentHover')
@@ -589,41 +540,41 @@ function drawTree(source) {
       //             .attr('y',5)
       //             .style("opacity", .9)
       //             .text(d => d.title)});
-
+    // easeQuadOut
+    //easeQuadInOut
+    // easeCubicOut
+    // easeCubicInOut
+    // easePolyOut.exponent(2) // or inOut
+    // easeSinOut // or inOut
+    // easeElasticOut.amplitude(1).period(0.6)
+    // easeBackIn when going to root, easeBackOut when coming from root
+    var count = 0;
     var nodeUpdate = nodeEnter.merge(node)
       .transition()
       .duration(duration)
+      .delay(d => 100* count++)
+      .ease(d3.easeBackOut) // p2
       .attr("transform",d => `translate(${d.x},${d.y})`)
       // .attr('fill-opacity', 1);
 
-    nodeUpdate.select('rect.node')
-      // .attr('fill-opacity', 0.4);
-      // .attr('x', d => d.x - tabHeight/2) // or 10?
-      // .attr('y', d => d.depth * (maxTabLength * 11))
-
     nodeUpdate.select('#line1')
-      // .attr('y', 5)
-      // .attr('dy', '0.42em')
       .text(d => d.data.lines[0])
       .attr('fill-opacity', 1)
 
     nodeUpdate.select('#line2')
-      // .attr('y', 6)
-      // .attr('dy', '1.52em')
       .text(d => d.data.lines[1])
       .attr('fill-opacity', 1)
 
     nodeUpdate.select('#line3')
-      // .attr('y', 7)
-      // .attr('dy', '2.62em')
       .text(d => d.data.lines[2])
       .attr('fill-opacity', 1)
 
     nodeUpdate.select('#line4')
-      // .attr('y', 8)
-      // .attr('dy', '3.72em')
       .text(d => d.data.lines[3])
       .attr('fill-opacity', 1)
+
+    nodeUpdate.select('.favicon')
+      .attr('xlink:href', d => d.data.favIconUrl ? d.data.favIconUrl : 'res/rabbit.svg')
 
     nodeUpdate.select('#toggle')
       .attr('xlink:href', function(d) {
@@ -632,20 +583,6 @@ function drawTree(source) {
         else if(d._children)
           return 'res/arrow-down-circle.svg';
       })
-    //   .attr('display', function(d) {
-    //     if(d.children)
-    //       return 'unset';
-    //     else
-    //       return 'none';
-    //   })
-    //
-    // nodeUpdate.select('#arrow-down')
-    //   .attr('display', function(d) {
-    //     if(d._children)
-    //       return 'unset';
-    //     else
-    //       return 'none';
-    //   })
 
     // nodeUpdate.select('#hide')
     // .attr('display', function(d) {
@@ -671,76 +608,119 @@ function drawTree(source) {
     //     return 'none';
     //   })
 
-
+    count = 0;
     var nodeExit = node.exit().transition()
       .duration(duration)
-      .attr("transform", d => `translate(${source.x},${source.y})`) // d.parent.x, d.parent.y to toggle to root
+      .delay(function(d, i) {
+        if(d.toggle)
+          return 100* count++;
+        else {
+          return 0;
+        }
+      })
+      .ease(d3.easeBackIn) // p2
+      .attr('width', 1e-6)
+      .attr('height', 1e-6)
+      .attr("transform", function(d) {
+        if(d.toggle)
+        return `translate(${source.x},${source.y})`;
+      }) // d.parent.x, d.parent.y to toggle to root
       .remove();
 
+    // ******* LINKS ******
+    var link = g.selectAll('path.link').data(links, function(d) {
+      return d.target.data.id;
+    });
+    count = 0;
+    var linkEnter = link.enter().append('path') // or insert
+      .attr('class', 'link')
+      // .transition()
+      // .duration(duration)
+      // .delay(d => 100 * count++)
+      // .ease(d3.easeBackOut) // p2
+      .attr('stroke-opacity', 1)
+      .attr('d', function(d) {
+        // console.log("Entering ");
+        // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
+        // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
 
-    nodeExit.select('rect.node')
-      .attr('width', 1e-6)
-      .attr('height', 1e-6);
+        return linkPathGenerator(d);
+      });
+    console.log("Link Enter = ", linkEnter);
 
-    nodeExit.select('.nodeText')
-      .style('fill-opacity', 1e-6)
+    count = 0;
+    var linkUpdate = linkEnter.merge(link)
+      .transition()
+      .duration(duration)
+      .delay(d => 100 * count++)
+      .ease(d3.easeBackOut) // p2
+      // .attr('stroke-opacity', 1)
+      .attr('d', function(d) {
+        // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
+        // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
 
+        return linkPathGenerator(d);
+      })
+
+
+    console.log("LinkUpdate = ", linkUpdate);
+      // .attr('d', linkPathGenerator);
+    count = 0;
+    var linkExit = link.exit()
+      .transition()
+      .duration(duration)
+      .delay(function(d, i) {
+        if(d.source.toggle || d.target.toggle)
+          return 100* count++;
+        else {
+          return 0;
+        }
+      })
+      .ease(d3.easeBackIn) // p2
+      .attr('d', function(d) {
+        if(d.source.toggle || d.target.toggle)
+          return linkPathGenerator({source: source, target: source});
+        // else {
+        //   return 0;
+        // }
+      })
+      // .attr('stroke-opacity', 1e-6)
+      .remove();
+    console.log("LinkExit: ", linkExit);
     descendants.forEach(d => {
       d.x0 = d.x;
       d.y0 = d.y;
+      d.data.x0 = d.x;
+      d.data.y0 = d.y;
     });
-
-
-    // ****** Ancestors ****
-    // var ancestor = baseSvg.selectAll('#ancestor_container.ancestor').data(ancestors)
-    //
-    // ancestorEnter = ancestor.enter()
-    // .append('rect')
-    //   // .attr('x',10)
-    //   // .attr('y',10)
-    //   // .attr('rx', 6)
-    //   // .attr('ry', 6)
-    //   .attr('width',tabWidth)
-    //   .attr('height',tabHeight)
-    //   .attr('border',1)
-    //   .style('stroke','black')
-    //   .style('fill','red')
-    //   .attr('x', function(d, i) {
-    //     console.log(i * tabWidth)
-    //     i * tabWidth
-    //   })
-    //
-    //   ancestorUpdate = ancestor.merge(ancestorEnter)
-    //     .transition()
-    //     .duration(duration)
-    //     .attr('x', function(d, i) {
-    //       i * tabWidth
-    //     })
-    //
-    //
-    //
-    //   ancestorExit = ancestor.exit()
-    //     .transition()
-    //     .duration(duration)
-    //     .remove();
   }
-
-
-
-
-
-
 
   function toggleChildren(d) {
     if(d.children) {
+      // Set toggle state true
+      traverse(d, function(d) {
+        d.toggle = true;
+        },
+        function(d) {
+          return d.children && d.children.length > 0 ? d.children : null;
+        }
+      );
+
       d._children = d.children;
       d.children = null;
-      d.toggle = true;
     }
     else if(d._children) {
+      // Set toggle state false
+      traverse(d, function(d) {
+        d.toggle = false;
+        },
+        function(d) {
+          return d._children && d._children.length > 0 ? d._children : null;
+        }
+      );
+
       d.children = d._children;
       d._children = null;
-      d.toggle = false;
     }
     drawTree(d);
   }

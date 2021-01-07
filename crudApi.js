@@ -98,9 +98,9 @@ function addNewTab(tab) {
 }
 
 function updateTab(tabId, changeInfo) {
-
   let indexInData = idMapping[tabId];
   let updatedTab = data[indexInData];
+  console.log("Updating tab ", tabId, " with index ", indexInData, " and obj ", updatedTab);
   var displayChanged = false
   for(var i in changeInfo) {
     if(updatedTab.hasOwnProperty(i)) {
@@ -109,6 +109,12 @@ function updateTab(tabId, changeInfo) {
         displayChanged = true
       if(i === 'title') {
         updatedTab['lines'] = wrapText(changeInfo[i]);
+
+        // TODO Doesn't work. If a tab is redirected to a site that
+        // doesn't have a favIconUrl, nonlinear displays the previous favIcon.
+        // chrome.tabs.get(tabId, function(tab) {
+        //   updatedTab['favIconUrl'] = tab.favIconUrl;
+        // });
       }
     }
   }
@@ -118,32 +124,29 @@ function updateTab(tabId, changeInfo) {
   }
 }
 
-function removeTab(tabId) {
+function removeSubtree(tabId) {
 
   let indexInData = idMapping[tabId];
   let removedTab = data.splice(indexInData, 1)
   removedTab= removedTab[0];
-  for(var child in removedTab.children) {
-    data.splice(idMapping[child.id], 1);
-  }
+
+  // Remove children from data
+  let i=0;
+  traverse(removedTab,
+    function(tab) { (i === 0)? ++i : data.splice(idMapping[tab.id], 1);},
+    function(tab) { return tab.children && tab.children.length > 0 ? tab.children : null;}
+  );
+
   updateIdMapping();
   let parent;
   let parentId = removedTab.parentId;
-
   if(parentId === undefined) {
-    parentId=undefined;
     parent = localRoot;
   }
   else {
     parent = data[idMapping[parentId]];
   }
 
-  // if(removedTab.children.length > 0) {
-  //   removedTab.children.forEach(child => {
-  //     child.parentId = parentId;
-  //     parent.children.push(child);
-  //   })
-  // }
   parent.children.splice(parent.children.indexOf(removedTab), 1)
   updateTree(localRoot);
 }
