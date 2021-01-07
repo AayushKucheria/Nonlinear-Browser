@@ -1,131 +1,6 @@
 let data = []; // tree of tabs as objects
 let idMapping = [];
-let hidden_tabs=[];
 window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "temp": [], "children": [], "_children": [], "__children":[], "x0": 0, "y0": 0};
-// window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"],"ancestors":[], "children": [], "_children": [], "x0": 0, "y0": 0};
-
-
-
-function hide(source,flag) {
-// function hide(source,flag)
-// {
-//   d3.selectAll('path.link').attr('display',function(d)
-//     {
-//         if ((d.source == source)||(d.target == source))
-//         {
-//           return 'none';
-//         }
-//     });
-//
-//   d3.selectAll('g.node').attr('display', function(d)
-//  }
-
-  // d3.selectAll('path.link').attr('display',function(d)
-  //   {
-  //       if ((d.source == hidden_tabs[i])||(d.target == hidden_tabs[i]))
-  //       {
-  //         return 'none';
-  //       }
-  //   }
-  // }
-
-    //console.log("hiding the hidden tabs array elements now  ")
-  //     d3.selectAll('g.node').attr('display',function (d)
-  //     {
-  //       for(i=0;i<hidden_tabs.length;i++)
-  //       {
-  //           if(d == hidden_tabs[i])
-  //           {
-  //             return 'none';
-  //           }
-  //         }});
-  //       console.log("hiding the tab nodes now");
-  //       d3.selectAll('path.link').attr('display',function(d)
-  //         {
-  //           for(i=0;i<hidden_tabs.length;i++)
-  //           {
-  //             if ((d.source == hidden_tabs[i])||(d.target == hidden_tabs[i]))
-  //             {
-  //               return 'none';
-  //             }
-  //           };
-
-  //
-  //     console.log("hiding the tab links now");
-  // });
-  // for(i=0;i<window.currentRoot.children.length;i++)
-  // {
-  //   if(source.parentId==window.currentRoot.children.length[i].id)
-  //   {
-  //       window.currentRoot.children.__children=source;
-  //       source=null;
-  //   }
-  // }
-
-  //console.log("the parent is",source.parent);
-
-  // for(i=0;i<hidden_tabs.length;i++)
-  // {
-  parent=source.parent;
-  parent.temp=[];
-
-  // console.log("parent",parent);
-  if(flag==0)
-  {
-    hidden_children=parent.children.filter(a => a == source);
-    //console.log("the one that should be hidden",hidden_children);
-    parent.temp.push(hidden_children); //select the tabs that need to be hidden and push them in a separate array so that it can be accessed again
-    //console.log("hidden tab",parent.temp);
-    parent.children = parent.children.filter(a => a != source); //adding only the remaining children to the parent of the node
-    //console.log("parent.temp",parent.temp[0]);
-  //  console.log("current children in the tree",parent.children);
-  }
-  else
-  {
-      if(parent.temp[0])
-      {
-        parent.children.push(parent.temp[0]);
-        console.log("parent.temp",parent.temp[0]);
-      }
-  }
-  drawTree(window.currentRoot); // use drawTree(source)
-}
-  // parent=source.parent;
-  // parent.temp=[];
-  //
-  // // console.log("parent",parent);
-  // if(flag==0)
-  // {
-  //   hidden_children=parent.children.filter(a => a == source);
-  //   //console.log("the one that should be hidden",hidden_children);
-  //   parent.temp.push(hidden_children); //select the tabs that need to be hidden and push them in a separate array so that it can be accessed again
-  //   //console.log("hidden tab",parent.temp);
-  //   parent.children = parent.children.filter(a => a != source); //adding only the remaining children to the parent of the node
-  //   //console.log("parent.temp",parent.temp[0]);
-  // //  console.log("current children in the tree",parent.children);
-  // }
-//   else
-//   {
-//       if(parent.temp[0])
-//       {
-//         parent.children.push(parent.temp[0]);
-//         console.log("parent.temp",parent.temp[0]);
-//       }
-//   }
-//   drawTree(window.currentRoot); // use drawTree(source)
-// }
-
-// function list_hide(tab)
-// {
-//   hidden_tabs.push(tab);
-//   hide_toggle(tab);
-//   //console.log("added to hidden list",tab);
-// }
-
-function hide_toggle(tab)
-{
-  nodeEnter.select()
-}
 
 // Load tree from scratch
 function loadWindowList() {
@@ -141,7 +16,7 @@ function loadWindowList() {
         let currentTab = windowList[i].tabs[j];
         data.push({ "id": currentTab.id,
                     "title": currentTab.title,
-                    "lines":  wrapText(currentTab.title),
+                    "lines":  currentTab.title ? wrapText(currentTab.title) : wrapText(currentTab.pendingUrl), // TODO Working? Not checked.
                     "parentId": currentTab.openerTabId,
                     "temp":[],
                     "children": [],
@@ -209,6 +84,7 @@ function addNewTab(tab) {
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
   if(tabObj.parentId === undefined || tabObj.pendingUrl === "chrome://newtab/") {
+    // console.log("New tab is a root: ", tabObj);
     tabObj.parentId = undefined;
     localRoot.children.push(tabObj);
     updateTree(localRoot)
@@ -216,6 +92,7 @@ function addNewTab(tab) {
   else {
     const parentElement = data[idMapping[tabObj.parentId]];
     parentElement.children.push(tabObj);
+    // console.log("New tab is a child: ", tabObj);
     updateTree(localRoot);
   }
 }
@@ -241,58 +118,14 @@ function updateTab(tabId, changeInfo) {
   }
 }
 
-// async function SetupConnection()
-  // {
-  // console.log("iuaufsdifuhadsif");
-  // const {MongoClient} = require('mongodb');
-  // const uri = "mongodb+srv://sparrsh:rYbk0Zsh3jh4m7ES@tabdata.ttdvm.mongodb.net/test";
-  // const window.client= new MongoClient(uri,{ useNewUrlParser: true, useUnifiedTopology: true });
-  //
-  // try {
-  //        // Connect to the MongoDB cluster
-  //        await client.connect();
-  //        console.log("wtf");
-  //       } catch (e) {
-  //        console.error(e);
-  //      } finally {
-  //        await client.close();
-  //    }
-  //  }
-   // async function insertinDB(client,tabObj)
-   // {
-   //   db = await client.db("TabData");
-   //
-   //   individual_element= {ID: tabObj.id,ParentID: tabObj.parentId, children: tabObj.children,WindowID: tabObj.windowId};
-   //   if(tabObj.parentId===undefined)
-   //  {
-   //   await db.collection("tab_data_test").insertOne(individual_element);
-   //   console.log("hey");
-   //  }
-   //  else
-   //  {
-   //    parentid_newtab= tabObj.parentId;
-   //    primary_key_parent =parentid_newtab._id;
-   //    console.log("primary_key_parent");
-   //    prev_children=parentid_newtab.children;
-   //    new_children=prev_children.append(tabObj);
-   //    await db.collection("tab_data_test").updateOne(
-   //      {_id : primary_key_parent},
-   //      { $set: {children: new_children}}
-   //    )
-   //  }
-  //console.log({"Inserted":1})
-  //SetupConnection(client).catch(console.error);
-// }
-  //insert(client);
-//   printRoot();
-// };
-
-
 function removeTab(tabId) {
 
   let indexInData = idMapping[tabId];
   let removedTab = data.splice(indexInData, 1)
   removedTab= removedTab[0];
+  for(var child in removedTab.children) {
+    data.splice(idMapping[child.id], 1);
+  }
   updateIdMapping();
   let parent;
   let parentId = removedTab.parentId;
@@ -305,12 +138,12 @@ function removeTab(tabId) {
     parent = data[idMapping[parentId]];
   }
 
-  if(removedTab.children.length > 0) {
-    removedTab.children.forEach(child => {
-      child.parentId = parentId;
-      parent.children.push(child);
-    })
-  }
+  // if(removedTab.children.length > 0) {
+  //   removedTab.children.forEach(child => {
+  //     child.parentId = parentId;
+  //     parent.children.push(child);
+  //   })
+  // }
   parent.children.splice(parent.children.indexOf(removedTab), 1)
   updateTree(localRoot);
 }

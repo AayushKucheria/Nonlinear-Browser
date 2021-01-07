@@ -1,18 +1,40 @@
-
+* {
+	margin: 0;
+	padding: 0;
+}
+html {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: 'Roboto', sans-serif;
+  width:100%;
+  height: 100%;
+  margin:0;
+  overflow-y: hidden;
+  padding:0;
+  /* all: initial; */
+}
 
 .svg-container {
   display: inline-block;
-  position: relative;
+  position: relative; /* Relative if it needs to be scaled */
   width: 100%;
-  /* padding-bottom: 100%; */
-  vertical-align: top;
-  overflow: hidden;
+  height: 100%;
+  /* vertical-align: top; */
+  /* overflow-y: visible; */
 }
 .svg-content-responsive {
   display: inline-block
   position: absolute;
-  /* top: 10px; */
-  /* left: 0; */
+  fill: #f5f5f5;
+  width: 100%;
+  height: 100%;
+}
+
+#treeContainer {
 }
 
 hide_link {
@@ -23,7 +45,7 @@ hide_link {
 
 highlight {
   fill: none;
-  stroke: 'black';
+  /* stroke: #85f2d0; */
   stroke-opacity: 1;
 }
 
@@ -33,24 +55,39 @@ path {
   stroke-opacity: 1;
 }
 
-text {
-  pointer-events: none;
-  font-family: 'Playfair Display', serif;
+rect.node {
+  fill: #21b3dc;
+  stroke: Black;
+  stroke-opacity: 0;
+  fill-opacity: 1;
+  stroke-width: 2px;
 }
 
-.nodeText:hover, .nodeText:active {
-  text-decoration: underline;
+text {
+  pointer-events: none;
+  font-family: 'Roboto';
+  fill: White;
+  font-size: 16px;
+  font-weight: 500;
+  stroke-opacity: 1;
 }
 
 #ruler {
   visibility: hidden;
   white-space: nowrap;
-  font-family: 'Playfair Display', serif;
+  font-family: 'Roboto';
   font-size: '16px';
-  font-weight, '400';
+  font-weight, '500';
 }
 
-
-/* .cursor{
-  z-index : 999;
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+/* For debugging layout */
+/*
+* {
+  background: #000 !important;
+  color: #0f0 !important;
+  outline: solid #f00 1px !important;
 } */

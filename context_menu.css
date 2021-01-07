@@ -25,5 +25,33 @@
 
 .contextMenu ul li:hover {
   background-color: #4677f8;
+  /*background-color: #4677f8;*/
   color: #fefefe;
 }
+
+/* .contextMenu
+{
+  width:200 px;
+  height:150 px;
+  overflow-y: auto;
+}
+
+.contextMenu a
+{
+  background-color : #eee ;
+  color: black;
+  display : block
+  padding: 12px;
+  text-decoration: none;
+}
+
+.contextMenu a:hover
+{
+  background-color : #ccc;
+}
+
+.contextMenu a.active
+{
+  background-color:  #4CAF50;
+  color: White;
+} */

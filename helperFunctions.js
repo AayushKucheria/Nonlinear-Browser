@@ -6,8 +6,6 @@ function wrapText(text) {
     limit = false;
     var line=0, word=0;
   while(line < 4 && word < words.length) {
-    // console.log(res[line], " length is ", visualLength(res[line]))
-    // console.log(words[word], " length is ", words[word].visualLength)
     let limit = line < 2 ? 0.5 * window.tabWidth : 0.7 * tabWidth
     if((visualLength(res[line]) + visualLength(words[word])) < limit) {
       res[line] +=  " " + words[word++];
@@ -18,7 +16,6 @@ function wrapText(text) {
   }
   if(res[4])
     res[3] = res[3].substring(0, res[3].length-3) + "..."
-  // console.log(text, " wrapped to ", res)
   return res;
 }
 
@@ -33,4 +30,22 @@ function visualLength(text) {
   return ruler.offsetWidth;
 }
 
+function $(x) {return document.getElementById(x);}
+
+
 // ================
+// Traverse through all the nodes
+// parent = Node, traverseFn = what to do while traversing, childrenFn = children if present else null
+function traverse(parent, traverseFn, childrenFn) {
+    if(!parent) return;
+
+    traverseFn(parent);
+
+    var children = childrenFn(parent);
+    if(children) {
+      var count = children.length;
+      for(var i = 0; i < count; i++) {
+        traverse(children[i], traverseFn, childrenFn);
+      }
+    }
+  }
