@@ -23,6 +23,7 @@ var div = d3.select("rect").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0)
 
+//resize
 var baseDiv = d3.select('body').append('div')
   .classed('svg-container', true)
 
@@ -58,7 +59,7 @@ baseSvg.selectAll('.button')
       .attr('class', 'icon')
       .attr('xlink:href', d => 'res/' + d + '.svg')
       .attr('x', 0.5 * window.innerWidth) // 950
-      .attr('y', function(d, i) {return 0.6*window.innerHeight + 60*i})//function(d, i) { return 500 + 60*i})
+      .attr('y', function(d, i) {return 0.5*window.innerHeight + 50*i})//function(d, i) { return 500 + 60*i})
       .attr('width', 60)
       .attr('height', 60)
     .on('click', function(d, i) {
@@ -364,31 +365,39 @@ function drawTree(source) {
 
     // Delete Icon
       nodeEnter.append('svg')
-      .append('svg:image')
-      .attr('id','delete')
-      .attr('xlink:href', 'res/bin.svg')
-      .attr('class','icon')
-      .attr('x', tabWidth - iconWidth)
-      .attr('y', 0)
-      .attr('width', iconWidth)
-      .attr('height', iconHeight)
-      .attr('opacity',0)
-      .on('click', function(event,d) {
-        var removedTabs = [];
+        .append('svg:image')
+        .attr('id', 'toggle')
+        .attr('xlink:href', function(d) {
+          if(d.children)
+            return 'res/arrow-up-circle.svg';
+          else if(d._children)
+            return 'res/arrow-down-circle.svg';
+        })
+        .attr('class','icon')
+        .attr('x', tabWidth/2 - 20)
+        .attr('y', tabHeight)
+        .attr('width', iconWidth)
+        .attr('height', iconHeight)
+        .on('click', function(event,d) { toggleChildren(d)});
 
-        // Get list of ids in removed subtree
-        // TODO BUG
-        traverse(d.data,
-          function(tab) {
-            // console.log("Removing ", tab);
-            removedTabs.push(tab.id); },
-          function(tab) {
-            return tab.children && tab.children.length > 0 ? tab.children : null;
-          }
-        );
-        chrome.tabs.remove(removedTabs);
-        removeSubtree(d.data.id);
-      });
+        nodeEnter.append('svg')
+        .append('svg:image')
+        .attr('id','delete')
+        .attr('xlink:href', 'res/black-bin.svg')
+        .attr('class','icon')
+        .attr('x', tabWidth - iconWidth)
+        .attr('y', 0)
+        .attr('width', iconWidth)
+        .attr('height', iconHeight)
+        .attr('opacity',0)
+        .on('click', function(event,d) {
+          chrome.tabs.remove(d.data.id);
+          var removeChildren = d.data.children ? d.data.children : (d.data._children ? d.data._children : null)
+          removeTabs = removeChildren.map(child => child.id)
+          // removeTabs.append(d.id);
+          chrome.tabs.remove(removeTabs);
+          removeTab(d.data.id);
+        });
 
         nodeEnter.append('svg')
         .append('svg:image')
