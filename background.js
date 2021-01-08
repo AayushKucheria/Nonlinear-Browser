@@ -5,6 +5,7 @@
 // var openedTabId;
 // var openedWindowId;
 window.extensionId;
+
 chrome.browserAction.onClicked.addListener(function(tab) {
   chrome.tabs.query({'url': chrome.extension.getURL("tabs_api.html")}, function(tabs) {
     if(tabs.length > 0) {
@@ -24,7 +25,6 @@ chrome.browserAction.onClicked.addListener(function(tab) {
     }
   });
 
-
   // if(!openedTabId) {
   //   chrome.tabs.create({url:chrome.extension.getURL("tabs_api.html")}, function(tab) => {
   //     openedTabId = tab.id;
@@ -32,9 +32,8 @@ chrome.browserAction.onClicked.addListener(function(tab) {
   //   });
   // }
 });
-// window.onbeforeunload = "bye bye";
-// TODO doesn't work.
-window.addEventListener('beforeunload', function(event) {
-  event.preventDefault();
-  event.returnValue = '';
+
+// Works
+chrome.runtime.onStartup.addListener(function() {
+  chrome.tabs.create({"url": 'tabs_api.html'});
 })

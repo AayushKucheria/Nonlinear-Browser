@@ -6,7 +6,7 @@ function wrapText(text) {
     limit = false;
     var line=0, word=0;
   while(line < 4 && word < words.length) {
-    let limit = line < 2 ? 0.5 * window.tabWidth : 0.7 * tabWidth
+    let limit = line < 2 ? 0.5 * window.tabWidth : 0.7 * window.tabWidth
     if((visualLength(res[line]) + visualLength(words[word])) < limit) {
       res[line] +=  " " + words[word++];
     }

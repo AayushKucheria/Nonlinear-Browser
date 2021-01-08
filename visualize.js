@@ -198,6 +198,12 @@ function drawTree(source) {
             drawTree(window.currentRoot);
           }
         }
+      },
+      {
+        title: "Copy URL",
+        action: function(event, elem) {
+          var promise = navigator.clipboard.writeText(elem.data.url);
+        }
       }
     ]
 
