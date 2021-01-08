@@ -400,6 +400,7 @@ function drawTree(source) {
           // removeTabs.append(d.id);
           chrome.tabs.remove(removeTabs);
           removeTab(d.data.id);
+          removeSubtree(d.data.id);
         });
 
         nodeEnter.append('svg')
