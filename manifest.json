@@ -2,7 +2,7 @@
   "name": "Nonlinear Browser",
   "description": "Representing browser tabs in a tree for contextual thought",
   "version": "0.3.1",
-  "permissions": ["tabs", "clipboardRead", "clipboardWrite"],
+  "permissions": ["tabs", "clipboardRead", "clipboardWrite", "identity"],
   "background": {
     "persistent": false,
     "scripts": ["background.js"]
@@ -12,6 +12,13 @@
     "default_title": "Open Nonlinear Browser"
   },
   "manifest_version": 2,
-  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/w.js https://w.appzi.io/v1-v2-compat.js; object-src 'self' "
-  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/w.js https://w.appzi.io/v1-v2-compat.js https://www.gstatic.com/ https://*.firebaseio.com https://www.googleapis.com; ; connect-src 'self' wss://*.firebaseio.com; object-src 'self'"
+  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/w.js https://w.appzi.io/v1-v2-compat.js https://apis.google.com https://www.gstatic.com/firebasejs/8.2.2/firebase.js https://*.firebaseio.com https://www.googleapis.com; object-src 'self'",
+  "oauth2": {
+    "client_id": "693229853662-0ib0k3hru04sb2da03e6nltso00at1ur.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile"
+    ]
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmFuSTWbKAHhEyCLW91/Lj+OvPMbQiCDIKGK8vFA0yQeDlDLiHtkB0EPQob81lO7+7EzdL7djbldh6IVnyKvKWYNFzmujD6Stki5myBEOs6iSY9e2ZPZyxyLPEoYM/f8A74EYjLV4dUV+Cs+5JjKzGCXYxxnaYhyrfBF81eJQoIZS2hxg1VTtLxnFz/lEF+Rb4SIpAS4X7b6fmNXaM0xzFJZ3/sqLZxnOkvzVUK8v+69ZMQUqJxJzT3g79wquSiGiveSVFhiuKhRtYsRfh1z9JWCpF4zum5rPtTf3Lh7UUJwKqr1RqO3NJAZpUGWvXLPUDPwNNWBw2/C9NTxTtctbKwIDAQAB"
 }
