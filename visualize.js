@@ -208,6 +208,11 @@ function drawTree(source) {
         action: function(event, elem) {
           var promise = navigator.clipboard.writeText(elem.data.url);
         }
+      },
+      {
+        title: "Sign in",
+        action: function(event, elem) {
+        }
       }
     ]
 

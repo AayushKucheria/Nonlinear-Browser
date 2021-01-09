@@ -2,17 +2,17 @@
   "name": "Nonlinear Browser",
   "description": "Representing browser tabs in a tree for contextual thought",
   "version": "0.3.1",
-  "permissions": ["tabs", "clipboardRead", "clipboardWrite", "identity"],
+  "permissions": ["tabs", "identity"],
   "background": {
     "persistent": false,
-    "scripts": ["background.js"]
+    "page": "tabs_api.html"
   },
   "browser_action": {
     "default_icon": "res/logo/favicon.png",
     "default_title": "Open Nonlinear Browser"
   },
   "manifest_version": 2,
-  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/w.js https://w.appzi.io/v1-v2-compat.js https://apis.google.com https://www.gstatic.com/firebasejs/8.2.2/firebase.js https://*.firebaseio.com https://www.googleapis.com; object-src 'self'",
+  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/ https://www.gstatic.com/ https://*.firebaseio.com https://www.googleapis.com https://apis.google.com; object-src 'self'",
   "oauth2": {
     "client_id": "693229853662-0ib0k3hru04sb2da03e6nltso00at1ur.apps.googleusercontent.com",
     "scopes": [
