@@ -14,6 +14,9 @@ var firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 console.log(firebase);
+
+firebase.auth().useDeviceLanguage();
+
 // firebase.analytics();
 
 
@@ -45,12 +48,13 @@ var uiConfig = {
     // or whether we leave that to developer to handle.
     signInSuccessWithAuthResult: function(authResult, redirectUrl) {
 
-      chrome.runtime.sendMessage({ message: 'sign_in'}, function(response) {
-        if(response.message === 'success') {
-          // document.getElementById('my_sign_in').style.display = 'none';
-          window.location.replace('./tabs_api.html');
-        }
-      });
+      // If you've to redirect to another html file, use this.
+      // chrome.runtime.sendMessage({ message: 'sign_in'}, function(response) {
+      //   if(response.message === 'success') {
+      //     // document.getElementById('my_sign_in').style.display = 'none';
+      //     // window.location.replace('./tabs_api.html');
+      //   }
+      // });
       //BUG No redirect URL has been found. You must either specify a signInSuccessUrl in the configuration, pass in a redirect URL to the widget URL, or return false from the callback.  Dismiss
       return false;
     },
@@ -71,7 +75,8 @@ var uiConfig = {
         prompt: 'select_account'
       }
     },
-    firebase.auth.TwitterAuthProvider.PROVIDER_ID,
+    // If yes enable on firebase console
+    // firebase.auth.TwitterAuthProvider.PROVIDER_ID,
     firebase.auth.EmailAuthProvider.PROVIDER_ID
     // Don't need the rest
     // firebase.auth.PhoneAuthProvider.PROVIDER_ID,
@@ -106,15 +111,13 @@ document.getElementById("my_sign_in").addEventListener('click', () => {
  *
  * When signed in, we also authenticate to the Firebase Realtime Database.
  */
-// function initApp() {
-//   // Listen for auth state changes.
-//   firebase.auth().onAuthStateChanged(function(user) {
-//     console.log('User state change detected from the Background script of the Chrome Extension:', user);
-//   });
-// }
-//
-// window.onload = function() {
-//   // initApp();
-//
-//
-// };
+function initApp() {
+  // Listen for auth state changes.
+  firebase.auth().onAuthStateChanged(function(user) {
+    console.log('User state change detected from the Background script of the Chrome Extension:', user);
+  });
+}
+
+window.onload = function() {
+  initApp();
+};
