@@ -1,6 +1,6 @@
 let data = []; // tree of tabs as objects
 let idMapping = [];
-window.localRoot = {"id": "Root", "title": "Root", "lines": ["Root"], "temp": [], "children": [], "_children": [], "__children":[], "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Start", "lines": ["Start"], "children": [], "x0": 0, "y0": 0};
 
 // Load tree from scratch
 function loadWindowList() {
@@ -15,16 +15,14 @@ function loadWindowList() {
 
         let currentTab = windowList[i].tabs[j];
         data.push({ "id": currentTab.id,
-                    "title": currentTab.title,
-                    "lines":  currentTab.title ? wrapText(currentTab.title) : wrapText(currentTab.pendingUrl), // TODO Working? Not checked.
-                    "parentId": currentTab.openerTabId,
-                    "temp":[],
+                    "title": currentTab.title || '',
+                    "lines":  wrapText((currentTab.title || currentTab.url || currentTab.pendingUrl || '')),
+                    "parentId": currentTab.openerTabId || '',
                     "children": [],
-                    "_children": [],
-                    "__children": [],
                     "windowId": windowList[i].id,
-                    "url": currentTab.url,
-                    "favIconUrl": currentTab.favIconUrl,
+                    "url": currentTab.url || '',
+                    "pendingUrl":currentTab.pendingUrl || '',
+                    "favIconUrl": currentTab.favIconUrl || '',
                     "x0": innerWidth/2,
                     "y0": innerHeight/2
                   });
@@ -37,7 +35,7 @@ function loadWindowList() {
     // Else, Find its parent and insert the tab in the parent's children list.
     localRoot.children = []
     data.forEach(element => {
-     if(element.parentId === undefined) {
+     if(element.parentId === '') {
        localRoot.children.push(element);
      }
      else {
@@ -66,26 +64,25 @@ function updateIdMapping() {
 function addNewTab(tab) {
 
   let tabObj = {  "id": tab.id,
-                  // "shortened_title":getShortenedTitle(tab),
-                  "title": tab.title,
-                  "parentId": tab.openerTabId,
+                  "title": tab.title || '',
+                  "parentId": tab.openerTabId || '',
                   "children": [],
-                  "_children": [],
-                  "lines":  wrapText(tab.title),
+                  "lines":  wrapText((tab.title || tab.url || tab.pendingUrl || '')),
                   "windowId": tab.windowId,
-                  "url": tab.url,
-                  "pendingUrl":tab.pendingUrl,
+                  "url": tab.url || '',
+                  "pendingUrl":tab.pendingUrl || '',
                   "x0": 0,
                   "y0": 0,
-                  "favIconUrl": tab.favIconUrl};
+                  "favIconUrl": tab.favIconUrl || ''
+                };
 
   data.push(tabObj);
   // insertinDB(tabObj);
   idMapping[tabObj.id] = data.indexOf(tabObj);
 
-  if(tabObj.parentId === undefined || tabObj.pendingUrl === "chrome://newtab/") {
+  if(tabObj.parentId === '' || tabObj.pendingUrl === "chrome://newtab/") {
     // console.log("New tab is a root: ", tabObj);
-    tabObj.parentId = undefined;
+    tabObj.parentId = '';
     localRoot.children.push(tabObj);
     updateTree(localRoot)
   }
@@ -100,7 +97,7 @@ function addNewTab(tab) {
 function updateTab(tabId, changeInfo) {
   let indexInData = idMapping[tabId];
   let updatedTab = data[indexInData];
-  console.log("Updating tab ", tabId, " with index ", indexInData, " and obj ", updatedTab);
+  // console.log("Updating tab ", tabId, " with index ", indexInData, " and obj ", updatedTab);
   var displayChanged = false
   for(var i in changeInfo) {
     if(updatedTab.hasOwnProperty(i)) {
@@ -140,7 +137,7 @@ function removeSubtree(tabId) {
   updateIdMapping();
   let parent;
   let parentId = removedTab.parentId;
-  if(parentId === undefined) {
+  if(parentId === '') {
     parent = localRoot;
   }
   else {

@@ -13,15 +13,10 @@ var firebaseConfig = {
 };
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-console.log(firebase);
-
 firebase.auth().useDeviceLanguage();
 
-// firebase.analytics();
-
-
+var database = firebase.database();
 // Initialize the FirebaseUI Widget using Firebase.
-var ui = new firebaseui.auth.AuthUI(firebase.auth());
 
 chrome.runtime.onMessage.addListener((req, sender,response) => {
   if(req.message === 'is_user_signed_in') {
@@ -47,21 +42,11 @@ var uiConfig = {
     // Return type determines whether we continue the redirect automatically
     // or whether we leave that to developer to handle.
     signInSuccessWithAuthResult: function(authResult, redirectUrl) {
-
-      // If you've to redirect to another html file, use this.
-      // chrome.runtime.sendMessage({ message: 'sign_in'}, function(response) {
-      //   if(response.message === 'success') {
-      //     // document.getElementById('my_sign_in').style.display = 'none';
-      //     // window.location.replace('./tabs_api.html');
-      //   }
-      // });
-      //BUG No redirect URL has been found. You must either specify a signInSuccessUrl in the configuration, pass in a redirect URL to the widget URL, or return false from the callback.  Dismiss
+      window.close();
       return false;
     },
     uiShown: function() {
       // The widget is rendered.
-      // Hide the loader.
-      document.getElementById('my_sign_in').style.display = 'none';
     }
   },
   // Will use popup for IDP Providers sign-in flow instead of the default, redirect.
@@ -75,9 +60,9 @@ var uiConfig = {
         prompt: 'select_account'
       }
     },
+    firebase.auth.EmailAuthProvider.PROVIDER_ID
     // If yes enable on firebase console
     // firebase.auth.TwitterAuthProvider.PROVIDER_ID,
-    firebase.auth.EmailAuthProvider.PROVIDER_ID
     // Don't need the rest
     // firebase.auth.PhoneAuthProvider.PROVIDER_ID,
     // firebase.auth.FacebookAuthProvider.PROVIDER_ID,
@@ -88,14 +73,6 @@ var uiConfig = {
   // Privacy policy url.
   // privacyPolicyUrl: '<your-privacy-policy-url>'
 };
-
-// The start method will wait until the DOM is loaded.
-// Doo't need # when already specifying to get by id
-document.getElementById("my_sign_in").addEventListener('click', () => {
-  ui.start('#sign_in_options', uiConfig);
-})
-
-// const appDb =  app.database().ref();
 
 /**
  * initApp handles setting up the Firebase context and registering
@@ -114,9 +91,13 @@ document.getElementById("my_sign_in").addEventListener('click', () => {
 function initApp() {
   // Listen for auth state changes.
   firebase.auth().onAuthStateChanged(function(user) {
-    console.log('User state change detected from the Background script of the Chrome Extension:', user);
-
-
+    if(user) {
+      console.log("User signed in: ", user.displayName);
+      checkUser(user);
+    }
+    else {
+      console.log("No user signed in");
+    }
   });
 }
 
@@ -125,38 +106,48 @@ window.onload = function() {
 };
 
 
-
-
-
-
-function write_db(source)
-{
-  console.log("Initializing database");
-
-
- var user = firebase.auth().currentUser;
- console.log(user.uid);
- var name, email, uid, treeId, tree;
- var fuck;
-
- if(user)
- {
-   console.log("aa toh raha hai")
-   name = user.displayName;
-   email= user.email;
-   uid= user.uid;
-   //tree=source.data;
- }
- writeUserData(uid,name,email);
+// Check if user is new. If yes, add to database.
+function checkUser(user) {
+  var isNewUser = (user.metadata.creationTime === user.metadata.lastSignInTime) ? true : false;
+  if(isNewUser) {
+    console.log("Creating user: ", user.displayName);
+    createUser(user);
+  }
+  else {
+    console.log("User already exists: ", user.displayName);
+  }
 }
 
- function writeUserData(userId, name, email) {
-   var database = firebase.database();
-   database.ref('users/' + userId).set({
-     userId: userId,
-     name: name,
-     email: email,
-    // treeId: treeId,
-     //tree: tree
-   });
- }
+
+function saveTree(source) {
+  var user = firebase.auth().currentUser;
+  checkUser(user);
+  if(user) {
+    var tree = database.ref().child('users').child(user.uid).child('tree');
+    tree.once('value').then((snapshot) => {
+      // Doing the same thing, but let's keep it for readibility
+      if(snapshot.exists()) {
+        console.log("Folder exists. Pushing tree.");
+        database.ref('users/' + user.uid + '/tree').push(source);
+
+      }
+      else {
+        console.log("Tree folder doesn't exist. Creating one and pushing tree.")
+        database.ref('users/' + user.uid + '/tree').push(source);
+      }
+    });
+  }
+  else {
+    console.log("No user detected. Can't save tree.");
+  }
+ // writeUserData(uid,name,email);
+}
+
+function createUser(user) {
+    database.ref('users/' + user.uid).set({
+      userId: user.uid,
+      name: user.displayName,
+      email: user.email,
+    });
+
+}

@@ -1,1 +1,0 @@
-"content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/w.js https://w.appzi.io/v1-v2-compat.js; object-src 'self' "

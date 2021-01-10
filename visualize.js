@@ -213,7 +213,7 @@ function drawTree(source) {
         title: "Sign in",
         title: "Save Tree",
         action: function(event, elem) {
-          write_db(elem);
+          saveTree(elem.data);
         }
       }
     ]
@@ -406,7 +406,7 @@ function drawTree(source) {
           removeTabs = removeChildren.map(child => child.id)
           // removeTabs.append(d.id);
           chrome.tabs.remove(removeTabs);
-          removeTab(d.data.id);
+          // removeTab(d.data.id);
           removeSubtree(d.data.id);
         });
 
