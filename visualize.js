@@ -211,7 +211,9 @@ function drawTree(source) {
       },
       {
         title: "Sign in",
+        title: "Save Tree",
         action: function(event, elem) {
+          write_db(elem);
         }
       }
     ]

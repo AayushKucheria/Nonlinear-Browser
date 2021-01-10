@@ -115,9 +115,48 @@ function initApp() {
   // Listen for auth state changes.
   firebase.auth().onAuthStateChanged(function(user) {
     console.log('User state change detected from the Background script of the Chrome Extension:', user);
+
+
   });
 }
 
 window.onload = function() {
   initApp();
 };
+
+
+
+
+
+
+function write_db(source)
+{
+  console.log("Initializing database");
+
+
+ var user = firebase.auth().currentUser;
+ console.log(user.uid);
+ var name, email, uid, treeId, tree;
+ var fuck;
+
+ if(user)
+ {
+   console.log("aa toh raha hai")
+   name = user.displayName;
+   email= user.email;
+   uid= user.uid;
+   //tree=source.data;
+ }
+ writeUserData(uid,name,email);
+}
+
+ function writeUserData(userId, name, email) {
+   var database = firebase.database();
+   database.ref('users/' + userId).set({
+     userId: userId,
+     name: name,
+     email: email,
+    // treeId: treeId,
+     //tree: tree
+   });
+ }
