@@ -11,8 +11,3 @@ document.querySelector('#sign_out').addEventListener('click', () => {
 
 )
 })
-
-function init()
-{
-  chrome.runtime.sendMessage({ message: })
-}
