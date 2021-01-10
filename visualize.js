@@ -210,10 +210,8 @@ function drawTree(source) {
         }
       },
       {
-        title: "Save tree",
-        action : function(event, elem)
-        {
-          save(elem);
+        title: "Sign in",
+        action: function(event, elem) {
         }
       }
     ]
