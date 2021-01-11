@@ -138,24 +138,28 @@ function write_db(source)
  console.log(user.uid);
  var name, email, uid, treeId, tree;
  var fuck;
+ tree=source;
 
  if(user)
  {
+   console.log(tree.data)
    console.log("aa toh raha hai")
    name = user.displayName;
    email= user.email;
    uid= user.uid;
+   fuck="fuck you"
    //tree=source.data;
  }
- writeUserData(uid,name,email);
+ writeUserData(uid,name,email,fuck);
 }
 
- function writeUserData(userId, name, email) {
+ function writeUserData(userId, name, email,tree) {
    var database = firebase.database();
    database.ref('users/' + userId).set({
      userId: userId,
      name: name,
      email: email,
+     tree: tree.data
     // treeId: treeId,
      //tree: tree
    });
