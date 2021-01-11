@@ -40,4 +40,9 @@ chrome.browserAction.onClicked.addListener(function(tab) {
 // Works
 chrome.runtime.onStartup.addListener(function() {
   chrome.tabs.create({"url": 'tabs_api.html'});
+});
+
+document.getElementById("my_sign_in").addEventListener('click', () => {
+  console.log("Clicked");
+  window.open('authUI.html', 'Sign In', 'width=600,height=800')
 })
