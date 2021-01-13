@@ -10,7 +10,7 @@ window.fontSize = 16;
 window.currentRoot;
 var iconWidth = tabWidth/4;
 var iconHeight = tabHeight/3;
-
+var feOffset;
 //main();
 
 // Connect();
@@ -81,25 +81,25 @@ baseSvg.selectAll('.button')
 var defs = g.append("defs");
 
   // Drop shadow
-  // var filter = defs.append("filter")
-  //     .attr("id", "drop-shadow")
-  //
-  // filter.append("feGaussianBlur")
-  //     .attr("in", "SourceAlpha")
-  //     .attr("stdDeviation", 5)
-  //     .attr("result", "blur");
-  // filter.append("feOffset")
-  //     .attr("in", "blur")
-  //     .attr("dx", 4)
-  //     .attr("dy", 4)
-  //     .attr("result", "offsetBlur");
-  //
-  // var feMerge = filter.append("feMerge");
-  //
-  // feMerge.append("feMergeNode")
-  //     .attr("in", "offsetBlur")
-  // feMerge.append("feMergeNode")
-  //     .attr("in", "SourceGraphic");
+  var filter = defs.append("filter")
+      .attr("id", "drop-shadow")
+
+  filter.append("feGaussianBlur")
+      .attr("in", "SourceAlpha")
+      .attr("stdDeviation", 5)
+      .attr("result", "blur");
+  feOffset= filter.append("feOffset")
+      .attr("in", "blur")
+      .attr("dx", 4)
+      .attr("dy", 4)
+      .attr("result", "offsetBlur");
+
+  var feMerge = filter.append("feMerge");
+
+  feMerge.append("feMergeNode")
+      .attr("in", "offsetBlur")
+  feMerge.append("feMergeNode")
+      .attr("in", "SourceGraphic");
 
 // Blur Tab text
 var filter = defs.append("filter")
@@ -210,11 +210,17 @@ function drawTree(source) {
         }
       },
       {
-        title: "Sign in",
         title: "Save Tree",
         action: function(event, elem) {
           saveTree(elem.data);
         }
+      },
+      {
+        title: "Tab Read",
+        action: function(event,elem){
+          readTab(elem);
+        }
+
       }
     ]
 
@@ -251,13 +257,16 @@ function drawTree(source) {
         .style('stroke-opacity', 1)
         // Display Shadow
       // TODO Doesn't follow transition..
-        // .style("filter", "url(#drop-shadow)");
+        .style("filter", "url(#drop-shadow)")
+        ;
 
       // Blur text and favicon
       d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style("filter", "url(#blur)");
 
       // Show tool icons
       d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',1);
+
+      floater();
 
       // BUG this implementation causes the paths to fuck up.
       // Set connected links as active
@@ -738,6 +747,41 @@ function save(elem)
 }
 
 
+  function readTab(source)
+  {
+    console.log("source aa kya raha hai", source);
+    var x=d3.select('.node').attr('id', function()
+  {
+    return source.data.id;
+  }).style('opacity',0.7);
+
+//   var x=d3.select('.node').filter(function (d)
+// {
+//   return d.data.id === source.id;
+// }).attr('opacity',0.5);
+
+//d3.select('.node').attr('id',source.data.id).attr('opactiy',0.5);
+
+  console.log("this is being selected",x.attr('id'));
+}
+
+
+var dest_min = 2, dest_max = 10, dest = dest_min;
+
+//Causes the shadow transition
+var floater = function() {
+  if(dest === dest_min) {
+    dest = dest_max;
+  }
+  else {
+    dest = dest_min;
+  }
+  feOffset.transition()
+          .duration(600)
+          .attr("dx", dest)
+          .attr("dy", dest)
+          .on("end", floater)
+}
 
 
 
