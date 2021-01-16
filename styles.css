@@ -84,6 +84,26 @@ text {
   fill: none;
   pointer-events: all;
 }
+
+.hide{
+  display:none;
+}
+
+.toast {
+	width: 200px;
+	height: 20px;
+	position: absolute;
+	left: 50%;
+	margin-left: -100px;
+	bottom: 10px;
+	background-color: black;
+	font-family: 'Roboto';
+	color: white;
+	font-size: 12px;
+	padding: 10px;
+	text-align: center;
+	border-radius: 4px;
+}
 /* For debugging layout */
 
 /* * {

@@ -10,6 +10,7 @@ ul.navbar {
 
 .navbar li {
   float: left;
+  cursor: pointer;
 }
 
 .navbar li a {

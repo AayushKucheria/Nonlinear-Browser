@@ -30,8 +30,13 @@ function visualLength(text) {
   return ruler.offsetWidth;
 }
 
-function $(x) {return document.getElementById(x);}
+function sendToast(message) {
+  var toast = document.querySelector('.toast')
+  toast.innerText = message;
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'}, 2000);
 
+}
 
 // ================
 // Traverse through all the nodes

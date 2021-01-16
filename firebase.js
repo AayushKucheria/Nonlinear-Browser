@@ -1,4 +1,3 @@
-let user_signed_in = false;
 
 // ******** firebase
 var firebaseConfig = {
@@ -16,35 +15,29 @@ firebase.initializeApp(firebaseConfig);
 firebase.auth().useDeviceLanguage();
 
 var database = firebase.database();
+
 // Initialize the FirebaseUI Widget using Firebase.
-
-chrome.runtime.onMessage.addListener((req, sender,response) => {
-  if(req.message === 'is_user_signed_in') {
-    sendResponse({
-      message: 'success',
-      payload: user_signed_in
-    });
-  }
-  else if(req.message === 'sign_out') {
-    user_signed_in = false;
-    sendResponse({ message: 'success'});
-  }
-  else if(req.message === 'sign_in') {
-    user_signed_in = true;
-    sendResponse({ message: 'success'});
-  }
-  return true;
-});
-
+// Details: https://github.com/firebase/firebaseui-web
 var uiConfig = {
   callbacks: {
     // User successfully signed in.
     // Return type determines whether we continue the redirect automatically
     // or whether we leave that to developer to handle.
-    signInSuccessWithAuthResult: function(authResult, redirectUrl) {
-      window.close();
-      return false;
+    signInSuccessWithAuthResult: function(authResult) {
+
+      var user = authResult.user;
+      var credential = authResult.credential;
+      var isNewUser = authResult.additionalUserInfo.isNewUser;
+      var providerId = authResult.additionalUserInfo.providerId;
+      var operationType = authResult.operationType;
+      window.close(); // Closes the tab
+
+      return false; // Return value doesn't matter for us, since we'll be redirecting manually.
     },
+    // signInFailure: function(error, credential) {
+    //   console.log("Sign in failed with error: ", error, " for user: ", credential);
+    //   return void; // Correct return value?
+    // }
     uiShown: function() {
       // The widget is rendered.
     }
@@ -58,7 +51,8 @@ var uiConfig = {
       provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
       customParameters: {
         prompt: 'select_account'
-      }
+      },
+      clientId: '693229853662-0ib0k3hru04sb2da03e6nltso00at1ur.apps.googleusercontent.com'
     },
     firebase.auth.EmailAuthProvider.PROVIDER_ID
     // If yes enable on firebase console
@@ -93,13 +87,24 @@ function initApp() {
   firebase.auth().onAuthStateChanged(function(user) {
     if(user) {
       console.log("User signed in: ", user.displayName);
+      document.querySelector('#my_sign_in').style.display = 'none';
+      document.querySelector('#sign_out').style.display = 'block';
       checkUser(user);
+      sendToast(user.displayName + " signed in successfully.")
     }
     else {
+      document.querySelector('#my_sign_in').style.display = 'block';
+      document.querySelector('#sign_out').style.display = 'none';
+      sendToast("Logged out successfully.")
+      // document.querySelector('#my_sign_in').innerText = "Sign up/Log in"
       console.log("No user signed in");
     }
   });
 }
+
+document.querySelector('#sign_out').addEventListener('click', function() {
+  firebase.auth().signOut();
+});
 
 window.onload = function() {
   initApp();

@@ -25,13 +25,6 @@ chrome.browserAction.onClicked.addListener(function(tab) {
       chrome.browserAction.setBadgeText({text: 'ON'});
     }
   });
-
-  // if(!openedTabId) {
-  //   chrome.tabs.create({url:chrome.extension.getURL("tabs_api.html")}, function(tab) => {
-  //     openedTabId = tab.id;
-  //     openedWindowId = tab.windowId;
-  //   });
-  // }
 });
 
 // var credential = firebase.auth.GoogleAuthProvider.credential(null,token);
@@ -41,8 +34,3 @@ chrome.browserAction.onClicked.addListener(function(tab) {
 chrome.runtime.onStartup.addListener(function() {
   chrome.tabs.create({"url": 'tabs_api.html'});
 });
-
-document.getElementById("my_sign_in").addEventListener('click', () => {
-  console.log("Clicked");
-  window.open('authUI.html', 'Sign In', 'width=600,height=800')
-})
