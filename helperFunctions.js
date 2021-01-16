@@ -42,15 +42,29 @@ function sendToast(message) {
 // Traverse through all the nodes
 // parent = Node, traverseFn = what to do while traversing, childrenFn = children if present else null
 function traverse(parent, traverseFn, childrenFn) {
-    if(!parent) return;
+  if(!parent) return;
 
-    traverseFn(parent);
+  traverseFn(parent);
 
-    var children = childrenFn(parent);
-    if(children) {
-      var count = children.length;
-      for(var i = 0; i < count; i++) {
-        traverse(children[i], traverseFn, childrenFn);
-      }
+  var children = childrenFn(parent);
+  if(children) {
+    var count = children.length;
+    for(var i = 0; i < count; i++) {
+      traverse(children[i], traverseFn, childrenFn);
     }
   }
+}
+
+function loggedInState() {
+  document.querySelector('#log_in').style.display = 'none';
+  document.querySelector('#log_out').style.display = 'block';
+  sendToast("Signed in successfully.")
+};
+
+function loggedOutState() {
+  document.querySelector('#log_in').style.display = 'block';
+  document.querySelector('#log_out').style.display = 'none';
+
+  sendToast("Signed out successfully.")
+
+}

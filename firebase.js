@@ -20,11 +20,7 @@ var database = firebase.database();
 // Details: https://github.com/firebase/firebaseui-web
 var uiConfig = {
   callbacks: {
-    // User successfully signed in.
-    // Return type determines whether we continue the redirect automatically
-    // or whether we leave that to developer to handle.
     signInSuccessWithAuthResult: function(authResult) {
-
       var user = authResult.user;
       var credential = authResult.credential;
       var isNewUser = authResult.additionalUserInfo.isNewUser;
@@ -44,9 +40,7 @@ var uiConfig = {
   },
   // Will use popup for IDP Providers sign-in flow instead of the default, redirect.
   signInFlow: 'popup',
-  // signInSuccessUrl: '<url-to-redirect-to-on-success>', Can't redirect in extension
   signInOptions: [
-    // Leave the lines as is for the providers you want to offer your users.
     {
       provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
       customParameters: {
@@ -86,23 +80,16 @@ function initApp() {
   // Listen for auth state changes.
   firebase.auth().onAuthStateChanged(function(user) {
     if(user) {
-      console.log("User signed in: ", user.displayName);
-      document.querySelector('#my_sign_in').style.display = 'none';
-      document.querySelector('#sign_out').style.display = 'block';
+      loggedInState();
       checkUser(user);
-      sendToast(user.displayName + " signed in successfully.")
     }
     else {
-      document.querySelector('#my_sign_in').style.display = 'block';
-      document.querySelector('#sign_out').style.display = 'none';
-      sendToast("Logged out successfully.")
-      // document.querySelector('#my_sign_in').innerText = "Sign up/Log in"
-      console.log("No user signed in");
+      loggedOutState();
     }
   });
 }
 
-document.querySelector('#sign_out').addEventListener('click', function() {
+document.querySelector('#log_out').addEventListener('click', function() {
   firebase.auth().signOut();
 });
 
