@@ -30,7 +30,7 @@ window.contextMenu = function(event, d, menu, openCallback) {
     .on('click', function(clickEvent, choice) {
     //  console.log("Event = ", event, " and d = ", d);
       //console.log("ClickEvent = ", clickEvent, " and choice = ", choice)
-      choice.action(clickEvent, d);
+      choice.action(event, clickEvent, d);
       d3.select('.contextMenu').style('display', 'none');
     });
 

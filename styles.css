@@ -56,11 +56,15 @@ path {
 }
 
 rect.node {
-  fill: #21b3dc;
+  /* fill: #21b3dc; */
   stroke: Black;
   stroke-opacity: 0;
   fill-opacity: 1;
   stroke-width: 2px;
+}
+
+read {
+	fill: #646b6d;
 }
 
 text {

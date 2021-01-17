@@ -113,26 +113,31 @@ function checkUser(user) {
 
 function saveTree(source) {
   var user = firebase.auth().currentUser;
-  checkUser(user);
-  if(user) {
-    var tree = database.ref().child('users').child(user.uid).child('tree');
-    tree.once('value').then((snapshot) => {
-      // Doing the same thing, but let's keep it for readibility
-      if(snapshot.exists()) {
-        console.log("Folder exists. Pushing tree.");
-        database.ref('users/' + user.uid + '/tree').push(source);
 
-      }
-      else {
-        console.log("Tree folder doesn't exist. Creating one and pushing tree.")
-        database.ref('users/' + user.uid + '/tree').push(source);
-      }
-    });
+  if(!user) {
+    chrome.tabs.create({url:chrome.extension.getURL("authUI.html")});
   }
   else {
-    console.log("No user detected. Can't save tree.");
+    checkUser(user);
+    var tree = database.ref().child('users').child(user.uid).child('tree');
+    var updates = {};
+
+    tree.once('value').then((snapshot) => {
+      if(!source.uid) {
+        source.uid = database.ref('users/' + user.uid + '/tree').push().key;
+      }
+      updates['users/' + user.uid + '/tree/' + source.uid] = source;
+      database.ref().update(updates, (error) => {
+        if(error) {
+          console.log("Tree not saved.")
+          sendToast(source.title + " rabbit hole save failed.");
+        }
+        else {
+          sendToast(source.title + " rabbit hole saved successfully!");
+        }
+      });
+    });
   }
- // writeUserData(uid,name,email);
 }
 
 function createUser(user) {
