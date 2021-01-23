@@ -80,6 +80,13 @@ text {
   font-weight, '500';
 }
 
+.ghostCircle.show{
+	display:block;
+}
+
+.ghostCircle, .activeDrag .ghostCircle{
+	display: none;
+}
 .overlay {
   fill: none;
   pointer-events: all;

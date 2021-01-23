@@ -11,6 +11,11 @@ window.currentRoot;
 var iconWidth = tabWidth/4;
 var iconHeight = tabHeight/3;
 var feOffset;
+var selectedNode = null;
+var draggingNode = null;
+var panSpeed=200;
+var panBoundary=20;
+var currentTransform;
 //main();
 
 // Connect();
@@ -53,6 +58,90 @@ var g = baseSvg.append('g')
 //     .attr("class", "overlay")
 //     .attr("width", innerWidth)
 //     .attr("height", innerHeight);
+
+//Define the drag listener for drag/drop behaviour of nodes.
+dragListener = d3.drag()
+        .on("start", function(d) {
+var dragListener = d3.drag()
+        .on("start", function(e,d) {
+          console.log("start hua?")
+          if( d == root){
+            return;
+          }
+          dragStarted=true;
+          nodes = tree.nodes(d);
+          d3.event.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
+          var dRoot= d3.hierarchy(d);
+          console.log("dragged Root is",dRoot)
+          d3.tree(dRoot)
+          nodes = dRoot.descendants();
+        //  dRoot.data.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
+        })
+        .on("drag", function(d) {
+        .on("drag", function(e,d) {
+          console.log("drag karna chahta hai")
+          if(d==root){
+            return;
+          }
+          if(dragStarted) {
+            domNode=this;
+            initiateDrag(d, domNode);
+          }
+
+          var relCoords = d3.pointer(d3.select('baseSvg').get(0));
+          if (relCoords[0] < panBoundary) {
+            panTimer = true;
+            pan(this, 'left');
+          } else if (relCoords[0] > d3.select('baseSvg').width() - panBoundary) {
+            panTimer = true;
+            pan(this,'right');
+          } else if (relCoords[1] < panBoundary) {
+            panTimer = true;
+            pan(this, 'up');
+          } else if (relCoords[1] > d3.select('baseSvg').height() - panBoundary) {
+            panTimer = true;
+            pan(this, 'down');
+          } else {
+            try {
+              clearTimeout(panTimer);
+            } catch(e) {}
+          }
+          d.x0 =  d.x0 + d3.event.dy;
+          d.y0 =  d.y0 + d3.event.dx;
+          var node = d3.select(this);
+          note.attr("transform", "translate(" + d.y0 + "," + d.x0 +")");
+        })
+        .on("end", function(d) {
+        .on("end", function(e,d) {
+          if(d == root) {
+            return;
+          }
+          domNode=this;
+          if (selectedNode) {
+            var index = draggingNode.parent.children.indexOf(draggingNode);
+            if(index>-1) {
+              draggingNode.parent.children.splice(index,1);
+            }
+            if(typeof selectedNode.children !== 'undefined' || typeof selectedNode._children!== 'undefined')
+            {
+              if(typeof selectedNode.children !== 'undefined') {
+                selectedNode.children.push(draggingNode);
+              } else {
+                selectedNode._children.push(draggingNode);
+              }
+            }
+            else {
+              selectedNode.children = [];
+              selectedNode.children.push(draggingNode);
+            }
+            expand(selectedNode);
+          //  sortTree();
+            endDrag();
+          }
+          else {
+            endDrag();
+          }
+        });
 
 baseSvg.selectAll('.button')
   .data(['zoom-in', 'zoom-out'])
@@ -111,26 +200,79 @@ filter.append("feGaussianBlur")
     .attr("result", "blur");
 
 const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
+//range of zooming
   .on("zoom", function(event){
     // console.log("Zoomer with event  ", event);
+    //console.log("zoomer event", event)
+    //event.preventDefault()
     zoom(event)
   })
+  });
+
+
+function wheeled()
+{
+  console.log("wheel event")
+  currentTransform = d3.zoomTransform(g.node());
+  //
+  if(event.ctrlKey && currentTransform.k>0)
+  {
+    // console.log("control being pressed")
+    {
+    currentTransform.k = currentTransform.k - event.deltaY*0.01;
+    console.log("k.", currentTransform.k)
+    }
+  }
+  else
+  {
+    currentTransform.y = currentTransform.y - event.deltaY;
+  }
+  g.attr('transform',currentTransform)
+}
+
+  // .filter(function(event) {
+  //   if(d3.event.ctrlKey)
+  //     {
+  //       console.log("logging control key")
+  //       return true;
+  //     }
+  //     else {
+  //       return false;
+  //     }
+  // })
 
 baseSvg.call(zoomer)
   .on('wheel.zoom', null)
+  .on('wheel.zoom',wheeled)
+  // console.log("wheeled event", wheeled
+  .on('dblclick.zoom',null)
   .on('wheel', function(event, d) {
     // console.log("Wheel pan detected.");
      pan(event, d)
    });
+   })
+   // .on('keydown', function() {
+   //   event.ctrlKey;
+   // })
+   ;
+
+
 
 var zoomButtons = baseSvg.append('g')
 
 zoomButtons.append('svg')
   .append('circle')
 
+// zoom.filter(function( ){
+//   return event.ctrlKey;
+// })
+
+//zoom.filter(event);
+
 
 function zoom(event) {
   // console.log("Zooming by ", event.transform);
+  //if(event.ctrlKey === false) return;
   currentZoom = event.transform.k
   currentPos = {x: event.transform.x, y: event.transform.y}
   g.attr('transform', d => event.transform)
@@ -140,6 +282,10 @@ function pan(event, d) {
   // can also select 'baseSvg' here, works.
   zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
 }
+
+// function pand(domNode, direction) {
+//       zoomer.translateBy(domNode, direction[0], direction[1])
+//     }
 
 function centerNode(source) {
   x = -source.x0;
@@ -226,6 +372,16 @@ function drawTree(source) {
 
     console.log(links);
 
+    var selectNode = function(d){
+      selectedNode = d;
+      //pdateTempConnector();
+    }
+
+    var deselectNode = function(d){
+      selectedNode = null;
+      //updateTempConnector();
+    }
+
 
     // **** NODES *****
     var node = g.selectAll('g.node')
@@ -243,6 +399,7 @@ function drawTree(source) {
     var animationDuration = 500
     var nodeEnter = node.enter().append('g')
     .attr('class', 'node')
+    .call(dragListener)
     .attr('id', function(d,i) {
       return d.data.id;
     })
@@ -252,6 +409,9 @@ function drawTree(source) {
     })
     .on('mouseover', function(event, d) {
 
+      //console.log("mouse on d",d)
+      selectNode(d);
+      //selectedNode = d;
       d3.select(this).select('rect').transition().duration(animationDuration)
         // Show tab border
         .style('stroke-opacity', 1)
@@ -783,9 +943,141 @@ var floater = function() {
           .on("end", floater)
 }
 
+  function initiateDrag(d, domNode) {
+    console.log("what the fuck")
+    console.log("node hai bhi kya",nodes)
+    //console.log("what the fuck")
+    //console.log("What is d exactly",d) //d is the actual Node data like the id, title etc.
+    //console.log("node hai bhi kya",nodes)
+    draggingNode = d;
+    console.log(draggingNode);
+    console.log("dragging node is", draggingNode);
+    // d3.select(domNode).select('.ghostCircle').attr('pointer-events','none'); //selecting a different class when dragging
+    // d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
+    // d3.select(domNode).attr('class', 'node activeDrag');
 
+    // g.selectAll("g.node").sort(function (a,b) {
+    //   if(a.id != draggingNode.id) return 1;
+    //   else return -1;
+    // });
 
+    if(nodes.length > 1) //if it has children
+    console.log("d is", d)
+    if(d.data.children.length>0) //if it has children
+    {
+      var curRoot= d;
+      console.log("d is",d)
+      console.log("node hai na",nodes)
+      links = tree.links(nodes);
 
+      console.log("what are the links", links)
+      nodePaths = g.selectAll("path.link")
+                  .data(links, function(d) {
+                    return d.target.id;
+                  }).remove();
+                  .data(links, function(de)
+                  {
+                    return de.target.data.id;
+                  }
+                    // function(de) {
+                    // if(d.data.id === de.source.data.id)
+                    //   {
+                    //     console.log("aifneifon",de)
+                    //     return de;
+                    //   }
+                  ).remove();
+
+      console.log("node paths",nodePaths)
+
+      nodesExit = g.selectAll("g.node")
+                .data(nodes, function(d) {
+                  return d.id;
+                }).filter(function (d,i) {
+                  if(d.id == draggingNode.id) {
+                    return false;
+                  }
+                    return true;
+                }).remove();
+    }
+
+    console.log("dragging node ka baap", draggingNode.parent);
+    var tempRoot = d3.hierarchy(draggingNode.parent);
+    d3.tree(tempRoot);
+    var tempNodes = tempRoot.descendants();
+    //parentLink = tree.links(tree.nodes(draggingNode.parent));
+    parentLink = tempRoot.links();
+    g.selectAll('path.link').filter(function(d,i) {
+        if(d.target.id == draggingNode.id) {
+          return true;
+        }
+          return false;
+    }).remove();
+
+     dragStarted = null;
+  }
+
+  function endDrag() {
+    selectedNode = null;
+    d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
+    d3.select(domNode).attr('class','node');
+
+    //restoring the mouseover event or we cannot drag it a 2nd time
+    d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
+    //updateTempConnector();
+    if(draggingNode !== null){
+      //update(root);
+      centerNode(draggingNode);
+      draggingNode = null;
+    }
+  }
+
+  function expand(d) {
+    if(d._children) {
+      d._children = d.children;
+      d._children.forEach(expand);
+      d._children=null;
+    }
+  }
+
+  // function pan(domNode, direction) {
+  //       var speed = panSpeed;
+  //       if (panTimer) {
+  //           clearTimeout(panTimer);
+  //           translateCoords = d3.transform(svgGroup.attr("transform"));
+  //           if (direction == 'left' || direction == 'right') {
+  //               translateX = direction == 'left' ? translateCoords.translate[0] + speed : translateCoords.translate[0] - speed;
+  //               translateY = translateCoords.translate[1];
+  //           } else if (direction == 'up' || direction == 'down') {
+  //               translateX = translateCoords.translate[0];
+  //               translateY = direction == 'up' ? translateCoords.translate[1] + speed : translateCoords.translate[1] - speed;
+  //           }
+  //           scaleX = translateCoords.scale[0];
+  //           scaleY = translateCoords.scale[1];
+  //           scale = zoomListener.scale();
+  //           svgGroup.transition().attr("transform", "translate(" + translateX + "," + translateY + ")scale(" + scale + ")");
+  //           d3.select(domNode).select('g.node').attr("transform", "translate(" + translateX + "," + translateY + ")");
+  //           zoomListener.scale(zoomListener.scale());
+  //           zoomListener.translate([translateX, translateY]);
+  //           panTimer = setTimeout(function() {
+  //               pan(domNode, speed, direction);
+  //           }, 50);
+  //       }
+  //   }
+// var Connector = function() {
+//   var data = [];
+//   if (draggingNode !== null && selectedNode !== null) {
+//     data = [{
+//       source : {
+//         x : selectedNode.y0,
+//         y : selectedNode.x0
+//       } ,
+//       target : {
+//         x : draggingNode.y0,
+//         y : draggingNode.x0
+//       }
+//     }];
+//   }
+// }
 
   function toggleChildren(d) {
     if(d.children) {
@@ -816,3 +1108,4 @@ var floater = function() {
     }
     drawTree(d);
   }
+  };
