@@ -11,6 +11,7 @@ window.currentRoot;
 var iconWidth = tabWidth/4;
 var iconHeight = tabHeight/3;
 var feOffset;
+
 //main();
 
 // Connect();
@@ -46,7 +47,7 @@ var baseSvg = baseDiv.append('svg')
 var g = baseSvg.append('g')
   .attr('id', 'treeContainer')
   .on("mouseover", function(d) {
-  d3.select(this).style("cursor","pointer");
+  d3.select(this).style("cursor","pointer"); // TODO arunima
   })
 
 // g.append("rect")
@@ -110,17 +111,32 @@ filter.append("feGaussianBlur")
     .attr("result", "blur");
 
 const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
-  .on("zoom", function(event){
-    // console.log("Zoomer with event  ", event);
-    zoom(event)
+  .on("zoom", function(event,d){
+    if(!event.sourceEvent)
+      zoom(event)
+    else
+      pan(event,d)
   })
 
 baseSvg.call(zoomer)
+  // For later: https://stackoverflow.com/questions/28603796/d3-remap-mousewheel-to-be-panning-gesture-instead-of-zoom-gesture
   .on('wheel.zoom', null)
   .on('wheel', function(event, d) {
-    // console.log("Wheel pan detected.");
+    console.log("Wheel");
      pan(event, d)
-   });
+  })
+  .on('mousedown', function(event, d) {
+     console.log("Mousedown");
+  })
+  .on('dragstart', function(event, d) {
+    console.log("Dragstart");
+  })
+  .on('click', function(event, d) {
+    console.log("Click");
+  })
+  .on('mouseup', function(event, d) {
+    console.log("Mouseup");
+  });
 
 var zoomButtons = baseSvg.append('g')
 
@@ -129,15 +145,30 @@ zoomButtons.append('svg')
 
 
 function zoom(event) {
-  // console.log("Zooming by ", event.transform);
   currentZoom = event.transform.k
   currentPos = {x: event.transform.x, y: event.transform.y}
   g.attr('transform', d => event.transform)
 }
+
 function pan(event, d) {
-  // console.log("Panning by ", event);
-  // can also select 'baseSvg' here, works.
-  zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
+  // Mouse
+  console.log(event);
+
+  if(event.transform) {
+    currentPos.x = event.transform.x
+    currentPos.y = event.transform.y
+
+    // currentPos = {x: , y: event.transform.y}
+    // g.attr('transform', 'translate(' + [event.transform.x, event.transform.y] + ')scale(' + currentZoom + ')');
+  }
+  else {
+      currentPos.x = currentPos.x + event.wheelDeltaX * currentZoom
+      currentPos.y = currentPos.y + event.wheelDeltaY * currentZoom
+    // zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
+  }
+  g.attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
+
+  console.log(g.attr('transform'))
 }
 
 // function centerNode(source) {
@@ -177,7 +208,7 @@ function delete_tab(node) {
 }
 
 function drawTree(source) {
-  console.log("Drawing tree ", window.currentRoot);
+  // console.log("Drawing tree ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     const descendants = tree.descendants()
@@ -229,7 +260,7 @@ function drawTree(source) {
     }
   ]
 
-  console.log(links);
+  // console.log(links);
 
 
   // **** NODES *****
@@ -257,7 +288,7 @@ function drawTree(source) {
     window.contextMenu(event, d, menu);
   })
   .on('mouseover', function(event, d) {
-    console.log(d3.select(this));
+    // console.log(d3.select(this));
 
     d3.select(this).select('rect').transition().duration(animationDuration)
       // Show tab border
@@ -663,7 +694,7 @@ function drawTree(source) {
     })
     // .attr('stroke-opacity', 1e-6)
     .remove();
-  console.log("LinkExit: ", linkExit);
+  // console.log("LinkExit: ", linkExit);
   descendants.forEach(d => {
     d.x0 = d.x;
     d.y0 = d.y;

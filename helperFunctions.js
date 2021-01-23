@@ -65,6 +65,6 @@ function loggedOutState() {
   document.querySelector('#log_in').style.display = 'block';
   document.querySelector('#log_out').style.display = 'none';
 
-  sendToast("Signed out successfully.")
+  sendToast("You're logged out. Log in to save rabbit holes.")
 
 }
