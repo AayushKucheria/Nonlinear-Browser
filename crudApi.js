@@ -1,53 +1,72 @@
 let data = []; // tree of tabs as objects
 let idMapping = [];
 window.localRoot = {"id": "Root", "title": "Start", "lines": ["Start"], "children": [], "x0": 0, "y0": 0};
+var last_sesh;
+var initial=true;
+var fetch;
+// window.localStorage.setItem('initial',initial.toString()); // set value as true
 
 // Load tree from scratch
 function loadWindowList() {
+
+  //fetch = Boolean(window.localStorage.getItem('initial'));
+  last_sesh = JSON.parse(window.localStorage.getItem('user'));
+  if((last_sesh)&&(!initial))
+  {
+    console.log("checking for last sessions' json", last_sesh)
+    initializeTree(last_sesh)
+    initial=false;
+    // window.localStorage.setItem('initial', initial.toString());
+  }
+  else {
+    data = [];
+    // Get windows + tabs data from chrome api
+    chrome.windows.getAll({ populate: true }, function(windowList) {
+      // For each tab in each window
+      // Add the tab's id, parent's id, and set it's children as empty (for now)
+      for(var i=0; i < windowList.length; i++) {
+        for (var j=0; j < windowList[i].tabs.length; j++) {
+
+          let currentTab = windowList[i].tabs[j];
+          data.push({ "id": currentTab.id,
+                      "title": currentTab.title || '',
+                      "lines":  wrapText((currentTab.title || currentTab.url || currentTab.pendingUrl || '')),
+                      "parentId": currentTab.openerTabId || '',
+                      "children": [],
+                      "windowId": windowList[i].id,
+                      "url": currentTab.url || '',
+                      "pendingUrl":currentTab.pendingUrl || '',
+                      "favIconUrl": currentTab.favIconUrl || '',
+                      "x0": innerWidth/2,
+                      "y0": innerHeight/2
+                    });
+        };
+      };
+      updateIdMapping()
+
+      isReloaded=true;
+
+      // For each tab, if it's a root (i.e. it doesn't have a parent),
+      // Then add it to the list of roots
+      // Else, Find its parent and insert the tab in the parent's children list.
+      localRoot.children = []
+      data.forEach(element => {
+       if(element.parentId === '') {
+         localRoot.children.push(element);
+       }
+       else {
+        // Use our mapping to locate the parent element in our data array
+        // And add this tab as it's
+          const parentElement = data[idMapping[element.parentId]];
+          parentElement.children.push(element);
+        };
+      });
+      initializeTree(localRoot)
+   });
+  };
+}
   //await SetupConnection();
-  data = [];
-  // Get windows + tabs data from chrome api
-  chrome.windows.getAll({ populate: true }, function(windowList) {
-    // For each tab in each window
-    // Add the tab's id, parent's id, and set it's children as empty (for now)
-    for(var i=0; i < windowList.length; i++) {
-      for (var j=0; j < windowList[i].tabs.length; j++) {
 
-        let currentTab = windowList[i].tabs[j];
-        data.push({ "id": currentTab.id,
-                    "title": currentTab.title || '',
-                    "lines":  wrapText((currentTab.title || currentTab.url || currentTab.pendingUrl || '')),
-                    "parentId": currentTab.openerTabId || '',
-                    "children": [],
-                    "windowId": windowList[i].id,
-                    "url": currentTab.url || '',
-                    "pendingUrl":currentTab.pendingUrl || '',
-                    "favIconUrl": currentTab.favIconUrl || '',
-                    "x0": innerWidth/2,
-                    "y0": innerHeight/2
-                  });
-      };
-    };
-    updateIdMapping()
-
-    // For each tab, if it's a root (i.e. it doesn't have a parent),
-    // Then add it to the list of roots
-    // Else, Find its parent and insert the tab in the parent's children list.
-    localRoot.children = []
-    data.forEach(element => {
-     if(element.parentId === '') {
-       localRoot.children.push(element);
-     }
-     else {
-      // Use our mapping to locate the parent element in our data array
-      // And add this tab as it's
-        const parentElement = data[idMapping[element.parentId]];
-        parentElement.children.push(element);
-      };
-    });
-    initializeTree(localRoot)
- });
-};
 
 /* Making an ID-to-Index Map (for ease of access)
   Syntax: [tab_id: index_in_data]
@@ -92,6 +111,7 @@ function addNewTab(tab) {
     // console.log("New tab is a child: ", tabObj);
     updateTree(localRoot);
   }
+  localStore(localRoot);
 }
 
 function updateTab(tabId, changeInfo) {
@@ -146,4 +166,11 @@ function removeSubtree(tabId) {
 
   parent.children.splice(parent.children.indexOf(removedTab), 1)
   updateTree(localRoot);
+}
+
+function localStore(source)
+{
+  console.log("function being called correctly")
+
+  window.localStorage.setItem('user', JSON.stringify(source)); //adds to localStorage
 }
