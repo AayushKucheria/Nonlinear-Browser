@@ -18,6 +18,7 @@ var panBoundary=20;
 var currentTransform;
 var allLinks;
 var allDescendants;
+var animationDuration = 500
 //main();
 
 // Connect();
@@ -48,7 +49,8 @@ var baseSvg = baseDiv.append('svg')
 //   .attr('width', '100%')
 //   .attr('height', '100%')
 //   .style('fill', 'white')
-
+var zoomArea = baseSvg.append('svg')
+          // .attr('viewBox', d => " " + (0.5*innerWidth) + " " + (0.5*innerHeight) + " " + 400 + " " + 400)
 
 var g = baseSvg.append('g')
   .attr('id', 'treeContainer')
@@ -73,6 +75,10 @@ var dragListener = d3.drag()
           e.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
         })
         .on("drag", function(e,d) {
+          d3.select(this).select('rect').transition().duration(animationDuration)
+          .style("filter" , "url(#drop-shadow)") //shadow while dragging
+
+          floater(); //shadow transition effect
           if(d === window.currentRoot) return;
 
           if(dragStarted) {
@@ -85,12 +91,17 @@ var dragListener = d3.drag()
           d3.select(this).attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
         })
         .on("end", function(e,d) {
-          if(d === window.currentRoot) return;
+
+          d3.select(this).select('rect').transition().duration(animationDuration)
+            .style('filter', 'unset')// stop shadow after having dragged
+
+          if(d == window.currentRoot) return;
 
           if(selectedNode) { // The node hovered upon
 
             console.log("", this, " is being dragged on ", selectedNode);
 
+            // logic for transferring parents
             // Remove from previous parent
             var index = d.parent.children.indexOf(d);
             if(index>-1) {
@@ -114,21 +125,39 @@ var dragListener = d3.drag()
             // expand(selectedNode);
           //  sortTree();
             endDrag(d, this, true);
+            localStore(localRoot);
           }
           else {
             endDrag(d, this, false);
+            localStore(localRoot);
           }
         });
 
-baseSvg.selectAll('.button')
+// console.log("original width", window.innerWidth)
+// console.log("original heightt", window.innerHeight)
+zoomArea.append('svg')
+  .append('svg:image')
+  .attr('id','recentre')
+  .attr('xlink:href', 'res/origin.svg')
+  .attr('class','icon')
+  .attr('x', 0.5 * window.innerWidth)
+  .attr('y', function(d,i) { return 0.45 * window.innerHeight + 50*i})
+  .attr('width',60)
+  .attr('height',60)
+  .on('click', function(event,d){
+    centerNode(localRoot);
+  })
+zoomArea.selectAll('.button')
   .data(['zoom-in', 'zoom-out'])
   .enter()
     .append('svg:image')
       .attr('id', d => d)
-      .attr('class', 'icon')
+      .attr('class', 'zoomButton')
       .attr('xlink:href', d => 'res/' + d + '.svg')
-      .attr('x', 0.5 * window.innerWidth) // 950
-      .attr('y', function(d, i) {return 0.5*window.innerHeight + 50*i})//function(d, i) { return 500 + 60*i})
+      //.attr('x', 0.5 * window.innerWidth) // 950
+      .attr('x', 0.5 * window.innerWidth)
+      .attr('y', function(d, i) {return 0.55 * window.innerHeight + 50*i})//function(d, i) { return 500 + 60*i})
+      // .attr('y', 0.5* window.innerHeight)
       .attr('width', 60)
       .attr('height', 60)
     .on('click', function(d, i) {
@@ -139,6 +168,8 @@ baseSvg.selectAll('.button')
         currentZoom = 0.5;
       }
       // console.log("Button clicked ", currentZoom);
+      console.log("zoom in/out pe", window.innerWidth)
+      console.log("zoom in/out pe", window.innerHeight)
       zoomer.scaleBy(g.transition().duration(750), currentZoom);
     })
 
@@ -304,7 +335,7 @@ function delete_tab(node) {
 }
 
 function drawTree(source) {
-  console.log("Drawing tree ", window.currentRoot);
+  // console.log("Drawing tree ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     allLinks = links;
@@ -321,11 +352,13 @@ function drawTree(source) {
     var menu = [
       {
         title: "Rename Tab",
-        action: function(event, elem) {
+        action: function(event,d,elem) {
           var result= prompt('Enter new name: ')
           if(result) {
+            // console.log("d is", d)
             elem.data.title=result;
             elem.data.lines = wrapText(result)
+            console.log("current root", window.currentRoot)
             drawTree(window.currentRoot);
             localStore(localRoot);
           }
@@ -333,27 +366,32 @@ function drawTree(source) {
       },
       {
         title: "Copy URL",
-        action: function(event, elem) {
+        action: function(event,d,elem) {
           var promise = navigator.clipboard.writeText(elem.data.url);
         }
       },
       {
         title: "Save Tree",
-        action: function(event, elem) {
+        action: function(event,d,elem) {
+          console.log("elem", elem)
           saveTree(elem.data);
         }
       },
       {
         title: "Toggle read state",
         action: function(nodeEvent, choiceEvent, elem) {
+          console.log("elem is", elem)
           let res = nodeEvent.srcElement.parentNode;
           if(elem.read) {
-            elem.read = false;
-            d3.select(res).attr('fill', '#21b3dc')
+            elem.read = true;
+            d3.select(res).attr('fill', '#646b6d')
+            localStore(localRoot);
           }
           else {
-            elem.read = true;
-            d3.select(res).attr('fill', '#646b6d');
+            elem.read = false;
+            d3.select(res).attr('fill', '#21b3dc');
+            localStore(localRoot);
+
           }
         }
       }
@@ -385,7 +423,7 @@ function drawTree(source) {
       return [matrix.e, matrix.f];
     }
 
-    var animationDuration = 500
+
     var nodeEnter = node.enter().append('g')
     .style('fill', '#21b3dc')
     .attr('class', 'node')
@@ -406,7 +444,7 @@ function drawTree(source) {
         .style('stroke-opacity', 1)
         // Display Shadow
       // TODO Doesn't follow transition..
-        .style("filter", "url(#drop-shadow)")
+        // .style("filter", "url(#drop-shadow)")
         ;
 
       // Blur text and favicon
@@ -415,7 +453,7 @@ function drawTree(source) {
       // Show tool icons
       d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',1);
 
-      floater();
+      // floater();
 
       // BUG this implementation causes the paths to fuck up.
       // Set connected links as active

@@ -5,6 +5,9 @@
 // var openedTabId;
 // var openedWindowId;
 window.extensionId;
+var initial=true;
+
+window.onbeforeunload = null;
 
 
 chrome.browserAction.onClicked.addListener(function(tab) {
@@ -14,7 +17,7 @@ chrome.browserAction.onClicked.addListener(function(tab) {
       chrome.tabs.update(tabs[0].id, {
       active: true
       });
-    chrome.windows.update(tabs[0],windowId, {
+    chrome.windows.update(tabs[0].windowId, {
       focused: true
       });
     }
@@ -32,5 +35,6 @@ chrome.browserAction.onClicked.addListener(function(tab) {
 
 // Works
 chrome.runtime.onStartup.addListener(function() {
+  window.localStorage.setItem('initial',initial.toString());
   chrome.tabs.create({"url": 'tabs_api.html'});
 });
