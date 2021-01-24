@@ -133,6 +133,12 @@ hr {
 .ghostCircle, .activeDrag .ghostCircle {
 	display: none;
 }
+
+.templink {
+    fill: none;
+    stroke: red;
+    stroke-width: 3px;
+  }
 /* For debugging layout */
 
 /* * {

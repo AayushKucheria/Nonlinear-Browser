@@ -1,4 +1,14 @@
 
+
+function initToast() {
+
+  Fnon.Hint.Init({
+    position: 'center-bottom',
+    animation: 'slide-bottom'
+  });
+}
+
+
 // ================ Wrapping Tab Titles
 function wrapText(text) {
   let words = text.split(/(?=[\s\\/%,\.])/),
@@ -30,14 +40,6 @@ function visualLength(text) {
   return ruler.offsetWidth;
 }
 
-function sendToast(message) {
-  var toast = document.querySelector('.toast')
-  toast.innerText = message;
-  toast.style.display = 'block';
-  setTimeout(() => { toast.style.display = 'none'}, 2000);
-
-}
-
 // ================
 // Traverse through all the nodes
 // parent = Node, traverseFn = what to do while traversing, childrenFn = children if present else null
@@ -58,13 +60,11 @@ function traverse(parent, traverseFn, childrenFn) {
 function loggedInState() {
   document.querySelector('#log_in').style.display = 'none';
   document.querySelector('#log_out').style.display = 'block';
-  sendToast("Signed in successfully.")
+  Fnon.Hint.Success('Signed in successfully!');
 };
 
 function loggedOutState() {
   document.querySelector('#log_in').style.display = 'block';
   document.querySelector('#log_out').style.display = 'none';
-
-  sendToast("You're logged out. Log in to save rabbit holes.")
-
+  Fnon.Hint.Success('Logged out successfully!');
 }

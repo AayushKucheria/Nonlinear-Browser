@@ -70,11 +70,10 @@ var dragListener = d3.drag()
 
           dragStarted=true;
 
-          // don't think this is happening TODO
-          console.log(e.sourceEvent);
           e.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
         })
         .on("drag", function(e,d) {
+          d3.select(this).lower();
           d3.select(this).select('rect').transition().duration(animationDuration)
           .style("filter" , "url(#drop-shadow)") //shadow while dragging
 
@@ -97,9 +96,7 @@ var dragListener = d3.drag()
 
           if(d == window.currentRoot) return;
 
-          if(selectedNode) { // The node hovered upon
-
-            console.log("", this, " is being dragged on ", selectedNode);
+          if(selectedNode && selectedNode != draggingNode) { // The node hovered upon
 
             // logic for transferring parents
             // Remove from previous parent
@@ -110,6 +107,15 @@ var dragListener = d3.drag()
             d.parent = selectedNode;
             d.depth = selectedNode.depth + 1; // TODO set depth for all children
 
+            traverse(d, function(node) {
+              if(node === d)
+                node.depth = selectedNode.depth + 1;
+              else
+                node.depth = node.parent.depth + 1;
+            },
+            function(d) {
+              return d.children && d.children.length > 0 ? d.children : null;
+            })
             // Add to new parent
             if(selectedNode._children && selectedNode._children.length > 0)
               toggleChildren(selectedNode);
@@ -119,8 +125,8 @@ var dragListener = d3.drag()
 
             selectedNode.children.push(d);
 
-            console.log("Dragged Node: ", d);
-            console.log("Selected Node: ", selectedNode)
+            // console.log("Dragged Node: ", d);
+            // console.log("Selected Node: ", selectedNode)
 
             // expand(selectedNode);
           //  sortTree();
@@ -168,8 +174,8 @@ zoomArea.selectAll('.button')
         currentZoom = 0.5;
       }
       // console.log("Button clicked ", currentZoom);
-      console.log("zoom in/out pe", window.innerWidth)
-      console.log("zoom in/out pe", window.innerHeight)
+      // console.log("zoom in/out pe", window.innerWidth)
+      // console.log("zoom in/out pe", window.innerHeight)
       zoomer.scaleBy(g.transition().duration(750), currentZoom);
     })
 
@@ -216,8 +222,7 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
  });
 
 
-function wheeled()
-{
+function wheeled() {
   // console.log("wheel event")
   currentTransform = d3.zoomTransform(g.node());
   //
@@ -307,6 +312,49 @@ function centerNode(source) {
     .attr("transform", d => `translate(${x}, ${y})scale(${currentZoom})`)
 }
 
+var overCircle = function(d){
+  selectedNode = d;
+  // console.log("Updated selected node to ", selectedNode);
+  updateTempConnector();
+}
+
+var outCircle = function(d){
+  selectedNode = null;
+  updateTempConnector();
+}
+
+// Function to update the temporary connector indicating dragging affiliation
+var updateTempConnector = function() {
+    var temp = [];
+    if (draggingNode !== null && selectedNode !== null) {
+        // have to flip the source coordinates since we did this for the existing connectors on the original tree
+        temp = [{
+            source: {
+                x: selectedNode.y0,
+                y: selectedNode.x0
+            },
+            target: {
+                x: draggingNode.y0,
+                y: draggingNode.x0
+            }
+        }];
+    }
+    var link = g.selectAll(".templink").data(temp);
+
+    link.enter().append("path")
+        .attr("class", "templink")
+        .attr("d", function(d) {
+          d3.linkVertical()
+            .x(d.x)
+            .y(d.y)
+        })
+        .attr('pointer-events', 'none');
+
+    // link.attr("d", d3.svg.diagonal());
+
+    link.exit().remove();
+};
+
 function initializeTree(localRoot) {
   root = d3.hierarchy(localRoot)
   root.x0 = innerWidth/2;
@@ -335,6 +383,7 @@ function delete_tab(node) {
 }
 
 function drawTree(source) {
+  Fnon.Wait.Ripple('Loading tree');
   // console.log("Drawing tree ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
@@ -355,12 +404,10 @@ function drawTree(source) {
         action: function(event,d,elem) {
           var result= prompt('Enter new name: ')
           if(result) {
-            // console.log("d is", d)
             elem.data.title=result;
             elem.data.lines = wrapText(result)
-            console.log("current root", window.currentRoot)
             drawTree(window.currentRoot);
-            localStore(localRoot);
+            localStore(localRoot); // TODO
           }
         }
       },
@@ -373,41 +420,29 @@ function drawTree(source) {
       {
         title: "Save Tree",
         action: function(event,d,elem) {
-          console.log("elem", elem)
           saveTree(elem.data);
         }
       },
       {
         title: "Toggle read state",
         action: function(nodeEvent, choiceEvent, elem) {
-          console.log("elem is", elem)
-          let res = nodeEvent.srcElement.parentNode;
+          let res = nodeEvent.srcElement;//.parentNode;
+          // This sounds the opposite but works for some reason. :\
           if(elem.read) {
-            elem.read = true;
-            d3.select(res).attr('fill', '#646b6d')
-            localStore(localRoot);
-          }
-          else {
             elem.read = false;
             d3.select(res).attr('fill', '#21b3dc');
-            localStore(localRoot);
-
           }
+          else {
+            elem.read = true;
+            d3.select(res).attr('fill', '#646b6d')
+          }
+          localStore(localRoot); // TODO
         }
       }
     ]
 
 
-    var selectNode = function(d){
-      selectedNode = d;
-      console.log("Updated selected node to ", selectedNode);
-      //pdateTempConnector();
-    }
 
-    var deselectNode = function(d){
-      selectedNode = null;
-      //updateTempConnector();
-    }
 
 
     // ** NODES ***
@@ -436,8 +471,8 @@ function drawTree(source) {
       window.contextMenu(event, d, menu);
     })
     .on('mouseover', function(event, d) {
-
-      selectNode(d);
+      overCircle(d);
+      // selectNode(d);
       //selectedNode = d;
       d3.select(this).select('rect').transition().duration(animationDuration)
         // Show tab border
@@ -493,18 +528,17 @@ function drawTree(source) {
 
     nodeEnter.append('circle')
       .attr('class', 'ghostCircle')
-      .attr('radius', '200')
-      .attr('opacity', 0.2)
+      .attr('radius', 200)
+      .attr('opacity', 1)
     .style('fill', 'red')
       .attr('pointer-events', 'mouseover')
       .on('mouseover', function(e,node) {
         selectNode(node);
-        // e.stopPropagation();
       })
       .on('mouseout', function(e,node) {
         deselectNode(node);
-        // e.stopPropagation();
-      })    // Website Favicon
+      })
+      // Website Favicon
     nodeEnter.append('svg')
       .append('svg:image')
       .attr('class', 'favicon')
@@ -580,25 +614,10 @@ function drawTree(source) {
       .attr('y', tabHeight)
       .attr('width', iconWidth)
       .attr('height', iconHeight)
+      .attr('opacity',0)
       .on('click', function(event,d) { toggleChildren(d)});
 
     // Delete Icon
-      nodeEnter.append('svg')
-        .append('svg:image')
-        .attr('id', 'toggle')
-        .attr('xlink:href', function(d) {
-          if(d.children)
-            return 'res/arrow-up-circle.svg';
-          else if(d._children)
-            return 'res/arrow-down-circle.svg';
-        })
-        .attr('class','icon')
-        .attr('x', tabWidth/2 - 20)
-        .attr('y', tabHeight)
-        .attr('width', iconWidth)
-        .attr('height', iconHeight)
-        .on('click', function(event,d) { toggleChildren(d)});
-
         nodeEnter.append('svg')
         .append('svg:image')
         .attr('id','delete')
@@ -907,15 +926,9 @@ function drawTree(source) {
       d.data.x0 = d.x;
       d.data.y0 = d.y;
     });
+    Fnon.Wait.Remove();
+
   }
-
-
-  function readTab(source)
-  {
-    var x=d3.select('.node').attr('id', function()
-  {
-    return source.data.id;
-  }).style('opacity',0.7);
 
 //   var x=d3.select('.node').filter(function (d)
 // {
@@ -925,7 +938,7 @@ function drawTree(source) {
 //d3.select('.node').attr('id',source.data.id).attr('opactiy',0.5);
 
   // console.log("this is being selected",x.attr('id'));
-}
+
 
 
 var dest_min = 2, dest_max = 10, dest = dest_min;
@@ -946,7 +959,7 @@ var floater = function() {
 }
 
   function initiateDrag(d, domNode) {
-
+    draggingNode = d; // global variable
     d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
     d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
     d3.select(domNode).attr('class', 'node activeDrag');
@@ -954,6 +967,15 @@ var floater = function() {
     g.selectAll("path.link")
       .data(allLinks, function(de) {
         return (de.target.data.id === d.data.id || de.source.data.id === d.data.id);
+      })
+      .remove();
+
+    g.selectAll('.node')
+      .data(d.descendants(), de => de.data.id)
+      .filter(function(de) {
+        if(d.data.id === de.data.id)
+          return false;
+        return true;
       })
       .remove();
 
@@ -968,15 +990,11 @@ var floater = function() {
     //restoring the mouseover event or we cannot drag it a 2nd time
     d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
     //updateTempConnector();
-    if(onNode){
+    if(draggingNode !== null){
       //update(root);
-      // centerNode(draggingNode);
-      // draggingNode = null;
+      centerNode(draggingNode);
       drawTree(window.currentRoot);
-    }
-    else {
-      console.log("fix me");
-      // Send it back to its original place
+      draggingNode = null;
     }
   }
 
@@ -1028,32 +1046,32 @@ var floater = function() {
 //   }
 // }
 
-  function toggleChildren(d) {
-    if(d.children) {
-      // Set toggle state true
-      traverse(d, function(d) {
-        d.toggle = true;
-        },
-        function(d) {
-          return d.children && d.children.length > 0 ? d.children : null;
-        }
-      );
+function toggleChildren(d) {
+  if(d.children) {
+    // Set toggle state true
+    traverse(d, function(d) {
+      d.toggle = true;
+      },
+      function(d) {
+        return d.children && d.children.length > 0 ? d.children : null;
+      }
+    );
 
-      d._children = d.children;
-      d.children = null;
-    }
-    else if(d._children) {
-      // Set toggle state false
-      traverse(d, function(d) {
-        d.toggle = false;
-        },
-        function(d) {
-          return d._children && d._children.length > 0 ? d._children : null;
-        }
-      );
-
-      d.children = d._children;
-      d._children = null;
-    }
-    drawTree(d);
+    d._children = d.children;
+    d.children = null;
   }
+  else if(d._children) {
+    // Set toggle state false
+    traverse(d, function(d) {
+      d.toggle = false;
+      },
+      function(d) {
+        return d._children && d._children.length > 0 ? d._children : null;
+      }
+    );
+
+    d.children = d._children;
+    d._children = null;
+  }
+  drawTree(d);
+}
