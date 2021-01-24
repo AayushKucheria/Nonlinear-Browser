@@ -18,12 +18,14 @@ body {
   /* all: initial; */
 }
 
-.zoomButton {
-	position : fixed;
+/* .layoutButton {
+	position : absolute;
+	bottom: 10%;
+	right: 20%;
 
 
 
-}
+} */
 .svg-container {
   display: inline-block;
   position: relative; /* Relative if it needs to be scaled */

@@ -141,43 +141,20 @@ var dragListener = d3.drag()
 
 // console.log("original width", window.innerWidth)
 // console.log("original heightt", window.innerHeight)
-zoomArea.append('svg')
-  .append('svg:image')
-  .attr('id','recentre')
-  .attr('xlink:href', 'res/origin.svg')
-  .attr('class','icon')
-  .attr('x', 0.5 * window.innerWidth)
-  .attr('y', function(d,i) { return 0.45 * window.innerHeight + 50*i})
-  .attr('width',60)
-  .attr('height',60)
-  .on('click', function(event,d){
-    centerNode(localRoot);
-  })
-zoomArea.selectAll('.button')
-  .data(['zoom-in', 'zoom-out'])
-  .enter()
-    .append('svg:image')
-      .attr('id', d => d)
-      .attr('class', 'zoomButton')
-      .attr('xlink:href', d => 'res/' + d + '.svg')
-      //.attr('x', 0.5 * window.innerWidth) // 950
-      .attr('x', 0.5 * window.innerWidth)
-      .attr('y', function(d, i) {return 0.55 * window.innerHeight + 50*i})//function(d, i) { return 500 + 60*i})
-      // .attr('y', 0.5* window.innerHeight)
-      .attr('width', 60)
-      .attr('height', 60)
-    .on('click', function(d, i) {
-      if(i === 'zoom-in') {
-        currentZoom = 2;
-      }
-      else {
-        currentZoom = 0.5;
-      }
-      // console.log("Button clicked ", currentZoom);
-      // console.log("zoom in/out pe", window.innerWidth)
-      // console.log("zoom in/out pe", window.innerHeight)
-      zoomer.scaleBy(g.transition().duration(750), currentZoom);
-    })
+// zoomArea.append('svg')
+//   .append('svg:image')
+//   .attr('id','recentre')
+//   .attr('xlink:href', 'res/origin.svg')
+//   .attr('class','icon')
+//   .attr('x', 0.5 * window.innerWidth)
+//   .attr('y', function(d,i) { return 0.45 * window.innerHeight + 50*i})
+//   .attr('width',60)
+//   .attr('height',60)
+//   .on('click', function(event,d){
+//     centerNode(localRoot);
+//   })
+
+
 
 
 
@@ -220,7 +197,36 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
    else
      pan(event,d)
  });
-
+ baseSvg.selectAll('.button')
+   .data(['center-tree', 'zoom-in', 'zoom-out'])
+   .enter()
+     .append('svg:image')
+       .attr('id', d => d)
+       .attr('class', 'layoutButton')
+       .attr('xlink:href', d => 'res/' + d + '.svg')
+       .attr('x', '48%')
+       .attr('y', '45%')
+       .attr('dy', function(d,i) {return 50*i})
+       .attr('y', function(d, i) {
+         return (48 + 8*i)+"%"})//function(d, i) { return 500 + 60*i})
+       .attr('width', 60)
+       .attr('height', 60)
+     .on('click', function(d, i) {
+       console.log('d = ', d, " and i = ", i);
+       if(i === 'zoom-in') {
+         currentZoom = 2;
+       }
+       else if(i === 'zoom-out'){
+         currentZoom = 0.5;
+       }
+       else {
+         centerNode(localRoot);
+       }
+       // console.log("Button clicked ", currentZoom);
+       // console.log("zoom in/out pe", window.innerWidth)
+       // console.log("zoom in/out pe", window.innerHeight)
+       zoomer.scaleBy(g.transition().duration(750), currentZoom);
+     })
 
 function wheeled() {
   // console.log("wheel event")
@@ -440,6 +446,9 @@ function drawTree(source) {
         }
       }
     ]
+
+
+
 
 
 
