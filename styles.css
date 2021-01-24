@@ -18,6 +18,12 @@ body {
   /* all: initial; */
 }
 
+.zoomButton {
+	position : fixed;
+
+
+
+}
 .svg-container {
   display: inline-block;
   position: relative; /* Relative if it needs to be scaled */
@@ -82,7 +88,10 @@ hr {
   overflow: hidden;
 }
 
-
+#recentre {
+	border: 8px solid black;
+	/* border not showing up */
+}
 
 #ruler {
   visibility: hidden;

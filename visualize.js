@@ -48,7 +48,8 @@ var baseSvg = baseDiv.append('svg')
 //   .attr('width', '100%')
 //   .attr('height', '100%')
 //   .style('fill', 'white')
-
+var zoomArea = baseSvg.append('svg')
+          // .attr('viewBox', d => " " + (0.5*innerWidth) + " " + (0.5*innerHeight) + " " + 400 + " " + 400)
 
 var g = baseSvg.append('g')
   .attr('id', 'treeContainer')
@@ -90,6 +91,7 @@ var dragListener = d3.drag()
 
             console.log("", this, " is being dragged on ", selectedNode);
 
+            // logic for transferring parents
             // Remove from previous parent
             var index = d.parent.children.indexOf(d);
             if(index>-1) {
@@ -113,15 +115,31 @@ var dragListener = d3.drag()
           }
         });
 
-baseSvg.selectAll('.button')
+// console.log("original width", window.innerWidth)
+// console.log("original heightt", window.innerHeight)
+zoomArea.append('svg')
+  .append('svg:image')
+  .attr('id','recentre')
+  .attr('xlink:href', 'res/origin.svg')
+  .attr('class','icon')
+  .attr('x', 0.5 * window.innerWidth)
+  .attr('y', function(d,i) { return 0.45 * window.innerHeight + 50*i})
+  .attr('width',60)
+  .attr('height',60)
+  .on('click', function(event,d){
+    centerNode(localRoot);
+  })
+zoomArea.selectAll('.button')
   .data(['zoom-in', 'zoom-out'])
   .enter()
     .append('svg:image')
       .attr('id', d => d)
-      .attr('class', 'icon')
+      .attr('class', 'zoomButton')
       .attr('xlink:href', d => 'res/' + d + '.svg')
-      .attr('x', 0.5 * window.innerWidth) // 950
-      .attr('y', function(d, i) {return 0.5*window.innerHeight + 50*i})//function(d, i) { return 500 + 60*i})
+      //.attr('x', 0.5 * window.innerWidth) // 950
+      .attr('x', 0.5 * window.innerWidth)
+      .attr('y', function(d, i) {return 0.55 * window.innerHeight + 50*i})//function(d, i) { return 500 + 60*i})
+      // .attr('y', 0.5* window.innerHeight)
       .attr('width', 60)
       .attr('height', 60)
     .on('click', function(d, i) {
@@ -132,6 +150,8 @@ baseSvg.selectAll('.button')
         currentZoom = 0.5;
       }
       // console.log("Button clicked ", currentZoom);
+      console.log("zoom in/out pe", window.innerWidth)
+      console.log("zoom in/out pe", window.innerHeight)
       zoomer.scaleBy(g.transition().duration(750), currentZoom);
     })
 
@@ -297,7 +317,7 @@ function delete_tab(node) {
 }
 
 function drawTree(source) {
-  console.log("Drawing tree ", window.currentRoot);
+  // console.log("Drawing tree ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     allLinks = links;
@@ -309,7 +329,7 @@ function drawTree(source) {
       .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
     descendants.forEach(d => d.y = d.depth * 180)
 
-  console.log("With links ", links);
+  // console.log("With links ", links);
 
 
     var menu = [
@@ -381,6 +401,7 @@ function drawTree(source) {
 
     var animationDuration = 500
     var nodeEnter = node.enter().append('g')
+    .style('fill','#21b3dc')
     .attr('class', 'node')
     .call(dragListener)
     .attr('id', function(d,i) {
@@ -832,7 +853,7 @@ function drawTree(source) {
       })
 
 
-    console.log("LinkUpdate = ", linkUpdate);
+    // console.log("LinkUpdate = ", linkUpdate);
       // .attr('d', linkPathGenerator);
     count = 0;
     var linkExit = link.exit()
@@ -855,7 +876,7 @@ function drawTree(source) {
       })
       // .attr('stroke-opacity', 1e-6)
       .remove();
-    console.log("LinkExit: ", linkExit);
+    // console.log("LinkExit: ", linkExit);
     descendants.forEach(d => {
       d.x0 = d.x;
       d.y0 = d.y;
