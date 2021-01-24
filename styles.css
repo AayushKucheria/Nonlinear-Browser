@@ -116,6 +116,14 @@ hr {
 	text-align: center;
 	border-radius: 8px;
 }
+
+.ghostCircle.show {
+	display:block;
+}
+
+.ghostCircle, .activeDrag .ghostCircle {
+	display: none;
+}
 /* For debugging layout */
 
 /* * {

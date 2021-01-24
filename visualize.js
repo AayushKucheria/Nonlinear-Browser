@@ -64,27 +64,28 @@ var g = baseSvg.append('g')
 //Define the drag listener for drag/drop behaviour of nodes.
 var dragListener = d3.drag()
         .on("start", function(e,d) {
-          if( d == root) return;
+          if( d === window.currentRoot) return;
 
           dragStarted=true;
+
+          // don't think this is happening TODO
+          console.log(e.sourceEvent);
           e.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
         })
         .on("drag", function(e,d) {
-          if(d==root) return;
+          if(d === window.currentRoot) return;
 
           if(dragStarted) {
-            domNode=this;
-            initiateDrag(d, domNode);
+            initiateDrag(d, this);
           }
 
           var relCoords = d3.pointer(e);
           d.x0 =  d.x0 + e.dx;
           d.y0 =  d.y0 + e.dy;
-          var node = d3.select(this);
-          node.attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
+          d3.select(this).attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
         })
         .on("end", function(e,d) {
-          if(d == root) return;
+          if(d === window.currentRoot) return;
 
           if(selectedNode) { // The node hovered upon
 
@@ -95,21 +96,27 @@ var dragListener = d3.drag()
             if(index>-1) {
               d.parent.children.splice(index,1);
             }
+            d.parent = selectedNode;
+            d.depth = selectedNode.depth + 1; // TODO set depth for all children
 
             // Add to new parent
             if(selectedNode._children && selectedNode._children.length > 0)
-              selectedNode._children.push(d);
-            else {
+              toggleChildren(selectedNode);
+
+            if(!selectedNode.children)
               selectedNode.children = [];
-              selectedNode.children.push(d);
-            }
+
+            selectedNode.children.push(d);
+
+            console.log("Dragged Node: ", d);
+            console.log("Selected Node: ", selectedNode)
 
             // expand(selectedNode);
           //  sortTree();
-            endDrag(d);
+            endDrag(d, this, true);
           }
           else {
-            endDrag(d);
+            endDrag(d, this, false);
           }
         });
 
@@ -309,7 +316,6 @@ function drawTree(source) {
       .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
     descendants.forEach(d => d.y = d.depth * 180)
 
-  console.log("With links ", links);
 
 
     var menu = [
@@ -353,10 +359,10 @@ function drawTree(source) {
       }
     ]
 
-    console.log(links);
 
     var selectNode = function(d){
       selectedNode = d;
+      console.log("Updated selected node to ", selectedNode);
       //pdateTempConnector();
     }
 
@@ -381,6 +387,7 @@ function drawTree(source) {
 
     var animationDuration = 500
     var nodeEnter = node.enter().append('g')
+    .style('fill', '#21b3dc')
     .attr('class', 'node')
     .call(dragListener)
     .attr('id', function(d,i) {
@@ -392,7 +399,6 @@ function drawTree(source) {
     })
     .on('mouseover', function(event, d) {
 
-      //console.log("mouse on d",d)
       selectNode(d);
       //selectedNode = d;
       d3.select(this).select('rect').transition().duration(animationDuration)
@@ -447,7 +453,20 @@ function drawTree(source) {
       .attr('ry', '10')
       .attr('height', tabHeight)
 
-    // Website Favicon
+    nodeEnter.append('circle')
+      .attr('class', 'ghostCircle')
+      .attr('radius', '200')
+      .attr('opacity', 0.2)
+    .style('fill', 'red')
+      .attr('pointer-events', 'mouseover')
+      .on('mouseover', function(e,node) {
+        selectNode(node);
+        // e.stopPropagation();
+      })
+      .on('mouseout', function(e,node) {
+        deselectNode(node);
+        // e.stopPropagation();
+      })    // Website Favicon
     nodeEnter.append('svg')
       .append('svg:image')
       .attr('class', 'favicon')
@@ -809,13 +828,8 @@ function drawTree(source) {
       // .ease(d3.easeBackOut) // p2
       .attr('stroke-opacity', 1)
       .attr('d', function(d) {
-        // console.log("Entering ");
-        // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
-        // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
-
         return linkPathGenerator(d);
       });
-    console.log("Link Enter = ", linkEnter);
 
     count = 0;
     var linkUpdate = linkEnter.merge(link)
@@ -825,15 +839,9 @@ function drawTree(source) {
       .ease(d3.easeBackOut) // p2
       // .attr('stroke-opacity', 1)
       .attr('d', function(d) {
-        // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
-        // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
-
         return linkPathGenerator(d);
       })
 
-
-    console.log("LinkUpdate = ", linkUpdate);
-      // .attr('d', linkPathGenerator);
     count = 0;
     var linkExit = link.exit()
       .transition()
@@ -855,7 +863,6 @@ function drawTree(source) {
       })
       // .attr('stroke-opacity', 1e-6)
       .remove();
-    console.log("LinkExit: ", linkExit);
     descendants.forEach(d => {
       d.x0 = d.x;
       d.y0 = d.y;
@@ -865,34 +872,8 @@ function drawTree(source) {
   }
 
 
-function save(elem)
-{
-  // var ui = new firebaseui.auth.AuthUI(firebase.auth());
-  //
-  // ui.start('#firebaseui-auth-container', {
-  //   signInOptions: [
-  //     {
-  //       provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
-  //       signInMethod: firebase.auth.EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD
-  //     }
-  //   ],
-  //
-  //   // Other config options...
-  //   // Is there an email link sign-in?
-  // if (ui.isPendingRedirect()) {
-  //   ui.start('#firebaseui-auth-container', uiConfig);
-  // }
-  // // This can also be done via:
-  // if (firebase.auth().isSignInWithEmailLink(window.location.href)) {
-  //   ui.start('#firebaseui-auth-container', uiConfig);
-  // }
-  // });
-}
-
-
   function readTab(source)
   {
-    console.log("source aa kya raha hai", source);
     var x=d3.select('.node').attr('id', function()
   {
     return source.data.id;
@@ -927,50 +908,37 @@ var floater = function() {
 }
 
   function initiateDrag(d, domNode) {
-    //console.log("node hai bhi kya",nodes)
-    // d3.select(domNode).select('.ghostCircle').attr('pointer-events','none'); //selecting a different class when dragging
-    // d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
-    // d3.select(domNode).attr('class', 'node activeDrag');
 
-    // g.selectAll("g.node").sort(function (a,b) {
-    //   if(a.id != draggingNode.id) return 1;
-    //   else return -1;
-    // });
-    nodePaths = g.selectAll("path.link")
-                .data(allLinks, function(de) {
-                  return (de.target.data.id === d.data.id || de.source.data.id === d.data.id);
-                }
-                  // function(de) {
-                  // if(d.data.id === de.source.data.id)
-                  //   {
-                  //     console.log("aifneifon",de)
-                  //     return de;
-                  //   }
-                ).remove();
+    d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
+    d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
+    d3.select(domNode).attr('class', 'node activeDrag');
 
-      // console.log("node paths",nodePaths)
+    g.selectAll("path.link")
+      .data(allLinks, function(de) {
+        return (de.target.data.id === d.data.id || de.source.data.id === d.data.id);
+      })
+      .remove();
 
-      // dragNode = g.select("g.node")
-      //           .data(nodes, function(d) {
-      //             return d.id;
-      //           })
-
-     dragStarted = null;
+    dragStarted = false;
   }
 
-  function endDrag(d) {
+  function endDrag(d, domNode, onNode) {
     selectedNode = null;
-    // d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
-    // d3.select(this).attr('class','node');
+    d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
+    d3.select(domNode).attr('class','node');
 
     //restoring the mouseover event or we cannot drag it a 2nd time
-    // d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
+    d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
     //updateTempConnector();
-    if(d){
+    if(onNode){
       //update(root);
       // centerNode(draggingNode);
       // draggingNode = null;
       drawTree(window.currentRoot);
+    }
+    else {
+      console.log("fix me");
+      // Send it back to its original place
     }
   }
 
