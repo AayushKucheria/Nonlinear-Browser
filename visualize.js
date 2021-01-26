@@ -342,6 +342,15 @@ function drawTree(source) {
 
   // console.log("With links ", links);
 
+    // var submenu = [
+    //   {
+    //     title: "sirf testing",
+    //     action : function(event,d,elem)
+    //     {
+    //       console.log("bhosadi ka")
+    //     }
+    //   }
+    // ]
 
     var menu = [
       {
@@ -358,6 +367,9 @@ function drawTree(source) {
           }
         }
       },
+      // {
+      //   submenu
+      // },
       {
         title: "Copy URL",
         action: function(event,d,elem) {
@@ -388,6 +400,25 @@ function drawTree(source) {
 
           }
         }
+      },
+      {
+        title: 'Parent' ,
+        children: [
+                {
+                  title: 'Child',
+                  children : [
+                    {
+                       title: 'Grand Child 1'
+                    } ,
+                    {
+                      title: 'Grand Child 2',
+                      action: function(){
+                        console.log("aya")
+                      }
+                    }
+                  ]
+                }
+        ]
       }
     ]
 
