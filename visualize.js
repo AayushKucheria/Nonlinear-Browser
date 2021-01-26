@@ -212,7 +212,7 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
        .attr('width', 60)
        .attr('height', 60)
      .on('click', function(d, i) {
-       console.log('d = ', d, " and i = ", i);
+       // console.log('d = ', d, " and i = ", i);
        if(i === 'zoom-in') {
          currentZoom = 2;
        }
@@ -422,6 +422,7 @@ function drawTree(source) {
             elem.data.title=result;
             elem.data.lines = wrapText(result)
             drawTree(window.currentRoot);
+            // console.log("localRoot is", localRoot)
             localStore(localRoot); // TODO
           }
         }
@@ -456,25 +457,6 @@ function drawTree(source) {
           }
           localStore(localRoot); // TODO
         }
-      },
-      {
-        title: 'Parent' ,
-        children: [
-                {
-                  title: 'Child',
-                  children : [
-                    {
-                       title: 'Grand Child 1'
-                    } ,
-                    {
-                      title: 'Grand Child 2',
-                      action: function(){
-                        console.log("aya")
-                      }
-                    }
-                  ]
-                }
-        ]
       }
     ]
 
@@ -676,6 +658,7 @@ function drawTree(source) {
           chrome.tabs.remove(removeTabs);
           // removeTab(d.data.id);
           removeSubtree(d.data.id);
+          // console.log("localRoot is", localRoot)
           localStore(localRoot);
         });
 
