@@ -18,12 +18,14 @@ body {
   /* all: initial; */
 }
 
-.zoomButton {
-	position : fixed;
+/* .layoutButton {
+	position : absolute;
+	bottom: 10%;
+	right: 20%;
 
 
 
-}
+} */
 .svg-container {
   display: inline-block;
   position: relative; /* Relative if it needs to be scaled */
@@ -125,6 +127,20 @@ hr {
 	text-align: center;
 	border-radius: 8px;
 }
+
+.ghostCircle.show {
+	display:block;
+}
+
+.ghostCircle, .activeDrag .ghostCircle {
+	display: none;
+}
+
+.templink {
+    fill: none;
+    stroke: red;
+    stroke-width: 3px;
+  }
 /* For debugging layout */
 
 /* * {

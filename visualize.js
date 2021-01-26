@@ -66,39 +66,37 @@ var g = baseSvg.append('g')
 //Define the drag listener for drag/drop behaviour of nodes.
 var dragListener = d3.drag()
         .on("start", function(e,d) {
-          if( d == root) return;
+          if( d === window.currentRoot) return;
 
           dragStarted=true;
+
           e.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
         })
         .on("drag", function(e,d) {
+          d3.select(this).lower();
           d3.select(this).select('rect').transition().duration(animationDuration)
           .style("filter" , "url(#drop-shadow)") //shadow while dragging
 
           floater(); //shadow transition effect
-          if(d==root) return;
+          if(d === window.currentRoot) return;
 
           if(dragStarted) {
-            domNode=this;
-            initiateDrag(d, domNode);
+            initiateDrag(d, this);
           }
 
           var relCoords = d3.pointer(e);
           d.x0 =  d.x0 + e.dx;
           d.y0 =  d.y0 + e.dy;
-          var node = d3.select(this);
-          node.attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
+          d3.select(this).attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
         })
         .on("end", function(e,d) {
 
           d3.select(this).select('rect').transition().duration(animationDuration)
             .style('filter', 'unset')// stop shadow after having dragged
 
-          if(d == root) return;
+          if(d == window.currentRoot) return;
 
-          if(selectedNode) { // The node hovered upon
-
-            console.log("", this, " is being dragged on ", selectedNode);
+          if(selectedNode && selectedNode != draggingNode) { // The node hovered upon
 
             // logic for transferring parents
             // Remove from previous parent
@@ -106,65 +104,57 @@ var dragListener = d3.drag()
             if(index>-1) {
               d.parent.children.splice(index,1);
             }
+            d.parent = selectedNode;
+            d.depth = selectedNode.depth + 1; // TODO set depth for all children
 
+            traverse(d, function(node) {
+              if(node === d)
+                node.depth = selectedNode.depth + 1;
+              else
+                node.depth = node.parent.depth + 1;
+            },
+            function(d) {
+              return d.children && d.children.length > 0 ? d.children : null;
+            })
             // Add to new parent
             if(selectedNode._children && selectedNode._children.length > 0)
-              selectedNode._children.push(d);
-            else {
+              toggleChildren(selectedNode);
+
+            if(!selectedNode.children)
               selectedNode.children = [];
-              selectedNode.children.push(d);
-            }
+
+            selectedNode.children.push(d);
+
+            // console.log("Dragged Node: ", d);
+            // console.log("Selected Node: ", selectedNode)
 
             // expand(selectedNode);
           //  sortTree();
-            endDrag(d);
+            endDrag(d, this, true);
             localStore(localRoot);
           }
           else {
-            endDrag(d);
+            endDrag(d, this, false);
             localStore(localRoot);
           }
         });
 
 // console.log("original width", window.innerWidth)
 // console.log("original heightt", window.innerHeight)
-zoomArea.append('svg')
-  .append('svg:image')
-  .attr('id','recentre')
-  .attr('xlink:href', 'res/origin.svg')
-  .attr('class','icon')
-  .attr('x', 0.5 * window.innerWidth)
-  .attr('y', function(d,i) { return 0.45 * window.innerHeight + 50*i})
-  .attr('width',60)
-  .attr('height',60)
-  .on('click', function(event,d){
-    centerNode(localRoot);
-  })
-zoomArea.selectAll('.button')
-  .data(['zoom-in', 'zoom-out'])
-  .enter()
-    .append('svg:image')
-      .attr('id', d => d)
-      .attr('class', 'zoomButton')
-      .attr('xlink:href', d => 'res/' + d + '.svg')
-      //.attr('x', 0.5 * window.innerWidth) // 950
-      .attr('x', 0.5 * window.innerWidth)
-      .attr('y', function(d, i) {return 0.55 * window.innerHeight + 50*i})//function(d, i) { return 500 + 60*i})
-      // .attr('y', 0.5* window.innerHeight)
-      .attr('width', 60)
-      .attr('height', 60)
-    .on('click', function(d, i) {
-      if(i === 'zoom-in') {
-        currentZoom = 2;
-      }
-      else {
-        currentZoom = 0.5;
-      }
-      // console.log("Button clicked ", currentZoom);
-      console.log("zoom in/out pe", window.innerWidth)
-      console.log("zoom in/out pe", window.innerHeight)
-      zoomer.scaleBy(g.transition().duration(750), currentZoom);
-    })
+// zoomArea.append('svg')
+//   .append('svg:image')
+//   .attr('id','recentre')
+//   .attr('xlink:href', 'res/origin.svg')
+//   .attr('class','icon')
+//   .attr('x', 0.5 * window.innerWidth)
+//   .attr('y', function(d,i) { return 0.45 * window.innerHeight + 50*i})
+//   .attr('width',60)
+//   .attr('height',60)
+//   .on('click', function(event,d){
+//     centerNode(localRoot);
+//   })
+
+
 
 
 
@@ -207,10 +197,38 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
    else
      pan(event,d)
  });
+ baseSvg.selectAll('.button')
+   .data(['center-tree', 'zoom-in', 'zoom-out'])
+   .enter()
+     .append('svg:image')
+       .attr('id', d => d)
+       .attr('class', 'layoutButton')
+       .attr('xlink:href', d => 'res/' + d + '.svg')
+       .attr('x', '48%')
+       .attr('y', '45%')
+       .attr('dy', function(d,i) {return 50*i})
+       .attr('y', function(d, i) {
+         return (48 + 8*i)+"%"})//function(d, i) { return 500 + 60*i})
+       .attr('width', 60)
+       .attr('height', 60)
+     .on('click', function(d, i) {
+       console.log('d = ', d, " and i = ", i);
+       if(i === 'zoom-in') {
+         currentZoom = 2;
+       }
+       else if(i === 'zoom-out'){
+         currentZoom = 0.5;
+       }
+       else {
+         centerNode(localRoot);
+       }
+       // console.log("Button clicked ", currentZoom);
+       // console.log("zoom in/out pe", window.innerWidth)
+       // console.log("zoom in/out pe", window.innerHeight)
+       zoomer.scaleBy(g.transition().duration(750), currentZoom);
+     })
 
-
-function wheeled()
-{
+function wheeled() {
   // console.log("wheel event")
   currentTransform = d3.zoomTransform(g.node());
   //
@@ -300,6 +318,49 @@ function centerNode(source) {
     .attr("transform", d => `translate(${x}, ${y})scale(${currentZoom})`)
 }
 
+var overCircle = function(d){
+  selectedNode = d;
+  // console.log("Updated selected node to ", selectedNode);
+  updateTempConnector();
+}
+
+var outCircle = function(d){
+  selectedNode = null;
+  updateTempConnector();
+}
+
+// Function to update the temporary connector indicating dragging affiliation
+var updateTempConnector = function() {
+    var temp = [];
+    if (draggingNode !== null && selectedNode !== null) {
+        // have to flip the source coordinates since we did this for the existing connectors on the original tree
+        temp = [{
+            source: {
+                x: selectedNode.y0,
+                y: selectedNode.x0
+            },
+            target: {
+                x: draggingNode.y0,
+                y: draggingNode.x0
+            }
+        }];
+    }
+    var link = g.selectAll(".templink").data(temp);
+
+    link.enter().append("path")
+        .attr("class", "templink")
+        .attr("d", function(d) {
+          d3.linkVertical()
+            .x(d.x)
+            .y(d.y)
+        })
+        .attr('pointer-events', 'none');
+
+    // link.attr("d", d3.svg.diagonal());
+
+    link.exit().remove();
+};
+
 function initializeTree(localRoot) {
   root = d3.hierarchy(localRoot)
   root.x0 = innerWidth/2;
@@ -328,6 +389,7 @@ function delete_tab(node) {
 }
 
 function drawTree(source) {
+  Fnon.Wait.Ripple('Loading tree');
   // console.log("Drawing tree ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
@@ -340,7 +402,6 @@ function drawTree(source) {
       .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
     descendants.forEach(d => d.y = d.depth * 180)
 
-  // console.log("With links ", links);
 
     // var submenu = [
     //   {
@@ -358,12 +419,10 @@ function drawTree(source) {
         action: function(event,d,elem) {
           var result= prompt('Enter new name: ')
           if(result) {
-            // console.log("d is", d)
             elem.data.title=result;
             elem.data.lines = wrapText(result)
-            console.log("current root", window.currentRoot)
             drawTree(window.currentRoot);
-            localStore(localRoot);
+            localStore(localRoot); // TODO
           }
         }
       },
@@ -379,26 +438,23 @@ function drawTree(source) {
       {
         title: "Save Tree",
         action: function(event,d,elem) {
-          console.log("elem", elem)
           saveTree(elem.data);
         }
       },
       {
         title: "Toggle read state",
         action: function(nodeEvent, choiceEvent, elem) {
-          console.log("elem is", elem)
-          let res = nodeEvent.srcElement.parentNode;
+          let res = nodeEvent.srcElement;//.parentNode;
+          // This sounds the opposite but works for some reason. :\
           if(elem.read) {
-            elem.read = true;
-            d3.select(res).attr('fill', '#646b6d')
-            localStore(localRoot);
-          }
-          else {
             elem.read = false;
             d3.select(res).attr('fill', '#21b3dc');
-            localStore(localRoot);
-
           }
+          else {
+            elem.read = true;
+            d3.select(res).attr('fill', '#646b6d')
+          }
+          localStore(localRoot); // TODO
         }
       },
       {
@@ -422,17 +478,11 @@ function drawTree(source) {
       }
     ]
 
-    console.log(links);
 
-    var selectNode = function(d){
-      selectedNode = d;
-      //pdateTempConnector();
-    }
 
-    var deselectNode = function(d){
-      selectedNode = null;
-      //updateTempConnector();
-    }
+
+
+
 
 
     // ** NODES ***
@@ -450,7 +500,7 @@ function drawTree(source) {
 
 
     var nodeEnter = node.enter().append('g')
-    .style('fill','#21b3dc')
+    .style('fill', '#21b3dc')
     .attr('class', 'node')
     .call(dragListener)
     .attr('id', function(d,i) {
@@ -461,9 +511,8 @@ function drawTree(source) {
       window.contextMenu(event, d, menu);
     })
     .on('mouseover', function(event, d) {
-
-      //console.log("mouse on d",d)
-      selectNode(d);
+      overCircle(d);
+      // selectNode(d);
       //selectedNode = d;
       d3.select(this).select('rect').transition().duration(animationDuration)
         // Show tab border
@@ -517,7 +566,19 @@ function drawTree(source) {
       .attr('ry', '10')
       .attr('height', tabHeight)
 
-    // Website Favicon
+    nodeEnter.append('circle')
+      .attr('class', 'ghostCircle')
+      .attr('radius', 200)
+      .attr('opacity', 1)
+    .style('fill', 'red')
+      .attr('pointer-events', 'mouseover')
+      .on('mouseover', function(e,node) {
+        selectNode(node);
+      })
+      .on('mouseout', function(e,node) {
+        deselectNode(node);
+      })
+      // Website Favicon
     nodeEnter.append('svg')
       .append('svg:image')
       .attr('class', 'favicon')
@@ -593,25 +654,10 @@ function drawTree(source) {
       .attr('y', tabHeight)
       .attr('width', iconWidth)
       .attr('height', iconHeight)
+      .attr('opacity',0)
       .on('click', function(event,d) { toggleChildren(d)});
 
     // Delete Icon
-      nodeEnter.append('svg')
-        .append('svg:image')
-        .attr('id', 'toggle')
-        .attr('xlink:href', function(d) {
-          if(d.children)
-            return 'res/arrow-up-circle.svg';
-          else if(d._children)
-            return 'res/arrow-down-circle.svg';
-        })
-        .attr('class','icon')
-        .attr('x', tabWidth/2 - 20)
-        .attr('y', tabHeight)
-        .attr('width', iconWidth)
-        .attr('height', iconHeight)
-        .on('click', function(event,d) { toggleChildren(d)});
-
         nodeEnter.append('svg')
         .append('svg:image')
         .attr('id','delete')
@@ -879,13 +925,8 @@ function drawTree(source) {
       // .ease(d3.easeBackOut) // p2
       .attr('stroke-opacity', 1)
       .attr('d', function(d) {
-        // console.log("Entering ");
-        // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
-        // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
-
         return linkPathGenerator(d);
       });
-    console.log("Link Enter = ", linkEnter);
 
     count = 0;
     var linkUpdate = linkEnter.merge(link)
@@ -895,15 +936,9 @@ function drawTree(source) {
       .ease(d3.easeBackOut) // p2
       // .attr('stroke-opacity', 1)
       .attr('d', function(d) {
-        // console.log("Origin x = ", d.source.x + tabWidth/2 , " and y = ", d.source.depth * 180);
-        // console.log("Target x = ", d.target.x + tabWidth/2 , " and y = ", d.target.depth * 180);
-
         return linkPathGenerator(d);
       })
 
-
-    // console.log("LinkUpdate = ", linkUpdate);
-      // .attr('d', linkPathGenerator);
     count = 0;
     var linkExit = link.exit()
       .transition()
@@ -925,48 +960,15 @@ function drawTree(source) {
       })
       // .attr('stroke-opacity', 1e-6)
       .remove();
-    // console.log("LinkExit: ", linkExit);
     descendants.forEach(d => {
       d.x0 = d.x;
       d.y0 = d.y;
       d.data.x0 = d.x;
       d.data.y0 = d.y;
     });
+    Fnon.Wait.Remove();
+
   }
-
-
-function save(elem)
-{
-  // var ui = new firebaseui.auth.AuthUI(firebase.auth());
-  //
-  // ui.start('#firebaseui-auth-container', {
-  //   signInOptions: [
-  //     {
-  //       provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
-  //       signInMethod: firebase.auth.EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD
-  //     }
-  //   ],
-  //
-  //   // Other config options...
-  //   // Is there an email link sign-in?
-  // if (ui.isPendingRedirect()) {
-  //   ui.start('#firebaseui-auth-container', uiConfig);
-  // }
-  // // This can also be done via:
-  // if (firebase.auth().isSignInWithEmailLink(window.location.href)) {
-  //   ui.start('#firebaseui-auth-container', uiConfig);
-  // }
-  // });
-}
-
-
-  function readTab(source)
-  {
-    console.log("source aa kya raha hai", source);
-    var x=d3.select('.node').attr('id', function()
-  {
-    return source.data.id;
-  }).style('opacity',0.7);
 
 //   var x=d3.select('.node').filter(function (d)
 // {
@@ -976,7 +978,7 @@ function save(elem)
 //d3.select('.node').attr('id',source.data.id).attr('opactiy',0.5);
 
   // console.log("this is being selected",x.attr('id'));
-}
+
 
 
 var dest_min = 2, dest_max = 10, dest = dest_min;
@@ -997,50 +999,42 @@ var floater = function() {
 }
 
   function initiateDrag(d, domNode) {
-    //console.log("node hai bhi kya",nodes)
-    // d3.select(domNode).select('.ghostCircle').attr('pointer-events','none'); //selecting a different class when dragging
-    // d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
-    // d3.select(domNode).attr('class', 'node activeDrag');
+    draggingNode = d; // global variable
+    d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
+    d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
+    d3.select(domNode).attr('class', 'node activeDrag');
 
-    // g.selectAll("g.node").sort(function (a,b) {
-    //   if(a.id != draggingNode.id) return 1;
-    //   else return -1;
-    // });
-    nodePaths = g.selectAll("path.link")
-                .data(allLinks, function(de) {
-                  return (de.target.data.id === d.data.id || de.source.data.id === d.data.id);
-                }
-                  // function(de) {
-                  // if(d.data.id === de.source.data.id)
-                  //   {
-                  //     console.log("aifneifon",de)
-                  //     return de;
-                  //   }
-                ).remove();
+    g.selectAll("path.link")
+      .data(allLinks, function(de) {
+        return (de.target.data.id === d.data.id || de.source.data.id === d.data.id);
+      })
+      .remove();
 
-      // console.log("node paths",nodePaths)
+    g.selectAll('.node')
+      .data(d.descendants(), de => de.data.id)
+      .filter(function(de) {
+        if(d.data.id === de.data.id)
+          return false;
+        return true;
+      })
+      .remove();
 
-      // dragNode = g.select("g.node")
-      //           .data(nodes, function(d) {
-      //             return d.id;
-      //           })
-
-     dragStarted = null;
+    dragStarted = false;
   }
 
-  function endDrag(d) {
+  function endDrag(d, domNode, onNode) {
     selectedNode = null;
-    // d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
-    // d3.select(this).attr('class','node');
+    d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
+    d3.select(domNode).attr('class','node');
 
     //restoring the mouseover event or we cannot drag it a 2nd time
-    // d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
+    d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
     //updateTempConnector();
-    if(d){
+    if(draggingNode !== null){
       //update(root);
-      // centerNode(draggingNode);
-      // draggingNode = null;
+      centerNode(draggingNode);
       drawTree(window.currentRoot);
+      draggingNode = null;
     }
   }
 
@@ -1092,32 +1086,32 @@ var floater = function() {
 //   }
 // }
 
-  function toggleChildren(d) {
-    if(d.children) {
-      // Set toggle state true
-      traverse(d, function(d) {
-        d.toggle = true;
-        },
-        function(d) {
-          return d.children && d.children.length > 0 ? d.children : null;
-        }
-      );
+function toggleChildren(d) {
+  if(d.children) {
+    // Set toggle state true
+    traverse(d, function(d) {
+      d.toggle = true;
+      },
+      function(d) {
+        return d.children && d.children.length > 0 ? d.children : null;
+      }
+    );
 
-      d._children = d.children;
-      d.children = null;
-    }
-    else if(d._children) {
-      // Set toggle state false
-      traverse(d, function(d) {
-        d.toggle = false;
-        },
-        function(d) {
-          return d._children && d._children.length > 0 ? d._children : null;
-        }
-      );
-
-      d.children = d._children;
-      d._children = null;
-    }
-    drawTree(d);
+    d._children = d.children;
+    d.children = null;
   }
+  else if(d._children) {
+    // Set toggle state false
+    traverse(d, function(d) {
+      d.toggle = false;
+      },
+      function(d) {
+        return d._children && d._children.length > 0 ? d._children : null;
+      }
+    );
+
+    d.children = d._children;
+    d._children = null;
+  }
+  drawTree(d);
+}

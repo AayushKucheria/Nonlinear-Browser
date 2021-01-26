@@ -1,6 +1,7 @@
 
 function bootStrap() {
-    loadWindowList();
+  loadWindowList();
+  initToast();
 }
 chrome.tabs.onCreated.addListener(function(tab) {
   if(tab.url === chrome.extension.getURL('tabs_api.html')) {
