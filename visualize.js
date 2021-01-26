@@ -436,12 +436,12 @@ function drawTree(source) {
           var promise = navigator.clipboard.writeText(elem.data.url);
         }
       },
-      {
-        title: "Save Tree",
-        action: function(event,d,elem) {
-          saveTree(elem.data);
-        }
-      },
+      // {
+      //   title: "Save Tree",
+      //   action: function(event,d,elem) {
+      //     saveTree(elem.data);
+      //   }
+      // },
       {
         title: "Toggle read state",
         action: function(nodeEvent, choiceEvent, elem) {
