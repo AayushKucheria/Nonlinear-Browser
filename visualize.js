@@ -192,10 +192,10 @@ filter.append("feGaussianBlur")
 
 const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
   .on("zoom", function(event,d){
-   if(!event.sourceEvent)
+   // if(!event.sourceEvent)
      zoom(event)
-   else
-     pan(event,d)
+   // else
+     // pan(event,d)
  });
  baseSvg.selectAll('.button')
    .data(['center-tree', 'zoom-in', 'zoom-out'])
@@ -214,7 +214,7 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
      .on('click', function(d, i) {
        console.log('d = ', d, " and i = ", i);
        if(i === 'zoom-in') {
-         currentZoom = 2;
+         currentZoom = 1.5;
        }
        else if(i === 'zoom-out'){
          currentZoom = 0.5;
@@ -222,10 +222,7 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
        else {
          centerNode(localRoot);
        }
-       // console.log("Button clicked ", currentZoom);
-       // console.log("zoom in/out pe", window.innerWidth)
-       // console.log("zoom in/out pe", window.innerHeight)
-       zoomer.scaleBy(g.transition().duration(750), currentZoom);
+       g.transition().duration(750).attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
      })
 
 function wheeled() {
@@ -265,12 +262,8 @@ function wheeled() {
   .on('dblclick.zoom',null)
   .on('wheel', function(event, d) {
     // console.log("Wheel pan detected.");
-     pan(event, d)
+     zoom(event)
    });
-   // .on('keydown', function() {
-   //   event.ctrlKey;
-   // })
-   ;
 
 
 
@@ -287,35 +280,45 @@ zoomButtons.append('svg')
 
 
 function zoom(event) {
-currentZoom = event.transform.k
-currentPos = {x: event.transform.x, y: event.transform.y}
-g.attr('transform', d => event.transform)
+
+  if(event.sourceEvent) { // mouse panning
+    console.log("Mouse panning ", event);
+    currentPos.x = currentPos.x + event.sourceEvent.movementX * currentZoom;
+    currentPos.y = currentPos.y + event.sourceEvent.movementY * currentZoom
+  }
+  else if(event.transform) { // Actual zoom
+    console.log("Actual Zoom ", event);
+
+    currentZoom = event.transform.k
+    currentPos = {x: event.transform.x, y: event.transform.y}
+  }
+  else { // touchpad
+    console.log("Touchpad ", event);
+
+      currentPos.x = currentPos.x + event.wheelDeltaX * currentZoom
+      currentPos.y = currentPos.y + event.wheelDeltaY * currentZoom
+    // zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
+  }
+  g.attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
 }
-function pan(event, d) {
-// Mouse
-// console.log(event);
-if(event.transform) {
-  currentPos.x = event.transform.x
-  currentPos.y = event.transform.y
-  // currentPos = {x: , y: event.transform.y}
-  // g.attr('transform', 'translate(' + [event.transform.x, event.transform.y] + ')scale(' + currentZoom + ')');
-}
-else {
-    currentPos.x = currentPos.x + event.wheelDeltaX * currentZoom
-    currentPos.y = currentPos.y + event.wheelDeltaY * currentZoom
-  // zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
-}
-g.attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
-// console.log(g.attr('transform'))
-}
+// function pan(event, d) {
+// // Mouse
+//   console.log("Panning ", event);
+//   if(event.transform) { // mouse
+//
+//
+//
+//   }
+//
+//   console.log("Panned to ", g.attr('transform'))
+// }
 
 function centerNode(source) {
   x = -source.x0;
   y = -source.y0;
-  x = x * currentZoom - tabWidth/2;
-  y = y * currentZoom - tabHeight/2;
-  d3.select('g').transition()
-    .attr("transform", d => `translate(${x}, ${y})scale(${currentZoom})`)
+  currentPos.x = x * currentZoom - tabWidth/2;
+  currentPos.y = y * currentZoom - tabHeight/2;
+  g.transition().duration(750).attr("transform", d => `translate(${currentPos.x}, ${currentPos.y})scale(${currentZoom})`)
 }
 
 var overCircle = function(d){
