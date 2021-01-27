@@ -212,7 +212,7 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
        .attr('width', 60)
        .attr('height', 60)
      .on('click', function(d, i) {
-       console.log('d = ', d, " and i = ", i);
+       // console.log('d = ', d, " and i = ", i);
        if(i === 'zoom-in') {
          currentZoom = 1.5;
        }
@@ -406,6 +406,15 @@ function drawTree(source) {
     descendants.forEach(d => d.y = d.depth * 180)
 
 
+    // var submenu = [
+    //   {
+    //     title: "sirf testing",
+    //     action : function(event,d,elem)
+    //     {
+    //       console.log("bhosadi ka")
+    //     }
+    //   }
+    // ]
 
     var menu = [
       {
@@ -416,22 +425,26 @@ function drawTree(source) {
             elem.data.title=result;
             elem.data.lines = wrapText(result)
             drawTree(window.currentRoot);
+            // console.log("localRoot is", localRoot)
             localStore(localRoot); // TODO
           }
         }
       },
+      // {
+      //   submenu
+      // },
       {
         title: "Copy URL",
         action: function(event,d,elem) {
           var promise = navigator.clipboard.writeText(elem.data.url);
         }
       },
-      {
-        title: "Save Tree",
-        action: function(event,d,elem) {
-          saveTree(elem.data);
-        }
-      },
+      // {
+      //   title: "Save Tree",
+      //   action: function(event,d,elem) {
+      //     saveTree(elem.data);
+      //   }
+      // },
       {
         title: "Toggle read state",
         action: function(nodeEvent, choiceEvent, elem) {
@@ -648,6 +661,7 @@ function drawTree(source) {
           chrome.tabs.remove(removeTabs);
           // removeTab(d.data.id);
           removeSubtree(d.data.id);
+          // console.log("localRoot is", localRoot)
           localStore(localRoot);
         });
 

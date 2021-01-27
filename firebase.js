@@ -1,14 +1,15 @@
 
 // ******** firebase
+var user;
 var firebaseConfig = {
-  apiKey: "AIzaSyBcXi7lHnFZPpiQJEwIvs9u_gp38zst1mQ",
-  databaseURL: "https://nonlinear-browser-default-rtdb.firebaseio.com",
+  apiKey: "Aafidsufhiasufhdiufhsifhsuf",
+  databaseURL: "hsdaudsifhafiudhf.com",
   authDomain: "nonlinear-browser.firebaseapp.com",
   projectId: "nonlinear-browser",
   storageBucket: "nonlinear-browser.appspot.com",
-  messagingSenderId: "693229853662",
-  appId: "1:693229853662:web:cc17084511b58095841b4f",
-  measurementId: "G-76DQZXB7F5"
+  messagingSenderId: "32424234234",
+  appId: "1:43243662:web:cc17084511342423b4f",
+  measurementId: "G-12324"
 };
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
@@ -112,14 +113,14 @@ function checkUser(user) {
 
 
 function saveTree(source) {
-  var user = firebase.auth().currentUser;
+  user = firebase.auth().currentUser; //get the current user
 
   if(!user) {
-    chrome.tabs.create({url:chrome.extension.getURL("authUI.html")});
+    chrome.tabs.create({url:chrome.extension.getURL("authUI.html")}); //user needs to be signed in
   }
   else {
     checkUser(user);
-    var tree = database.ref().child('users').child(user.uid).child('tree');
+    var tree = database.ref().child('users').child(user.uid).child('tree'); //get the current tree of the user
     var updates = {};
 
     tree.once('value').then((snapshot) => {
@@ -133,12 +134,29 @@ function saveTree(source) {
           sendToast(source.title + " rabbit hole save failed.");
         }
         else {
+          console.log("source.title is", source.title)
           sendToast(source.title + " rabbit hole saved successfully!");
         }
       });
     });
   }
 }
+
+function showSavedTrees() {
+  var usref = firebase.database().ref("users/"+user.uid);
+  console.log("user is", user)
+
+  usref.once('value', function(snapshot) {
+    snapshot.forEach( function(childSnapshot) {
+      if((childSnapshot.key)=="tree"){
+        var dtree = childSnapshot.val();
+        console.log("current tree is", dtree)
+      }
+    });
+
+    });
+
+  }
 
 function createUser(user) {
     database.ref('users/' + user.uid).set({

@@ -7,11 +7,11 @@
   <meta charset="utf-8"/>
 
   <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
-  <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-app.js"></script>
+  <!-- <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-app.js"></script> -->
 
   <!-- Add Firebase products that you want to use -->
-  <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-auth.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-database.js"></script>
+  <!-- <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-auth.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-database.js"></script> -->
   <!-- <script src="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.js"></script> -->
   <!-- <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.css" /> -->
 
@@ -22,7 +22,7 @@
 
   <!-- Toast/dialog/Loading library-->
   <link rel="stylesheet" href="node_modules/fnon/fnon.min.css" />
-
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <link rel="stylesheet" href="context_menu.css">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="navbar.css">
@@ -37,12 +37,43 @@
 
     <ul class='navbar'>
       <li><a>Nonlinear Browser</a></li>
-      <li><a href="">Instructions</a></li>
-      <!--  <li><a href="">Instructions</a></li> -->
+      <!-- <li><a href="">Instructions</a></li>
+      <div class="subnav">
+        <button class="subnavbtn">SubNav Testing<i class="fa fa-caret-down"></i></button>
+        <div class="subnav-content">
+            <a href="#company">Company</a>
+            <a href="#team">Team</a>
+            <a href="careers">Careers</a>
+        </div>
+      </div> -->
+
+    <!-- THIS CONFIGURATION CAUSES the following items to come below this or in other words a child of them -->
+        <!-- <ul>
+          <li><a>item1</a></li>
+          <li><a>item2</a></li>
+          <li><a>item3</a></li>
+          <li><a>item4</a></li>
+        </ul>
+      </li> -->
+
+      <!-- <div class="nav">
+            <ul class="main menu">
+                  <li>Home<li>
+                  <li>Course
+
+                      <ul class="sub-menu">
+                  <li>HTML</li>
+                  <li>CSS</li>
+                  <li>JS</li>
+                </ul>
+              </li> -->
+
+       <!-- <li><a href="">Instructions</a></li> --> 
       <li><a href="mailto:nonlinearbrowser@gmail.com" target="_blank" rel="noopener noreferrer">Contact</a></li>
       <li><a href="https://trello.com/b/2cBWPaJ4/nonlinear-roadmap" target="_blank" rel="noopener noreferrer">Roadmap</a></li>
-      <li id="log_in"><a href="authUI.html" target="_blank" rel="noopener noreferrer">Sign up/Log in (required to save trees)</a></li>
-      <li id="log_out" style="display:none"><a>Log out</a></li>
+      <!-- <li id="log_in"><a href="authUI.html" target="_blank" rel="noopener noreferrer">Sign up/Log in (required to save trees)</a></li>
+      <li id="log_out" style="display:none"><a>Log out</a></li> -->
+
     </ul>
 
     <hr />
@@ -62,7 +93,7 @@
 
 
     <script src="background.js"></script>
-    <script defer src="firebase.js"></script>
+    <!-- <script defer src="firebase.js"></script> -->
 
 
   </body>
