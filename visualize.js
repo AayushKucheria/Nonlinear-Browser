@@ -19,9 +19,6 @@ var currentTransform;
 var allLinks;
 var allDescendants;
 var animationDuration = 500
-//main();
-
-// Connect();
 
 treeLayout = d3.tree()
   .nodeSize([tabWidth, tabHeight])
@@ -49,8 +46,6 @@ var baseSvg = baseDiv.append('svg')
 //   .attr('width', '100%')
 //   .attr('height', '100%')
 //   .style('fill', 'white')
-var zoomArea = baseSvg.append('svg')
-          // .attr('viewBox', d => " " + (0.5*innerWidth) + " " + (0.5*innerHeight) + " " + 400 + " " + 400)
 
 var g = baseSvg.append('g')
   .attr('id', 'treeContainer')
@@ -139,25 +134,6 @@ var dragListener = d3.drag()
           }
         });
 
-// console.log("original width", window.innerWidth)
-// console.log("original heightt", window.innerHeight)
-// zoomArea.append('svg')
-//   .append('svg:image')
-//   .attr('id','recentre')
-//   .attr('xlink:href', 'res/origin.svg')
-//   .attr('class','icon')
-//   .attr('x', 0.5 * window.innerWidth)
-//   .attr('y', function(d,i) { return 0.45 * window.innerHeight + 50*i})
-//   .attr('width',60)
-//   .attr('height',60)
-//   .on('click', function(event,d){
-//     centerNode(localRoot);
-//   })
-
-
-
-
-
 var defs = g.append("defs");
 
   // Drop shadow
@@ -192,53 +168,18 @@ filter.append("feGaussianBlur")
 
 const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
   .on("zoom", function(event,d){
-   // if(!event.sourceEvent)
      zoom(event)
-   // else
-     // pan(event,d)
  });
- baseSvg.selectAll('.button')
-   .data(['center-tree', 'zoom-in', 'zoom-out'])
-   .enter()
-     .append('svg:image')
-       .attr('id', d => d)
-       .attr('class', 'layoutButton')
-       .attr('xlink:href', d => 'res/' + d + '.svg')
-       .attr('x', '48%')
-       .attr('y', '45%')
-       .attr('dy', function(d,i) {return 50*i})
-       .attr('y', function(d, i) {
-         return (48 + 8*i)+"%"})//function(d, i) { return 500 + 60*i})
-       .attr('width', 60)
-       .attr('height', 60)
-     .on('click', function(d, i) {
-       // console.log('d = ', d, " and i = ", i);
-       if(i === 'zoom-in') {
-         currentZoom = 1.5;
-       }
-       else if(i === 'zoom-out'){
-         currentZoom = 0.5;
-       }
-       else {
-         centerNode(localRoot);
-       }
-       g.transition().duration(750).attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
-     })
 
 function wheeled() {
   // console.log("wheel event")
   currentTransform = d3.zoomTransform(g.node());
   //
-  if(event.ctrlKey && currentTransform.k>0)
-  {
+  if(event.ctrlKey && currentTransform.k>0) {
     // console.log("control being pressed")
-    {
     currentTransform.k = currentTransform.k - event.deltaY*0.01;
-    // console.log("k.", currentTransform.k)
-    }
   }
-  else
-  {
+  else {
     currentTransform.y = currentTransform.y - event.deltaY;
   }
   g.attr('transform',currentTransform)
@@ -255,22 +196,16 @@ function wheeled() {
   //     }
   // })
 
-  baseSvg.call(zoomer)
-  // For later: https://stackoverflow.com/questions/28603796/d3-remap-mousewheel-to-be-panning-gesture-instead-of-zoom-gesture
+baseSvg.call(zoomer)
+// For later: https://stackoverflow.com/questions/28603796/d3-remap-mousewheel-to-be-panning-gesture-instead-of-zoom-gesture
   .on('wheel.zoom',wheeled)
   // console.log("wheeled event", wheeled
   .on('dblclick.zoom',null)
   .on('wheel', function(event, d) {
     // console.log("Wheel pan detected.");
      zoom(event)
-   });
+ });
 
-
-
-var zoomButtons = baseSvg.append('g')
-
-zoomButtons.append('svg')
-  .append('circle')
 
 // zoom.filter(function( ){
 //   return event.ctrlKey;
@@ -301,17 +236,6 @@ function zoom(event) {
   }
   g.attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
 }
-// function pan(event, d) {
-// // Mouse
-//   console.log("Panning ", event);
-//   if(event.transform) { // mouse
-//
-//
-//
-//   }
-//
-//   console.log("Panned to ", g.attr('transform'))
-// }
 
 function centerNode(source) {
   x = -source.x0;
@@ -392,7 +316,7 @@ function delete_tab(node) {
 }
 
 function drawTree(source) {
-  Fnon.Wait.Ripple('Loading tree');
+  // Fnon.Wait.Ripple('Loading tree');
   // console.log("Drawing tree ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
@@ -485,43 +409,43 @@ function drawTree(source) {
 
 
     var nodeEnter = node.enter().append('g')
-    .style('fill', '#21b3dc')
-    .attr('class', 'node')
-    .call(dragListener)
-    .attr('id', function(d,i) {
-      return d.data.id;
-    })
-    .attr('cursor', 'pointer')
-    .on('contextmenu', function(event, d) {
-      window.contextMenu(event, d, menu);
-    })
-    .on('mouseover', function(event, d) {
-      overCircle(d);
-      // selectNode(d);
-      //selectedNode = d;
-      d3.select(this).select('rect').transition().duration(animationDuration)
-        // Show tab border
-        .style('stroke-opacity', 1)
-        // Display Shadow
-      // TODO Doesn't follow transition..
-        // .style("filter", "url(#drop-shadow)")
-        ;
+      .style('fill', '#21b3dc')
+      .attr('class', 'node')
+      .call(dragListener)
+      .attr('id', function(d,i) {
+        return d.data.id;
+      })
+      .attr('cursor', 'pointer')
+      .on('contextmenu', function(event, d) {
+        window.contextMenu(event, d, menu);
+      })
+      .on('mouseover', function(event, d) {
+        overCircle(d);
+        // selectNode(d);
+        //selectedNode = d;
+        d3.select(this).select('rect').transition().duration(animationDuration)
+          // Show tab border
+          .style('stroke-opacity', 1)
+          // Display Shadow
+        // TODO Doesn't follow transition..
+          // .style("filter", "url(#drop-shadow)")
+          ;
 
-      // Blur text and favicon
-      d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style("filter", "url(#blur)");
+        // Blur text and favicon
+        d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style("filter", "url(#blur)");
 
-      // Show tool icons
-      d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',1);
+        // Show tool icons
+        d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',1);
 
-      // floater();
+        // floater();
 
-      // BUG this implementation causes the paths to fuck up.
-      // Set connected links as active
-      // g.selectAll(".link").classed("active", function(p) { return (p.target === d || p.source === d); });
-      // Highlight active links
-      // g.selectAll(".link.active").transition().duration(animationDuration).style('stroke', 'black');
-    })
-    .on('mouseout', function(event, d) {
+        // BUG this implementation causes the paths to fuck up.
+        // Set connected links as active
+        // g.selectAll(".link").classed("active", function(p) { return (p.target === d || p.source === d); });
+        // Highlight active links
+        // g.selectAll(".link.active").transition().duration(animationDuration).style('stroke', 'black');
+      })
+      .on('mouseout', function(event, d) {
 
       d3.select(this).select('rect').transition().duration(animationDuration)
         // Hide tab border
@@ -541,7 +465,7 @@ function drawTree(source) {
       //   .classed("active", false)
       //   .transition().duration(animationDuration).style('stroke', '#ccc');
     })
-    .attr("transform",d => `translate(${source.x0},${source.y0})`)
+      .attr("transform",d => `translate(${source.x0},${source.y0})`)
 
     // Tab Rectangle
     nodeEnter.append('rect')
@@ -555,14 +479,14 @@ function drawTree(source) {
       .attr('class', 'ghostCircle')
       .attr('radius', 200)
       .attr('opacity', 1)
-    .style('fill', 'red')
-      .attr('pointer-events', 'mouseover')
-      .on('mouseover', function(e,node) {
-        selectNode(node);
-      })
-      .on('mouseout', function(e,node) {
-        deselectNode(node);
-      })
+      .style('fill', 'red')
+        .attr('pointer-events', 'mouseover')
+        .on('mouseover', function(e,node) {
+          selectNode(node);
+        })
+        .on('mouseout', function(e,node) {
+          deselectNode(node);
+        })
       // Website Favicon
     nodeEnter.append('svg')
       .append('svg:image')
@@ -643,58 +567,58 @@ function drawTree(source) {
       .on('click', function(event,d) { toggleChildren(d)});
 
     // Delete Icon
-        nodeEnter.append('svg')
-        .append('svg:image')
-        .attr('id','delete')
-        .attr('xlink:href', 'res/black-bin.svg')
-        .attr('class','icon')
-        .attr('x', tabWidth - iconWidth)
-        .attr('y', 0)
-        .attr('width', iconWidth)
-        .attr('height', iconHeight)
-        .attr('opacity',0)
-        .on('click', function(event,d) {
-          chrome.tabs.remove(d.data.id);
-          var removeChildren = d.data.children ? d.data.children : (d.data._children ? d.data._children : null)
-          removeTabs = removeChildren.map(child => child.id)
-          // removeTabs.append(d.id);
-          chrome.tabs.remove(removeTabs);
-          // removeTab(d.data.id);
-          removeSubtree(d.data.id);
-          // console.log("localRoot is", localRoot)
-          localStore(localRoot);
-        });
+    nodeEnter.append('svg')
+      .append('svg:image')
+      .attr('id','delete')
+      .attr('xlink:href', 'res/black-bin.svg')
+      .attr('class','icon')
+      .attr('x', tabWidth - iconWidth)
+      .attr('y', 0)
+      .attr('width', iconWidth)
+      .attr('height', iconHeight)
+      .attr('opacity',0)
+      .on('click', function(event,d) {
+        chrome.tabs.remove(d.data.id);
+        var removeChildren = d.data.children ? d.data.children : (d.data._children ? d.data._children : null)
+        removeTabs = removeChildren.map(child => child.id)
+        // removeTabs.append(d.id);
+        chrome.tabs.remove(removeTabs);
+        // removeTab(d.data.id);
+        removeSubtree(d.data.id);
+        // console.log("localRoot is", localRoot)
+        localStore(localRoot);
+    });
 
-        nodeEnter.append('svg')
-        .append('svg:image')
-        .attr('id','go')
-        .attr('xlink:href', 'res/arrow-right-top.svg')
-        .attr('class','icon')
-        .attr('x', tabWidth - iconWidth)
-        .attr('y', tabHeight - iconHeight)
-        .attr('width', iconWidth)
-        .attr('height', iconHeight)
-        .attr('opacity',0)
-        .on('click', function(event,d) {
-        chrome.tabs.query({'url': d.data.url}, function(tabs) {
-          if(tabs.length > 0) {
-            chrome.tabs.update(tabs[0].id, {
-              active: true
-            });
-            chrome.windows.update(tabs[0].windowId, {
-            focused: true
-            });
+    nodeEnter.append('svg')
+      .append('svg:image')
+      .attr('id','go')
+      .attr('xlink:href', 'res/arrow-right-top.svg')
+      .attr('class','icon')
+      .attr('x', tabWidth - iconWidth)
+      .attr('y', tabHeight - iconHeight)
+      .attr('width', iconWidth)
+      .attr('height', iconHeight)
+      .attr('opacity',0)
+      .on('click', function(event,d) {
+      chrome.tabs.query({'url': d.data.url}, function(tabs) {
+        if(tabs.length > 0) {
+          chrome.tabs.update(tabs[0].id, {
+            active: true
+          });
+          chrome.windows.update(tabs[0].windowId, {
+          focused: true
+          });
+        }
+        else {
+          var newTab = {
+            'active': true,
+            'openerTabId': d.data.parentId,
+            'url': d.data.url,
           }
-          else {
-            var newTab = {
-              'active': true,
-              'openerTabId': d.data.parentId,
-              'url': d.data.url,
-            }
-            chrome.tabs.create(newTab);
-          };
-        });
+          chrome.tabs.create(newTab);
+        };
       });
+  });
         // // ============ HIDE tab
         // nodeEnter.append('svg')
         // .append('svg:image')
@@ -909,21 +833,19 @@ function drawTree(source) {
       // .duration(duration)
       // .delay(d => 100 * count++)
       // .ease(d3.easeBackOut) // p2
-      .attr('stroke-opacity', 1)
+      // .attr('stroke-opacity', 1)
+      // .attr('d', function(d) {
+      //   return linkPathGenerator(d);
+      // });
+
+    count = 0;
+    var linkUpdate = linkEnter.merge(link).transition()
+      .duration(duration) // doesn't work
+      .delay(d => 100 * count++) // works
+      // .ease(d3.easeBackOut) // doesn't work
       .attr('d', function(d) {
         return linkPathGenerator(d);
       });
-
-    count = 0;
-    var linkUpdate = linkEnter.merge(link)
-      .transition()
-      .duration(duration)
-      .delay(d => 100 * count++)
-      .ease(d3.easeBackOut) // p2
-      // .attr('stroke-opacity', 1)
-      .attr('d', function(d) {
-        return linkPathGenerator(d);
-      })
 
     count = 0;
     var linkExit = link.exit()
@@ -1101,3 +1023,15 @@ function toggleChildren(d) {
   }
   drawTree(d);
 }
+
+document.querySelector('#centerTree').onclick = function(e) {
+  centerNode(window.currentRoot);
+}
+document.querySelector('#zoomIn').onclick = function(e) {
+  currentZoom = Math.min(currentZoom * 1.5, 1.5);
+
+  g.transition().duration(750).attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
+}
+document.querySelector('#zoomOut').onclick = function(e) {
+  currentZoom = Math.max(currentZoom * 0.5, 0.5);
+  g.transition().duration(750).attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')}
