@@ -2,20 +2,23 @@
 // ******** firebase
 var user;
 var firebaseConfig = {
-  apiKey: "Aafidsufhiasufhdiufhsifhsuf",
-  databaseURL: "hsdaudsifhafiudhf.com",
+  apiKey: "AIzaSyBcXi7lHnFZPpiQJEwIvs9u_gp38zst1mQ",
+  databaseURL: "https://nonlinear-browser-default-rtdb.firebaseio.com",
   authDomain: "nonlinear-browser.firebaseapp.com",
   projectId: "nonlinear-browser",
   storageBucket: "nonlinear-browser.appspot.com",
-  messagingSenderId: "32424234234",
-  appId: "1:43243662:web:cc17084511342423b4f",
-  measurementId: "G-12324"
+  messagingSenderId: "693229853662",
+  appId: "1:693229853662:web:cc17084511b58095841b4f",
+  measurementId: "G-76DQZXB7F5"
 };
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 firebase.auth().useDeviceLanguage();
 
 var database = firebase.database();
+var currentRoot;
+currentRoot=window.localRoot;
+var url;
 
 // Initialize the FirebaseUI Widget using Firebase.
 // Details: https://github.com/firebase/firebaseui-web
@@ -90,9 +93,7 @@ function initApp() {
   });
 }
 
-document.querySelector('#log_out').addEventListener('click', function() {
-  firebase.auth().signOut();
-});
+
 
 window.onload = function() {
   initApp();
@@ -120,6 +121,8 @@ function saveTree(source) {
   }
   else {
     checkUser(user);
+    console.log("user", user)
+
     var tree = database.ref().child('users').child(user.uid).child('tree'); //get the current tree of the user
     var updates = {};
 
@@ -134,29 +137,80 @@ function saveTree(source) {
           sendToast(source.title + " rabbit hole save failed.");
         }
         else {
-          console.log("source.title is", source.title)
-          sendToast(source.title + " rabbit hole saved successfully!");
+          console.log("source.title is", source)
+          // window.location.replace("chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+source.uid);
+          url = "chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+source.uid;
+          chrome.tabs.create({"url":url});
+
+          // sendToast(source.title + " rabbit hole saved successfully!");
         }
       });
     });
   }
+  // showSavedTrees();
 }
 
+
+document.getElementById('ShowTrees').onclick=
 function showSavedTrees() {
-  var usref = firebase.database().ref("users/"+user.uid);
-  console.log("user is", user)
+//   var usref = firebase.database().ref("users/"+user.uid);
+//   console.log("user is", user)
+//
+//   usref.once('value', function(snapshot) {
+// // console.log("snapshot is", snapshot)
+//     snapshot.forEach(function(childSnapshot) //child snapshot actually returns the user
+//     {
+//
+//       console.log("childSnapshot," ,childSnapshot)
+//       console.log("childSnapshot.key", childSnapshot.key)
+//       // console.log("childSnapshot.value", childSnapshot.value)
+//       // if((snapshot.key)=="tree"){
+//       //   var dtree = snapshot.val();
+//       //   console.log("current tree is", dtree)
+//     }
+//   )});
+    // checkUser(user);
+    user = firebase.auth().currentUser;
+    let i=1;
+    var tree = database.ref().child('users').child(user.uid).child('tree');
 
-  usref.once('value', function(snapshot) {
-    snapshot.forEach( function(childSnapshot) {
-      if((childSnapshot.key)=="tree"){
-        var dtree = childSnapshot.val();
-        console.log("current tree is", dtree)
+    tree.once('value').then((snapshot) => {
+    snapshot.forEach(function(childSnapshot) {
+      var key = childSnapshot.key; // treeID
+      // console.log("the child key", key)
+      var childTree = childSnapshot.val();
+      //actual JSON Tree
+      console.log("childTree", childTree)
+      if(i===1)
+      {
+        document.querySelector('#tree1').innerHTML = childTree.title;
+        // window.localRoot=childTree; //this is a bad idea coz it will fuck things up
+        console.log("window.localRoot", childTree)
+        window.open("chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid
+        , "_blank")
       }
-    });
+      if(i===2)
+      {
+        document.querySelector('#tree2').innerHTML = childTree.title;
+      }
+      if(i===3)
+      {
+        document.querySelector('#tree3').innerHTML = childTree.title;
+      }
+      i=i+1;
+      // console.log("the child tree is", childTree)
+    })
+    window.localRoot = currentRoot;
 
     });
 
-  }
+
+
+
+
+    };
+
+
 
 function createUser(user) {
     database.ref('users/' + user.uid).set({

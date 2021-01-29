@@ -37,4 +37,5 @@ chrome.browserAction.onClicked.addListener(function(tab) {
 chrome.runtime.onStartup.addListener(function() {
   window.localStorage.setItem('initial',initial.toString());
   chrome.tabs.create({"url": 'tabs_api.html'});
+
 });

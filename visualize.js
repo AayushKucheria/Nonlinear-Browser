@@ -21,7 +21,11 @@ var allDescendants;
 var animationDuration = 500
 //main();
 
+// document.querySelector(#ShowTrees).onclick = function () {
+//   showSavedTrees();
+// }
 // Connect();
+
 
 treeLayout = d3.tree()
   .nodeSize([tabWidth, tabHeight])
@@ -423,6 +427,7 @@ function drawTree(source) {
             elem.data.lines = wrapText(result)
             drawTree(window.currentRoot);
             // console.log("localRoot is", localRoot)
+            document.title = window.localRoot.title;
             localStore(localRoot); // TODO
           }
         }
@@ -436,12 +441,12 @@ function drawTree(source) {
           var promise = navigator.clipboard.writeText(elem.data.url);
         }
       },
-      // {
-      //   title: "Save Tree",
-      //   action: function(event,d,elem) {
-      //     saveTree(elem.data);
-      //   }
-      // },
+      {
+        title: "Save Tree",
+        action: function(event,d,elem) {
+          saveTree(elem.data);
+        }
+      },
       {
         title: "Toggle read state",
         action: function(nodeEvent, choiceEvent, elem) {

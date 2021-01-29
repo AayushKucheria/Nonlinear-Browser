@@ -1,6 +1,6 @@
 let data = []; // tree of tabs as objects
 let idMapping = [];
-window.localRoot = {"id": "Root", "title": "Start", "lines": ["Start"], "children": [], "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Current Session", "lines": ["Start"], "children": [], "x0": 0, "y0": 0};
 var last_sesh;
 // var initial=true; //when the extension loads
 var fetch;

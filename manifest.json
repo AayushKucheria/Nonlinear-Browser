@@ -1,7 +1,7 @@
 {
   "name": "Nonlinear Browser",
   "description": "Representing browser tabs in a tree for contextual thought",
-  "version": "0.3.1",
+  "version": "0.4.1",
   "permissions": ["tabs", "identity", "notifications"],
   "background": {
     "persistent": false,

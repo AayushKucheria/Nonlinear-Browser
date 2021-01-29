@@ -7,17 +7,18 @@
   <meta charset="utf-8"/>
 
   <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
-  <!-- <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-app.js"></script> -->
+  <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-app.js"></script>
 
   <!-- Add Firebase products that you want to use -->
-  <!-- <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-auth.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-database.js"></script> -->
-  <!-- <script src="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.js"></script> -->
-  <!-- <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.css" /> -->
+  <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-auth.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/8.2.2/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.js"></script>
+  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.css" />
 
 
 
   <script type="text/javascript" src="https://d3js.org/d3.v6.min.js"></script>
+  <!-- <script type="text/javascript" src="firebase.js"></script> -->
   <!-- <script src="https://code.jquery.com/jquery-3.5.1.js" integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc=" crossorigin="anonymous"></script> -->
 
   <!-- Toast/dialog/Loading library-->
@@ -37,15 +38,15 @@
 
     <ul class='navbar'>
       <li><a>Nonlinear Browser</a></li>
-      <!-- <li><a href="">Instructions</a></li>
-      <div class="subnav">
-        <button class="subnavbtn">SubNav Testing<i class="fa fa-caret-down"></i></button>
+      <!-- <li><a href="">Instructions</a></li> -->
+       <div class="subnav"
+        <button class="subnavbtn" id="ShowTrees">Show Saved Trees<i class="fa fa-caret-down"></i></button>
         <div class="subnav-content">
-            <a href="#company">Company</a>
-            <a href="#team">Team</a>
-            <a href="careers">Careers</a>
+            <a id="tree1"></a>
+            <a id="tree2"></a>
+            <a id="tree3"></a>
         </div>
-      </div> -->
+      </div>
 
     <!-- THIS CONFIGURATION CAUSES the following items to come below this or in other words a child of them -->
         <!-- <ul>
@@ -68,11 +69,12 @@
                 </ul>
               </li> -->
 
-       <!-- <li><a href="">Instructions</a></li> --> 
+       <!-- <li><a href="">Instructions</a></li> -->
       <li><a href="mailto:nonlinearbrowser@gmail.com" target="_blank" rel="noopener noreferrer">Contact</a></li>
       <li><a href="https://trello.com/b/2cBWPaJ4/nonlinear-roadmap" target="_blank" rel="noopener noreferrer">Roadmap</a></li>
-      <!-- <li id="log_in"><a href="authUI.html" target="_blank" rel="noopener noreferrer">Sign up/Log in (required to save trees)</a></li>
-      <li id="log_out" style="display:none"><a>Log out</a></li> -->
+      <li id="log_in"><a href="authUI.html" target="_blank" rel="noopener noreferrer">Sign up/Log in (required to save trees)</a></li>
+      <li id="log_out" style="display:none"><a>Log out</a></li>
+      <!-- <button id="ShowTrees">Show Saved Trees</button> -->
 
     </ul>
 
@@ -86,6 +88,10 @@
     <script src="helperFunctions.js"></script>
     <script src='crudApi.js'></script>
     <script src='close.js'></script>
+    <!-- <script src='firebase.js'></script>
+    <script>
+      showSavedTrees()
+    </script> -->
 
     <script src="node_modules/fnon/fnon.min.js"></script>
 
@@ -93,7 +99,7 @@
 
 
     <script src="background.js"></script>
-    <!-- <script defer src="firebase.js"></script> -->
+    <script defer src="firebase.js"></script>
 
 
   </body>

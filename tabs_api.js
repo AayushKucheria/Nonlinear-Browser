@@ -2,10 +2,13 @@
 function bootStrap() {
   loadWindowList();
   initToast();
+  document.title = window.localRoot.title;
+  // setup();
 }
 chrome.tabs.onCreated.addListener(function(tab) {
   if(tab.url === chrome.extension.getURL('tabs_api.html')) {
     window.extensionId = tab.id;
+
   }
   addNewTab(tab);
 });
