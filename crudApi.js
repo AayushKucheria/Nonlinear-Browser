@@ -161,18 +161,18 @@ function updateTab(tabId, changeInfo) {
 }
 
 function removeSubtree(tabId) {
-
+  console.log("Data before removal: ", data)
   let indexInData = idMapping[tabId];
   let removedTab = data.splice(indexInData, 1)
   removedTab= removedTab[0];
-
+  console.log("Removing ", removedTab, " subtree from Data at index ", indexInData);
   // Remove children from data
   let i=0;
   traverse(removedTab,
     function(tab) { (i === 0)? ++i : data.splice(idMapping[tab.id], 1);},
     function(tab) { return tab.children && tab.children.length > 0 ? tab.children : null;}
   );
-
+  console.log("Data after removal of subtree: ", data);
   updateIdMapping();
   let parent;
   let parentId = removedTab.parentId;
@@ -182,14 +182,15 @@ function removeSubtree(tabId) {
   else {
     parent = data[idMapping[parentId]];
   }
-
+  // TODO does removing the object from data+localRoot cause the problem?
+  console.log("LocalRoot before removal: ", localRoot)
   parent.children.splice(parent.children.indexOf(removedTab), 1)
+  console.log("LocalRoot after removal of subtree: ", localRoot);
+
   updateTree(localRoot);
 }
 
 function localStore(source)
 {
-  // console.log("function being called correctly")
-
   window.localStorage.setItem('user', JSON.stringify(source)); //adds to localStorage
 }

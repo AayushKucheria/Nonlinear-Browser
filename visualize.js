@@ -614,12 +614,18 @@ function drawTree(source) {
       .attr('height', iconHeight)
       .attr('opacity',0)
       .on('click', function(event,d) {
+
+        // Remove tab from browser
         chrome.tabs.remove(d.data.id);
+
+        // Remove children from browser
         var removeChildren = d.data.children ? d.data.children : (d.data._children ? d.data._children : null)
         removeTabs = removeChildren.map(child => child.id)
-        // removeTabs.append(d.id);
         chrome.tabs.remove(removeTabs);
-        // removeTab(d.data.id);
+
+        // Logging
+        console.log("Removed ", d, " and ", removeChildren, " from chrome.")
+        // Remove subtree from nonlinear
         removeSubtree(d.data.id);
         // console.log("localRoot is", localRoot)
         localStore(localRoot);
@@ -637,7 +643,9 @@ function drawTree(source) {
       .attr('opacity',0)
       .on('click', function(event,d) {
       chrome.tabs.query({'url': d.data.url}, function(tabs) {
+        console.log("Tabs with this url in chrome: ", tabs);
         if(tabs.length > 0) {
+          console.log("Updating view to ", tabs[0])
           chrome.tabs.update(tabs[0].id, {
             active: true
           });
@@ -646,8 +654,8 @@ function drawTree(source) {
           });
         }
         else {
+          console.log("Creating new tab");
           var newTab = {
-            'active': true,
             'openerTabId': d.data.parentId,
             'url': d.data.url,
           }
