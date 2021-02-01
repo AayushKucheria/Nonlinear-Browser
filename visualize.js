@@ -19,15 +19,6 @@ var currentTransform;
 var allLinks;
 var allDescendants;
 var animationDuration = 500
-<<<<<<< HEAD
-//main();
-
-// document.querySelector(#ShowTrees).onclick = function () {
-//   showSavedTrees();
-// }
-// Connect();
-=======
->>>>>>> 736e8a171310bbe1e68f82929537ef3840e04bf9
 
 
 treeLayout = d3.tree()
@@ -79,6 +70,7 @@ var dragListener = d3.drag()
         })
         .on("drag", function(e,d) {
           d3.select(this).lower();
+
           d3.select(this).select('rect').transition().duration(animationDuration)
           .style("filter" , "url(#drop-shadow)") //shadow while dragging
 
@@ -181,19 +173,36 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
      zoom(event)
  });
 
-function wheeled() {
+function wheeled(event,d) {
   // console.log("wheel event")
-  currentTransform = d3.zoomTransform(g.node());
-  //
-  if(event.ctrlKey && currentTransform.k>0) {
-    // console.log("control being pressed")
-    currentTransform.k = currentTransform.k - event.deltaY*0.01;
+  // currentTransform = d3.zoomTransform(d);
+  // console.log("currentTransform", currentTransform)
+  // console.log("currentTransform.k", currentTransform.k)
+  console.log("event", event)
+
+  if(event.deltaY>0) {
+      currentZoom = Math.min(currentZoom * 1.5, 1.5);
   }
+
   else {
-    currentTransform.y = currentTransform.y - event.deltaY;
+      currentZoom = Math.max(currentZoom * 0.5, 0.5);
+   }
+  //
+  // if(event.ctrlKey && currentTransform.k>0) {
+    // console.log("control being pressed")
+    // currentTransform.k = currentTransform.k - event.deltaY*0.01;
+
+    //
+    g.transition().duration(750).attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
+    // //zoom in
+    //
+    // g.transition().duration(750).attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
   }
-  g.attr('transform',currentTransform)
-}
+    //zoom out
+  // else {
+  //   currentTransform.y = currentTransform.y - event.deltaY;
+  // }
+  // g.attr('transform',currentTransform)
 
   // .filter(function(event) {
   //   if(d3.event.ctrlKey)
@@ -208,13 +217,17 @@ function wheeled() {
 
 baseSvg.call(zoomer)
 // For later: https://stackoverflow.com/questions/28603796/d3-remap-mousewheel-to-be-panning-gesture-instead-of-zoom-gesture
-  .on('wheel.zoom',wheeled)
+  // .on('wheel.zoom',function(event,d){
+    // event.stopPropagation();
+    // wheeled(event,d)})
   // console.log("wheeled event", wheeled
+  .on('wheel.zoom', null)
   .on('dblclick.zoom',null)
   .on('wheel', function(event, d) {
-    // console.log("Wheel pan detected.");
-     zoom(event)
- });
+    console.log("Wheel pan detected.");
+     zoom(event)})
+  // .on("touchstart.zoom", () => console.log('here')
+;
 
 
 // zoom.filter(function( ){
@@ -226,8 +239,20 @@ baseSvg.call(zoomer)
 
 function zoom(event) {
 
+  // if(event.ctrlKey)
+  // {
+  //   event.stopPropagation();
+  //   if(event.deltaY>0) {
+  //       currentZoom = Math.min(currentZoom * 1.5, 1.5);
+  //   }
+  //
+  //   else {
+  //       currentZoom = Math.max(currentZoom * 0.5, 0.5);
+  //        }
+  //  }
+
   if(event.sourceEvent) { // mouse panning
-    console.log("Mouse panning ", event);
+    // console.log("Mouse panning ", event);
     currentPos.x = currentPos.x + event.sourceEvent.movementX * currentZoom;
     currentPos.y = currentPos.y + event.sourceEvent.movementY * currentZoom
   }
@@ -238,7 +263,7 @@ function zoom(event) {
     currentPos = {x: event.transform.x, y: event.transform.y}
   }
   else { // touchpad
-    console.log("Touchpad ", event);
+    // console.log("Touchpad ", event);
 
       currentPos.x = currentPos.x + event.wheelDeltaX * currentZoom
       currentPos.y = currentPos.y + event.wheelDeltaY * currentZoom

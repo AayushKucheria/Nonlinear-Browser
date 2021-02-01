@@ -8,6 +8,37 @@ function initToast() {
   });
 }
 
+// async function fetchUser(user_id)
+// {
+//   // console.log("user id", user_id)
+//   var user_tree = database.ref().child('users').child(user_id)
+//
+//     // console.log("tree user ", user_tree)
+//
+//   user_tree.once('value').then((snapshot) => {
+//
+//     console.log("snapshot.val", snapshot.val())
+//     return snapshot.val();
+//
+//   })};
+
+
+ function fetchTree(user_id,tree_id)
+{
+  // user=firebase.auth().currentUser;
+  var tree = database.ref().child('users').child(user_id).child('tree').child(tree_id);
+
+  tree.once('value').then((snapshot) => {
+  console.log("afand", snapshot.val())
+  current_tree = snapshot.val();
+  console.log("childTree", current_tree)
+
+  window.localRoot = current_tree;
+  console.log("window.localRoot", window.localRoot)
+  initializeTree(window.localRoot);
+  document.title = window.localRoot.title;
+})
+}
 
 // ================ Wrapping Tab Titles
 function wrapText(text) {

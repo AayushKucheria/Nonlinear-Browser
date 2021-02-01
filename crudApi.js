@@ -7,8 +7,26 @@ var fetch;
 // set value as true
 
 // Load tree from scratch
-function loadWindowList() {
+async function loadWindowList() {
 
+
+  var current_url = window.location.search;
+  const urlParams = new URLSearchParams(current_url);
+  // console.log("urlParams", urlParams)
+  const tree_id = urlParams.get('tree');
+  const user_id = urlParams.get('user');
+  var current_tree;
+  // console.log("tree_id", tree_id)
+  // console.log("user_id", user_id)
+
+    // console.log("user", user)
+  if((tree_id)&&(user_id))
+  {
+    // user = awaifetchUser(user_id)
+    console.log("user", user)
+    fetchTree(user_id, tree_id)
+
+  }
   //fetch = Boolean(window.localStorage.getItem('initial'));
   last_sesh = JSON.parse(window.localStorage.getItem('user'));
   if((last_sesh)&&(!initial))
@@ -64,6 +82,7 @@ function loadWindowList() {
       initializeTree(localRoot)
    });
   };
+
 }
   //await SetupConnection();
 

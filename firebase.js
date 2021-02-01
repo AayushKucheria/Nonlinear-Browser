@@ -19,6 +19,7 @@ var database = firebase.database();
 var currentRoot;
 currentRoot=window.localRoot;
 var url;
+var childTree;
 
 // Initialize the FirebaseUI Widget using Firebase.
 // Details: https://github.com/firebase/firebaseui-web
@@ -139,8 +140,8 @@ function saveTree(source) {
         else {
           console.log("source.title is", source)
           // window.location.replace("chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+source.uid);
-          url = "chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+source.uid;
-          chrome.tabs.create({"url":url});
+          // url = "http://chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+source.uid;
+          //
 
           // sendToast(source.title + " rabbit hole saved successfully!");
         }
@@ -152,6 +153,8 @@ function saveTree(source) {
 
 
 document.getElementById('ShowTrees').onclick=
+
+
 function showSavedTrees() {
 //   var usref = firebase.database().ref("users/"+user.uid);
 //   console.log("user is", user)
@@ -171,6 +174,7 @@ function showSavedTrees() {
 //   )});
     // checkUser(user);
     user = firebase.auth().currentUser;
+    console.log("current root", window.localRoot)
     let i=1;
     var tree = database.ref().child('users').child(user.uid).child('tree');
 
@@ -178,29 +182,45 @@ function showSavedTrees() {
     snapshot.forEach(function(childSnapshot) {
       var key = childSnapshot.key; // treeID
       // console.log("the child key", key)
-      var childTree = childSnapshot.val();
+      childTree = childSnapshot.val();
       //actual JSON Tree
-      console.log("childTree", childTree)
+      // console.log("childTree", childTree)
       if(i===1)
       {
         document.querySelector('#tree1').innerHTML = childTree.title;
         // window.localRoot=childTree; //this is a bad idea coz it will fuck things up
-        console.log("window.localRoot", childTree)
-        window.open("chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid
-        , "_blank")
+        // console.log("window.localRoot", childTree)
+        // window.localRoot = childTree;
+        // console.log("window.localRoot after change", window.localRoot)
+
+        url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+        chrome.tabs.create({"url":url})
+          // drawTree(window.localRoot)
+        // .focus()
+
       }
       if(i===2)
       {
         document.querySelector('#tree2').innerHTML = childTree.title;
+        url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+        chrome.tabs.create({"url":url})
+        // console.log("window.localRoot", childTree)
+        // url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+        // chrome.tabs.create({"url":url})
       }
       if(i===3)
       {
         document.querySelector('#tree3').innerHTML = childTree.title;
+        url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+        chrome.tabs.create({"url":url})
+        // console.log("window.localRoot", childTree)
+        // url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+        // chrome.tabs.create({"url":url})
       }
       i=i+1;
       // console.log("the child tree is", childTree)
     })
-    window.localRoot = currentRoot;
+    // window.localRoot = currentRoot;
 
     });
 
@@ -210,6 +230,16 @@ function showSavedTrees() {
 
     };
 
+// function getUrl()
+// {
+//   return url;
+// }
+//
+// function getUser()
+// {
+//   console.log("returns user")
+//   return user;
+// }
 
 
 function createUser(user) {
