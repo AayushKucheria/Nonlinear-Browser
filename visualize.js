@@ -1079,3 +1079,21 @@ document.querySelector('#zoomIn').onclick = function(e) {
 document.querySelector('#zoomOut').onclick = function(e) {
   currentZoom = Math.max(currentZoom * 0.5, 0.5);
   g.transition().duration(750).attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')}
+
+
+document.querySelectorAll('.drop').forEach(item => {
+
+  item.onmouseover = function() {
+    let newElement = document.createElement('li');
+    newElement.innerHTML = '<a href="#">Hello</a>'
+
+    this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "block");
+
+    this.querySelector('.dropdown').appendChild(newElement);
+  }
+
+
+  item.onmouseleave = function() {
+    this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "none");
+  }
+})

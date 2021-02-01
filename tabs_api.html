@@ -36,18 +36,6 @@
 </head>
   <body>
 
-    <ul class='navbar'>
-      <li><a>Nonlinear Browser</a></li>
-      <!-- <li><a href="">Instructions</a></li> -->
-       <div class="subnav"
-        <button class="subnavbtn" id="ShowTrees">Show Saved Trees<i class="fa fa-caret-down"></i></button>
-        <div class="subnav-content">
-            <a id="tree1"></a>
-            <a id="tree2"></a>
-            <a id="tree3"></a>
-        </div>
-      </div>
-
     <!-- THIS CONFIGURATION CAUSES the following items to come below this or in other words a child of them -->
         <!-- <ul>
           <li><a>item1</a></li>
@@ -70,13 +58,22 @@
               </li> -->
 
        <!-- <li><a href="">Instructions</a></li> -->
+  <nav class="nav">
+   	<ul>
+      <li><a>Nonlinear Browser</a></li>
+      <li class="drop"><a href="">Saved Trees</a>
+        <ul class="dropdown">
+          <li><a href="#">Tree 01</a></li>
+          <li><a href="#">Tree 02</a></li>
+          <li><a href="#">Tree xx</a></li>
+        </ul>
+      </li>
       <li><a href="mailto:nonlinearbrowser@gmail.com" target="_blank" rel="noopener noreferrer">Contact</a></li>
       <li><a href="https://trello.com/b/2cBWPaJ4/nonlinear-roadmap" target="_blank" rel="noopener noreferrer">Roadmap</a></li>
       <li id="log_in"><a href="authUI.html" target="_blank" rel="noopener noreferrer">Sign up/Log in (required to save trees)</a></li>
       <li id="log_out" style="display:none"><a>Log out</a></li>
-      <!-- <button id="ShowTrees">Show Saved Trees</button> -->
-
-    </ul>
+   	</ul>
+  </nav>
 
     <hr />
 
