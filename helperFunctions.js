@@ -6,6 +6,8 @@ function initToast() {
     position: 'center-bottom',
     animation: 'slide-bottom'
   });
+
+
 }
 
 // async function fetchUser(user_id)
@@ -62,12 +64,11 @@ function wrapText(text) {
 
 function visualLength(text) {
   var ruler = document.getElementById('ruler')
-  ruler.style.fontSize = window.fontSize;
-  ruler.style.fontWeight = 400;
-  ruler.style.fontFamily = 'Playfair Display, serif'
+  // ruler.style.fontSize = '16px';
+  // ruler.style.fontWeight = 500;
+  // ruler.style.fontFamily = 'Roboto'
   ruler.visibility = 'hidden';
   ruler.innerHTML = text;
-  // console.log("", text, " width is ", ruler.offsetWidth);
   return ruler.offsetWidth;
 }
 

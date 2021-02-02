@@ -1,7 +1,7 @@
 
 function bootStrap() {
-  loadWindowList();
   initToast();
+  checkLastSession();
   document.title = window.localRoot.title;
   // setup();
 }
