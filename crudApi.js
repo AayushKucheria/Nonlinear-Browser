@@ -1,43 +1,53 @@
 let data = []; // tree of tabs as objects
 let idMapping = [];
-window.localRoot = {"id": "Root", "title": "Current Session", "lines": ["Start"], "children": [], "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Current Session", "lines": ["Current Session"], "children": [], "x0": 0, "y0": 0};
 var last_sesh;
 // var initial=true; //when the extension loads
 var fetch;
 // set value as true
 
+function checkLastSession() {
+
+  // Fnon.Dialogue.Init({ closeButton: true })
+
+  lastSession = JSON.parse(window.localStorage.getItem('user'));
+
+  if(lastSession) {
+    // Alternative: Remove option to open in new tab. Only restore/cancel
+    Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
+    () => { // Merge with current session
+
+      traverse(lastSession,
+        function(tab) {
+          if(tab.id !== 'Root') data.push(tab)},
+
+        function(tab) { return tab.children && tab.children.length > 0 ? tab.children : null;}
+      );
+
+      loadWindowList();
+    },
+    () => { // Don't restore
+      loadWindowList();
+    });
+  }
+}
 // Load tree from scratch
-async function loadWindowList() {
+function loadWindowList() {
 
 
   var current_url = window.location.search;
   const urlParams = new URLSearchParams(current_url);
-  // console.log("urlParams", urlParams)
   const tree_id = urlParams.get('tree');
   const user_id = urlParams.get('user');
   var current_tree;
-  // console.log("tree_id", tree_id)
-  // console.log("user_id", user_id)
 
-    // console.log("user", user)
-  if((tree_id)&&(user_id))
-  {
+  // If loaded tree
+  if(tree_id && user_id) {
     // user = awaifetchUser(user_id)
     console.log("user", user)
     fetchTree(user_id, tree_id)
-
-  }
-  //fetch = Boolean(window.localStorage.getItem('initial'));
-  last_sesh = JSON.parse(window.localStorage.getItem('user'));
-  if((last_sesh)&&(!initial))
-  {
-    console.log("checking for last sessions' json", last_sesh)
-    initializeTree(last_sesh)
-    initial=false;
-    window.localStorage.setItem('initial', initial.toString());
   }
   else {
-    data = [];
     // Get windows + tabs data from chrome api
     chrome.windows.getAll({ populate: true }, function(windowList) {
       // For each tab in each window
@@ -61,16 +71,13 @@ async function loadWindowList() {
         };
       };
       updateIdMapping()
-
-      // i=true;
-
       // For each tab, if it's a root (i.e. it doesn't have a parent),
       // Then add it to the list of roots
       // Else, Find its parent and insert the tab in the parent's children list.
-      localRoot.children = []
+      // localRoot.children = []
       data.forEach(element => {
-       if(element.parentId === '') {
-         localRoot.children.push(element);
+       if(!element.parentId || element.parentId === '') {
+         window.localRoot.children.push(element);
        }
        else {
         // Use our mapping to locate the parent element in our data array
@@ -79,8 +86,10 @@ async function loadWindowList() {
           parentElement.children.push(element);
         };
       });
-      initializeTree(localRoot)
+      localStore();
+      initializeTree(window.localRoot)
    });
+
   };
 
 }
@@ -130,7 +139,7 @@ function addNewTab(tab) {
     // console.log("New tab is a child: ", tabObj);
     updateTree(localRoot);
   }
-  localStore(localRoot);
+  localStore();
 }
 
 function updateTab(tabId, changeInfo) {
@@ -158,6 +167,7 @@ function updateTab(tabId, changeInfo) {
   if(displayChanged) {
     updateTree(localRoot);
   }
+  // Not changing localStore here, too many update requests
 }
 
 function removeSubtree(tabId) {
@@ -188,9 +198,9 @@ function removeSubtree(tabId) {
   console.log("LocalRoot after removal of subtree: ", localRoot);
 
   updateTree(localRoot);
+  localStore();
 }
 
-function localStore(source)
-{
-  window.localStorage.setItem('user', JSON.stringify(source)); //adds to localStorage
+function localStore() {
+  window.localStorage.setItem('user', JSON.stringify(window.localRoot)); //adds to localStorage
 }

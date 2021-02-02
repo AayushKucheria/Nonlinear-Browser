@@ -1,13 +1,13 @@
 
-body {
--moz-osx-font-smoothing:grayscale;
--ms-flex-direction:column;
+/* body { */
+/* -moz-osx-font-smoothing:grayscale; comment */
+/* -ms-flex-direction:column;
 -webkit-box-direction:normal;
--webkit-box-orient:vertical;
--webkit-font-smoothing:antialiased;
-display:flex;
+-webkit-box-orient:vertical; */
+/* -webkit-font-smoothing:antialiased; comment */
+/* display:flex;
 flex-direction:column;
-}
+} */
 
 nav {
 	margin: 0 auto;

@@ -95,44 +95,17 @@ var dragListener = d3.drag()
 
           if(selectedNode && selectedNode != draggingNode) { // The node hovered upon
 
-            // logic for transferring parents
-            // Remove from previous parent
-            var index = d.parent.children.indexOf(d);
-            if(index>-1) {
-              d.parent.children.splice(index,1);
-            }
-            d.parent = selectedNode;
-            d.depth = selectedNode.depth + 1; // TODO set depth for all children
+              let oldParent = d.parent.data;
+              d.data.parentId = selectedNode.data.id; // Update parentId
+              oldParent.children.splice(oldParent.children.indexOf(d.data), 1); // Remove from previous parent
+              selectedNode.data.children.push(d.data); // Add to new parent
 
-            traverse(d, function(node) {
-              if(node === d)
-                node.depth = selectedNode.depth + 1;
-              else
-                node.depth = node.parent.depth + 1;
-            },
-            function(d) {
-              return d.children && d.children.length > 0 ? d.children : null;
-            })
-            // Add to new parent
-            if(selectedNode._children && selectedNode._children.length > 0)
-              toggleChildren(selectedNode);
+              updateTree(window.localRoot);
 
-            if(!selectedNode.children)
-              selectedNode.children = [];
-
-            selectedNode.children.push(d);
-
-            // console.log("Dragged Node: ", d);
-            // console.log("Selected Node: ", selectedNode)
-
-            // expand(selectedNode);
-          //  sortTree();
             endDrag(d, this, true);
-            localStore(localRoot);
           }
           else {
             endDrag(d, this, false);
-            localStore(localRoot);
           }
         });
 
@@ -338,12 +311,6 @@ function updateTree(localRoot) {
 // centerNode(window.currentRoot);
 }
 
-function setAsRoot(newRoot) {
-  window.currentRoot = newRoot;
-  // console.log("Setting root = ", window.currentRoot);
-  drawTree(window.currentRoot);
-}
-
 function delete_tab(node) {
   var parent = node.parent;
   parent.children = parent.children.filter(d => d != node);
@@ -386,7 +353,7 @@ function drawTree(source) {
             drawTree(window.currentRoot);
             // console.log("localRoot is", localRoot)
             document.title = window.localRoot.title;
-            localStore(localRoot); // TODO
+            localStore(); // TODO
           }
         }
       },
@@ -483,24 +450,24 @@ function drawTree(source) {
       })
       .on('mouseout', function(event, d) {
 
-      d3.select(this).select('rect').transition().duration(animationDuration)
-        // Hide tab border
-        .style('stroke-opacity', 0)
-        // Hide shadow TODO doesn't follow transition.
-        .style('filter', 'unset');
+        d3.select(this).select('rect').transition().duration(animationDuration)
+          // Hide tab border
+          .style('stroke-opacity', 0)
+          // Hide shadow TODO doesn't follow transition.
+          .style('filter', 'unset');
 
-      // Remove text blur
-      d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style('filter', 'unset');
+        // Remove text blur
+        d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style('filter', 'unset');
 
-      // Hide tool icons
-      d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',0);
+        // Hide tool icons
+        d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',0);
 
-      // BUG this implementation causes the paths to fuck up.
-      // Set active links to inactive again
-      // g.selectAll(".link.active")
-      //   .classed("active", false)
-      //   .transition().duration(animationDuration).style('stroke', '#ccc');
-    })
+        // BUG this implementation causes the paths to fuck up.
+        // Set active links to inactive again
+        // g.selectAll(".link.active")
+        //   .classed("active", false)
+        //   .transition().duration(animationDuration).style('stroke', '#ccc');
+      })
       .attr("transform",d => `translate(${source.x0},${source.y0})`)
 
     // Tab Rectangle
@@ -627,8 +594,7 @@ function drawTree(source) {
         console.log("Removed ", d, " and ", removeChildren, " from chrome.")
         // Remove subtree from nonlinear
         removeSubtree(d.data.id);
-        // console.log("localRoot is", localRoot)
-        localStore(localRoot);
+        console.log("localRoot children: ", localRoot.children)
     });
 
     nodeEnter.append('svg')
@@ -889,7 +855,8 @@ function drawTree(source) {
       // .ease(d3.easeBackOut) // doesn't work
       .attr('d', function(d) {
         return linkPathGenerator(d);
-      });
+      })
+      // .lower();
 
     count = 0;
     var linkExit = link.exit()
