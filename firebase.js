@@ -175,7 +175,7 @@ function showSavedTrees() {
     // checkUser(user);
     user = firebase.auth().currentUser;
     console.log("current root", window.localRoot)
-    let i=1;
+    // let i=1;
     var tree = database.ref().child('users').child(user.uid).child('tree');
 
     tree.once('value').then((snapshot) => {

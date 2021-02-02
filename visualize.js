@@ -19,6 +19,7 @@ var currentTransform;
 var allLinks;
 var allDescendants;
 var animationDuration = 500
+var newElement;
 
 
 treeLayout = d3.tree()
@@ -1082,10 +1083,47 @@ document.querySelector('#zoomOut').onclick = function(e) {
 
 
 document.querySelectorAll('.drop').forEach(item => {
+  //item is the actual heading
+
+  console.log("item is", item)
+
 
   item.onmouseover = function() {
-    let newElement = document.createElement('li');
-    newElement.innerHTML = '<a href="#">Hello</a>'
+  ; //subelement defined under item
+    console.log("current root", window.localRoot)
+    user = firebase.auth().currentUser;
+    let i=1;
+    if(user)
+    {
+    var tree = database.ref().child('users').child(user.uid).child('tree');
+    tree.once('value').then((snapshot) => {
+      snapshot.forEach(function(childSnapshot) {
+        newElement = document.createElement('li')
+        var temp_id = "tree" + i;
+        var key = childSnapshot.key;
+        childTree = childSnapshot.val();
+        if(childTree) {
+          // console.log("window.localRoot", childTree)
+          console.log("title hai", childTree.title)
+          newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+i+childTree.title+'"</a>'
+          // document.getElementById(temp_id).title = childTree.title
+          i=i+1;
+
+          console.log("temp_id", temp_id)
+          console.log("WQF", newElement.innerHTML)
+          // console.log("i", i)
+
+        }})
+
+          newElement.onclick = function() {
+            url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+            chrome.tabs.create({"url":url})
+
+          }
+
+    })}
+
+
 
     this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "block");
 
@@ -1093,7 +1131,7 @@ document.querySelectorAll('.drop').forEach(item => {
   }
 
 
+
   item.onmouseleave = function() {
     this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "none");
-  }
-})
+  }})
