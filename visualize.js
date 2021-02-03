@@ -20,6 +20,8 @@ var allLinks;
 var allDescendants;
 var animationDuration = 500
 var newElement;
+var tree_dict = {};
+
 
 
 treeLayout = d3.tree()
@@ -1052,14 +1054,14 @@ document.querySelector('#zoomOut').onclick = function(e) {
 document.querySelectorAll('.drop').forEach(item => {
   //item is the actual heading
 
-  console.log("item is", item)
+  // console.log("item is", item)
 
 
   item.onmouseover = function() {
-  ; //subelement defined under item
-    console.log("current root", window.localRoot)
+  // ; //subelement defined under item
+    // console.log("current root", window.localRoot)
     user = firebase.auth().currentUser;
-    let i=1;
+    let i=0;
     if(user)
     {
     var tree = database.ref().child('users').child(user.uid).child('tree');
@@ -1070,15 +1072,17 @@ document.querySelectorAll('.drop').forEach(item => {
         var key = childSnapshot.key;
         childTree = childSnapshot.val();
         if(childTree) {
-          // console.log("window.localRoot", childTree)
-          console.log("title hai", childTree.title)
-          newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+i+childTree.title+'"</a>'
-          // document.getElementById(temp_id).title = childTree.title
-          i=i+1;
 
-          console.log("temp_id", temp_id)
-          console.log("WQF", newElement.innerHTML)
-          // console.log("i", i)
+          tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
+          console.log("added in dictionary", key)
+          // console.log("window.localRoot", childTree)
+          // console.log("title hai", childTree.title)
+          newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
+
+          document.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "block");
+
+          document.querySelector('.dropdown').appendChild(newElement);
+          i =i+1;
 
         }})
 
@@ -1088,13 +1092,13 @@ document.querySelectorAll('.drop').forEach(item => {
 
           }
 
+          console.log("dict", tree_dict)
+
     })}
 
 
 
-    this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "block");
 
-    this.querySelector('.dropdown').appendChild(newElement);
   }
 
 

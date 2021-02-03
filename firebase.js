@@ -155,80 +155,59 @@ function saveTree(source) {
 // document.getElementById('ShowTrees').onclick=
 
 
-function showSavedTrees() {
-//   var usref = firebase.database().ref("users/"+user.uid);
-//   console.log("user is", user)
+// function showSavedTrees() {
 //
-//   usref.once('value', function(snapshot) {
-// // console.log("snapshot is", snapshot)
-//     snapshot.forEach(function(childSnapshot) //child snapshot actually returns the user
-//     {
+//     user = firebase.auth().currentUser;
+//     console.log("current root", window.localRoot)
+//     // let i=1;
+//     var tree = database.ref().child('users').child(user.uid).child('tree');
 //
-//       console.log("childSnapshot," ,childSnapshot)
-//       console.log("childSnapshot.key", childSnapshot.key)
-//       // console.log("childSnapshot.value", childSnapshot.value)
-//       // if((snapshot.key)=="tree"){
-//       //   var dtree = snapshot.val();
-//       //   console.log("current tree is", dtree)
-//     }
-//   )});
-    // checkUser(user);
-    user = firebase.auth().currentUser;
-    console.log("current root", window.localRoot)
-    // let i=1;
-    var tree = database.ref().child('users').child(user.uid).child('tree');
-
-    tree.once('value').then((snapshot) => {
-    snapshot.forEach(function(childSnapshot) {
-      var key = childSnapshot.key; // treeID
-      // console.log("the child key", key)
-      childTree = childSnapshot.val();
-      //actual JSON Tree
-      // console.log("childTree", childTree)
-      if(i===1)
-      {
-        document.querySelector('#tree1').innerHTML = childTree.title;
-        // window.localRoot=childTree; //this is a bad idea coz it will fuck things up
-        // console.log("window.localRoot", childTree)
-        // window.localRoot = childTree;
-        // console.log("window.localRoot after change", window.localRoot)
-
-        url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-        chrome.tabs.create({"url":url})
-          // drawTree(window.localRoot)
-        // .focus()
-
-      }
-      if(i===2)
-      {
-        document.querySelector('#tree2').innerHTML = childTree.title;
-        url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-        chrome.tabs.create({"url":url})
-        // console.log("window.localRoot", childTree)
-        // url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-        // chrome.tabs.create({"url":url})
-      }
-      if(i===3)
-      {
-        document.querySelector('#tree3').innerHTML = childTree.title;
-        url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-        chrome.tabs.create({"url":url})
-        // console.log("window.localRoot", childTree)
-        // url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-        // chrome.tabs.create({"url":url})
-      }
-      i=i+1;
-      // console.log("the child tree is", childTree)
-    })
-    // window.localRoot = currentRoot;
-
-    });
-
-
-
-
-
-    };
+//     tree.once('value').then((snapshot) => {
+//     snapshot.forEach(function(childSnapshot) {
+//       var key = childSnapshot.key; // treeID
+//       // console.log("the child key", key)
+//       childTree = childSnapshot.val();
+//       //actual JSON Tree
+//       // console.log("childTree", childTree)
+//       if(i===1)
+//       {
+//         document.querySelector('#tree1').innerHTML = childTree.title;
+//         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+//         chrome.tabs.create({"url":url})
+//           // drawTree(window.localRoot)
+//         // .focus()
+//
+//       }
+//       if(i===2)
+//       {
+//         document.querySelector('#tree2').innerHTML = childTree.title;
+//         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+//         chrome.tabs.create({"url":url})
+//         // console.log("window.localRoot", childTree)
+//         // url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+//         // chrome.tabs.create({"url":url})
+//       }
+//       if(i===3)
+//       {
+//         document.querySelector('#tree3').innerHTML = childTree.title;
+//         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+//         chrome.tabs.create({"url":url})
+//         // console.log("window.localRoot", childTree)
+//         // url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid;
+//         // chrome.tabs.create({"url":url})
+//       }
+//       i=i+1;
+//       // console.log("the child tree is", childTree)
+//     })
+//     // window.localRoot = currentRoot;
+//
+//     });
+//
+//
+//
+//
+//
+//     };
 
 // function getUrl()
 // {
@@ -240,7 +219,6 @@ function showSavedTrees() {
 //   console.log("returns user")
 //   return user;
 // }
-
 
 function createUser(user) {
     database.ref('users/' + user.uid).set({

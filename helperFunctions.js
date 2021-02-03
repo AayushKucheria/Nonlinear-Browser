@@ -36,9 +36,9 @@ function initToast() {
   console.log("childTree", current_tree)
 
   window.localRoot = current_tree;
-  console.log("window.localRoot", window.localRoot)
-  initializeTree(window.localRoot);
-  document.title = window.localRoot.title;
+  console.log("window.localRoot after implementing dictionary ", tree_dict[tree_id])
+  initializeTree(tree_dict[tree_id]);
+  document.title = tree_dict[tree_id].title;
 })
 }
 
