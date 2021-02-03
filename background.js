@@ -30,9 +30,6 @@ chrome.browserAction.onClicked.addListener(function(tab) {
   });
 });
 
-// var credential = firebase.auth.GoogleAuthProvider.credential(null,token);
-// firebase.auth().signInWithCredential(credential);
-
 // Works
 chrome.runtime.onStartup.addListener(function() {
   chrome.tabs.create({"url": 'tabs_api.html'});

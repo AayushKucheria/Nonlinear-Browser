@@ -28,6 +28,8 @@ function initToast() {
  function fetchTree(user_id,tree_id)
 {
   // user=firebase.auth().currentUser;
+  console.log("User id = ", user_id);
+  console.log("Tree id = ", tree_id);
   var tree = database.ref().child('users').child(user_id).child('tree').child(tree_id);
 
   tree.once('value').then((snapshot) => {
@@ -36,9 +38,12 @@ function initToast() {
   console.log("childTree", current_tree)
 
   window.localRoot = current_tree;
-  console.log("window.localRoot after implementing dictionary ", tree_dict[tree_id])
-  initializeTree(tree_dict[tree_id]);
-  document.title = tree_dict[tree_id].title;
+  initializeTree(window.localRoot);
+  document.title = current_tree.title;
+
+  // console.log("window.localRoot after implementing dictionary ", tree_dict[tree_id])
+  // initializeTree(tree_dict[tree_id]);
+  // document.title = tree_dict[tree_id].title;
 })
 }
 

@@ -8,33 +8,6 @@ var fetch;
 
 function checkLastSession() {
 
-  // Fnon.Dialogue.Init({ closeButton: true })
-
-  lastSession = JSON.parse(window.localStorage.getItem('user'));
-
-  if(lastSession) {
-    // Alternative: Remove option to open in new tab. Only restore/cancel
-    Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
-    () => { // Merge with current session
-
-      traverse(lastSession,
-        function(tab) {
-          if(tab.id !== 'Root') data.push(tab)},
-
-        function(tab) { return tab.children && tab.children.length > 0 ? tab.children : null;}
-      );
-
-      loadWindowList();
-    },
-    () => { // Don't restore
-      loadWindowList();
-    });
-  }
-}
-// Load tree from scratch
-function loadWindowList() {
-
-
   var current_url = window.location.search;
   const urlParams = new URLSearchParams(current_url);
   const tree_id = urlParams.get('tree');
@@ -43,56 +16,76 @@ function loadWindowList() {
 
   // If loaded tree
   if(tree_id && user_id) {
-    // user = awaifetchUser(user_id)
-    console.log("user", user)
     fetchTree(user_id, tree_id)
   }
   else {
-    // Get windows + tabs data from chrome api
-    chrome.windows.getAll({ populate: true }, function(windowList) {
-      // For each tab in each window
-      // Add the tab's id, parent's id, and set it's children as empty (for now)
-      for(var i=0; i < windowList.length; i++) {
-        for (var j=0; j < windowList[i].tabs.length; j++) {
+  // Fnon.Dialogue.Init({ closeButton: true })
+    lastSession = JSON.parse(window.localStorage.getItem('user'));
 
-          let currentTab = windowList[i].tabs[j];
-          data.push({ "id": currentTab.id,
-                      "title": currentTab.title || '',
-                      "lines":  wrapText((currentTab.title || currentTab.url || currentTab.pendingUrl || '')),
-                      "parentId": currentTab.openerTabId || '',
-                      "children": [],
-                      "windowId": windowList[i].id,
-                      "url": currentTab.url || '',
-                      "pendingUrl":currentTab.pendingUrl || '',
-                      "favIconUrl": currentTab.favIconUrl || '',
-                      "x0": innerWidth/2,
-                      "y0": innerHeight/2
-                    });
-        };
-      };
-      updateIdMapping()
-      // For each tab, if it's a root (i.e. it doesn't have a parent),
-      // Then add it to the list of roots
-      // Else, Find its parent and insert the tab in the parent's children list.
-      // localRoot.children = []
-      data.forEach(element => {
-       if(!element.parentId || element.parentId === '') {
-         window.localRoot.children.push(element);
-       }
-       else {
-        // Use our mapping to locate the parent element in our data array
-        // And add this tab as it's
-          const parentElement = data[idMapping[element.parentId]];
-          parentElement.children.push(element);
-        };
+    if(lastSession) {
+      Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
+      () => { // Merge with current session
+        traverse(lastSession,
+          function(tab) {
+            if(tab.id !== 'Root') data.push(tab)},
+
+          function(tab) { return tab.children && tab.children.length > 0 ? tab.children : null;}
+        );
+
+        loadWindowList();
+      },
+      () => { // Don't restore
+        loadWindowList();
       });
-      localStore();
-      initializeTree(window.localRoot)
-   });
-
-  };
-
+    }
+  }
 }
+// Load tree from scratch
+function loadWindowList() {
+
+  // Get windows + tabs data from chrome api
+  chrome.windows.getAll({ populate: true }, function(windowList) {
+
+    for(var i=0; i < windowList.length; i++) {
+      for (var j=0; j < windowList[i].tabs.length; j++) {
+
+        let currentTab = windowList[i].tabs[j];
+        data.push({ "id": currentTab.id,
+                    "title": currentTab.title || '',
+                    "lines":  wrapText((currentTab.title || currentTab.url || currentTab.pendingUrl || '')),
+                    "parentId": currentTab.openerTabId || '',
+                    "children": [],
+                    "windowId": windowList[i].id,
+                    "url": currentTab.url || '',
+                    "pendingUrl":currentTab.pendingUrl || '',
+                    "favIconUrl": currentTab.favIconUrl || '',
+                    "x0": innerWidth/2,
+                    "y0": innerHeight/2
+                  });
+      };
+    };
+    updateIdMapping()
+    // For each tab, if it's a root (i.e. it doesn't have a parent),
+    // Then add it to the list of roots
+    // Else, Find its parent and insert the tab in the parent's children list.
+    // localRoot.children = []
+    data.forEach(element => {
+     if(!element.parentId || element.parentId === '') {
+       window.localRoot.children.push(element);
+     }
+     else {
+      // Use our mapping to locate the parent element in our data array
+      // And add this tab as it's
+        const parentElement = data[idMapping[element.parentId]];
+        parentElement.children.push(element);
+      };
+    });
+
+    localStore();
+    initializeTree(window.localRoot)
+ });
+};
+
   //await SetupConnection();
 
 

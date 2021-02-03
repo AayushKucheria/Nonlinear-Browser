@@ -1060,49 +1060,11 @@ document.querySelectorAll('.drop').forEach(item => {
   item.onmouseover = function() {
   // ; //subelement defined under item
     // console.log("current root", window.localRoot)
-    user = firebase.auth().currentUser;
-    let i=0;
-    if(user)
-    {
-    var tree = database.ref().child('users').child(user.uid).child('tree');
-    tree.once('value').then((snapshot) => {
-      snapshot.forEach(function(childSnapshot) {
-        newElement = document.createElement('li')
-        var temp_id = "tree" + i;
-        var key = childSnapshot.key;
-        childTree = childSnapshot.val();
-        if(childTree) {
-
-          tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
-          console.log("added in dictionary", key)
-          // console.log("window.localRoot", childTree)
-          // console.log("title hai", childTree.title)
-          newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
-
-          document.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "block");
-
-          document.querySelector('.dropdown').appendChild(newElement);
-          i =i+1;
-
-        }})
-
-          newElement.onclick = function() {
-            url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-            chrome.tabs.create({"url":url})
-
-          }
-
-          console.log("dict", tree_dict)
-
-    })}
-
-
-
-
+    this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "block");
   }
-
 
 
   item.onmouseleave = function() {
     this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "none");
-  }})
+  }
+});

@@ -87,6 +87,7 @@ function initApp() {
     if(user) {
       loggedInState();
       checkUser(user);
+      getSavedTrees(user);
     }
     else {
       loggedOutState();
@@ -149,6 +150,36 @@ function saveTree(source) {
     });
   }
   // showSavedTrees();
+}
+
+function getSavedTrees(user) {
+  var i=0;
+  var tree = database.ref().child('users').child(user.uid).child('tree');
+
+  tree.once('value').then((snapshot) => {
+    snapshot.forEach(function(childSnapshot) {
+      newElement = document.createElement('li')
+      var temp_id = "tree" + i;
+      var key = childSnapshot.key;
+      childTree = childSnapshot.val();
+
+      tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
+      console.log("added in dictionary", key)
+      // console.log("window.localRoot", childTree)
+      // console.log("title hai", childTree.title)
+      newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
+
+      newElement.onclick = function() {
+        url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+key;
+        chrome.tabs.create({"url":url})
+      }
+
+      document.querySelector('.dropdown').appendChild(newElement);
+      i =i+1;
+
+    })
+  })
+
 }
 
 
