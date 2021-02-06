@@ -33,5 +33,9 @@ chrome.browserAction.onClicked.addListener(function(tab) {
 // Works
 chrome.runtime.onStartup.addListener(function() {
   chrome.tabs.create({"url": 'tabs_api.html'});
-
 });
+
+window.addEventListener('beforeunload', function() {
+  var date = new Date();
+  window.sessionStorage.setItem('time', date.getTime());
+})

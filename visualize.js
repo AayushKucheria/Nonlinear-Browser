@@ -102,7 +102,7 @@ var dragListener = d3.drag()
               d.data.parentId = selectedNode.data.id; // Update parentId
               oldParent.children.splice(oldParent.children.indexOf(d.data), 1); // Remove from previous parent
               selectedNode.data.children.push(d.data); // Add to new parent
-
+              console.log(window.localRoot);
               updateTree(window.localRoot);
 
             endDrag(d, this, true);
@@ -960,6 +960,7 @@ var floater = function() {
       drawTree(window.currentRoot);
       draggingNode = null;
     }
+    localStore();
   }
 
   function expand(d) {
