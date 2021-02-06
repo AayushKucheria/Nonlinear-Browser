@@ -178,7 +178,7 @@ function getSavedTrees(user) {
         console.log("delete initialized");
         let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
         currentref.remove(); //deletes the current tree being selected
-        console.log("delete hua kya")
+        window.alert(childTree.title+" will be deleted!!");
       }
       var icon2 = document.createElement('i');
       icon2.innerHTML = '<i class="fa fa-car"></i>'
@@ -186,8 +186,8 @@ function getSavedTrees(user) {
       {
         var newSavedTreetitle = prompt('Enter the new title by which the tree should be saved')
         currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
-        currentref.update({title:newSavedTreetitle});
-        console.log("save hona chahiye")
+        currentref.update({title:newSavedTreetitle}); //updates the title of the tree
+        window.confirm("The title of the saved tree is now changed!")
 
         // database.ref().child('users').child(user.uid).child('tree').child(key)
       }
@@ -198,7 +198,7 @@ function getSavedTrees(user) {
       div.appendChild(icon1);
       div.appendChild(icon2);
 
-      div.onclick = function() {
+      newElement.onclick = function() {
         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+key;
         chrome.tabs.create({"url":url})
       }

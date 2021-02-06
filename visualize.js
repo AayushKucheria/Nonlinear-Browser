@@ -366,6 +366,7 @@ function drawTree(source) {
       {
         title: "Copy URL",
         action: function(event,d,elem) {
+          console.log("just to check d",elem)
           var promise = navigator.clipboard.writeText(elem.data.url);
         }
       },
@@ -382,12 +383,12 @@ function drawTree(source) {
 
           console.log("elem is", elem)
           // This sounds the opposite but works for some reason. :\
-          if(elem.read) {
-            elem.read = false;
+          if(elem.data.read) {
+            elem.data.read = false;
             d3.select(res).attr('fill', '#21b3dc');
           }
           else {
-            elem.read = true;
+            elem.data.read = true;
             d3.select(res).attr('fill', '#646b6d')
           }
           localStore(localRoot); // TODO
@@ -417,7 +418,15 @@ function drawTree(source) {
 
 
     var nodeEnter = node.enter().append('g')
-      .style('fill', '#21b3dc')
+      .style('fill',function(d) {
+
+      if(d.data.read == false) {
+        return '#21b3dc';
+      }
+      else {
+        return '#646b6d';
+      }
+    })
       .attr('class', 'node')
       .call(dragListener)
       .attr('id', function(d,i) {
