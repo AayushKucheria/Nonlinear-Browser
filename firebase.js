@@ -161,10 +161,11 @@ function getSavedTrees(user) {
       newElement = document.createElement('li')
       var temp_id = "tree" + i;
       var key = childSnapshot.key;
+      // console.log("key is", key)
       childTree = childSnapshot.val();
 
       tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
-      console.log("added in dictionary", key)
+      // console.log("added in dictionary", key)
       // console.log("window.localRoot", childTree)
       // console.log("title hai", childTree.title)
       newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
@@ -176,10 +177,20 @@ function getSavedTrees(user) {
       {
         console.log("delete initialized");
         let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
-        currentref.remove();
+        currentref.remove(); //deletes the current tree being selected
+        console.log("delete hua kya")
       }
       var icon2 = document.createElement('i');
       icon2.innerHTML = '<i class="fa fa-car"></i>'
+      icon2.onclick = function()
+      {
+        var newSavedTreetitle = prompt('Enter the new title by which the tree should be saved')
+        currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
+        currentref.update({title:newSavedTreetitle});
+        console.log("save hona chahiye")
+
+        // database.ref().child('users').child(user.uid).child('tree').child(key)
+      }
       // icon2.classList.add("fa fa-car");
       // newElement.appendChild(document.getElementById('fuck'))
 

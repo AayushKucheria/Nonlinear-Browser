@@ -94,7 +94,6 @@ function loadWindowList(addCurrentSession) {
 
       for(var i=0; i < windowList.length; i++) {
         for (var j=0; j < windowList[i].tabs.length; j++) {
-
           let currentTab = windowList[i].tabs[j];
           if(data[currentTab.id]) { // Exists in data, update relevant fields
             let tabInData = data[currentTab.id];
