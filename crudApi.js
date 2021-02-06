@@ -1,6 +1,6 @@
 let data = []; // tree of tabs as objects
 let idMapping = [];
-window.localRoot = {"id": "Root", "title": "Current Session", "lines": ["Current Session"], "children": [], "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Current Session", "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
 var last_sesh;
 // var initial=true; //when the extension loads
 var fetch;
@@ -59,6 +59,7 @@ function loadWindowList() {
                     "url": currentTab.url || '',
                     "pendingUrl":currentTab.pendingUrl || '',
                     "favIconUrl": currentTab.favIconUrl || '',
+                    // "read": false,
                     "x0": innerWidth/2,
                     "y0": innerHeight/2
                   });
@@ -111,6 +112,7 @@ function addNewTab(tab) {
                   "windowId": tab.windowId,
                   "url": tab.url || '',
                   "pendingUrl":tab.pendingUrl || '',
+                  "read": false,
                   "x0": 0,
                   "y0": 0,
                   "favIconUrl": tab.favIconUrl || ''

@@ -168,13 +168,31 @@ function getSavedTrees(user) {
       // console.log("window.localRoot", childTree)
       // console.log("title hai", childTree.title)
       newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
+      var div = document.createElement("div");
+      // div.className += "divElem"; //givin
+      var icon1 = document.createElement('i');
+      icon1.innerHTML = '<i class="fa fa-trash-o"></i>'
+      icon1.onclick = function()
+      {
+        console.log("delete initialized");
+        let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
+        currentref.remove();
+      }
+      var icon2 = document.createElement('i');
+      icon2.innerHTML = '<i class="fa fa-car"></i>'
+      // icon2.classList.add("fa fa-car");
+      // newElement.appendChild(document.getElementById('fuck'))
 
-      newElement.onclick = function() {
+      div.appendChild(newElement);
+      div.appendChild(icon1);
+      div.appendChild(icon2);
+
+      div.onclick = function() {
         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+key;
         chrome.tabs.create({"url":url})
       }
 
-      document.querySelector('.dropdown').appendChild(newElement);
+      document.querySelector('.dropdown').appendChild(div);
       i =i+1;
 
     })

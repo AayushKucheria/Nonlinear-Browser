@@ -379,6 +379,8 @@ function drawTree(source) {
         title: "Toggle read state",
         action: function(nodeEvent, choiceEvent, elem) {
           let res = nodeEvent.srcElement;//.parentNode;
+
+          console.log("elem is", elem)
           // This sounds the opposite but works for some reason. :\
           if(elem.read) {
             elem.read = false;
