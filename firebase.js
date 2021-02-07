@@ -139,7 +139,7 @@ function saveTree(source) {
           sendToast(source.title + " rabbit hole save failed.");
         }
         else {
-          console.log("source.title is", source)
+          // console.log("source.title is", source)
           Fnon.Dialogue.Light({
             title:'Save Tree Confirmation',
             message:source.title+'  tree saved ',
@@ -190,11 +190,14 @@ function getSavedTrees(user) {
       // console.log("window.localRoot", childTree)
       // console.log("title hai", childTree.title)
       newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
+
       var div = document.createElement("div");
       div.id = "div";
+      div.appendChild(newElement);
       // div.className += "divElem"; //givin
       var icon1 = document.createElement('i');
       icon1.innerHTML = '<i class="fa fa-trash-o"></i>'
+      div.appendChild(icon1);
       icon1.onclick = function()
       {
         console.log("delete initialized");
@@ -211,14 +214,14 @@ function getSavedTrees(user) {
               // console.log("ulChild", ulChild)
               if(ulChild instanceof HTMLDivElement)
               {
-                // console.log("ul Child which is a div", ulChild)
+                console.log("ul Child which is a div", ulChild)
                 for(j=0; j<ulChild.childNodes.length; j++)
                 {
-                  // console.log("ul ka child jo li hona chahiye", ulChild.childNodes[j])
+                  console.log("ul ka child jo li hona chahiye", ulChild.childNodes[j])
                   ulChild.removeChild(ulChild.childNodes[j]);
                 }
               }
-              // console.log("afafa", ulElem.childNodes[i]);
+              console.log("afafa", ulElem.childNodes[i]);
               // ulElem.removeChild(ulElem.childNodes[i]);
             }
           // }
@@ -227,6 +230,8 @@ function getSavedTrees(user) {
       }
       var icon2 = document.createElement('i');
       icon2.innerHTML = '<i class="fa fa-car"></i>'
+      div.appendChild(icon2);
+      console.log("div is", div)
       icon2.onclick = function()
       {
         var newSavedTreetitle = prompt('Enter the new title by which the tree should be saved')
@@ -267,9 +272,9 @@ function getSavedTrees(user) {
       // icon2.classList.add("fa fa-car");
       // newElement.appendChild(document.getElementById('fuck'))
 
-      div.appendChild(newElement);
-      div.appendChild(icon1);
-      div.appendChild(icon2);
+
+
+
 
       newElement.onclick = function() {
         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+key;
