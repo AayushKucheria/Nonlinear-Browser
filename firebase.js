@@ -140,17 +140,38 @@ function saveTree(source) {
         }
         else {
           console.log("source.title is", source)
-          // window.location.replace("chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+source.uid);
-          // url = "http://chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+source.uid;
-          //
-
-          // sendToast(source.title + " rabbit hole saved successfully!");
-        }
-      });
-    });
-  }
-  // showSavedTrees();
-}
+          Fnon.Dialogue.Light({
+            title:'Save Tree Confirmation',
+            message:source.title+'  tree saved ',
+            callback:(closer,html)=> {
+              var ulElem = document.getElementById('dropdown');
+              // console.log("ulElem.length", ulElem.childNodes.length)
+              // while(ulElem.firstChild) {
+                for(i=0;i<ulElem.childNodes.length;i++)
+                {
+                  var ulChild = ulElem.childNodes[i]
+                  // console.log("ulChild", ulChild)
+                  if(ulChild instanceof HTMLDivElement)
+                  {
+                    // console.log("ul Child which is a div", ulChild)
+                    for(j=0; j<ulChild.childNodes.length; j++)
+                    {
+                      // console.log("ul ka child jo li hona chahiye", ulChild.childNodes[j])
+                      ulChild.removeChild(ulChild.childNodes[j]);
+                    }
+                  }
+                  // console.log("afafa", ulElem.childNodes[i]);
+                  // ulElem.removeChild(ulElem.childNodes[i]);
+                }
+              // }
+              getSavedTrees(user);
+            closer();
+       }
+        });
+    };
+  })
+})
+}};
 
 function getSavedTrees(user) {
   var i=0;
@@ -170,6 +191,7 @@ function getSavedTrees(user) {
       // console.log("title hai", childTree.title)
       newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
       var div = document.createElement("div");
+      div.id = "div";
       // div.className += "divElem"; //givin
       var icon1 = document.createElement('i');
       icon1.innerHTML = '<i class="fa fa-trash-o"></i>'
@@ -177,8 +199,31 @@ function getSavedTrees(user) {
       {
         console.log("delete initialized");
         let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
-        currentref.remove(); //deletes the current tree being selected
-        window.alert(childTree.title+" will be deleted!!");
+         //deletes the current tree being selected
+        Fnon.Alert.Light(childTree.title+' will be deleted!!', 'Attention!!', 'Ok Button', () => {
+          currentref.remove();
+          var ulElem = document.getElementById('dropdown');
+          // console.log("ulElem.length", ulElem.childNodes.length)
+          // while(ulElem.firstChild) {
+            for(i=0;i<ulElem.childNodes.length;i++)
+            {
+              var ulChild = ulElem.childNodes[i]
+              // console.log("ulChild", ulChild)
+              if(ulChild instanceof HTMLDivElement)
+              {
+                // console.log("ul Child which is a div", ulChild)
+                for(j=0; j<ulChild.childNodes.length; j++)
+                {
+                  // console.log("ul ka child jo li hona chahiye", ulChild.childNodes[j])
+                  ulChild.removeChild(ulChild.childNodes[j]);
+                }
+              }
+              // console.log("afafa", ulElem.childNodes[i]);
+              // ulElem.removeChild(ulElem.childNodes[i]);
+            }
+          // }
+          getSavedTrees(user);
+        });
       }
       var icon2 = document.createElement('i');
       icon2.innerHTML = '<i class="fa fa-car"></i>'
@@ -186,8 +231,36 @@ function getSavedTrees(user) {
       {
         var newSavedTreetitle = prompt('Enter the new title by which the tree should be saved')
         currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
-        currentref.update({title:newSavedTreetitle}); //updates the title of the tree
-        window.confirm("The title of the saved tree is now changed!")
+       //updates the title of the tree
+        Fnon.Dialogue.Light({
+            title:'Saved Tree Title Change',
+            message:childTree.title+'  is now changed to '+ newSavedTreetitle,
+            callback:(closer,html)=>{
+                currentref.update({title:newSavedTreetitle});
+                var ulElem = document.getElementById('dropdown');
+                // console.log("ulElem.length", ulElem.childNodes.length)
+                // while(ulElem.firstChild) {
+                  for(i=0;i<ulElem.childNodes.length;i++)
+                  {
+                    var ulChild = ulElem.childNodes[i]
+                    // console.log("ulChild", ulChild)
+                    if(ulChild instanceof HTMLDivElement)
+                    {
+                      // console.log("ul Child which is a div", ulChild)
+                      for(j=0; j<ulChild.childNodes.length; j++)
+                      {
+                        // console.log("ul ka child jo li hona chahiye", ulChild.childNodes[j])
+                        ulChild.removeChild(ulChild.childNodes[j]);
+                      }
+                    }
+                    // console.log("afafa", ulElem.childNodes[i]);
+                    // ulElem.removeChild(ulElem.childNodes[i]);
+                  }
+                // }
+                getSavedTrees(user);
+                closer();
+    }
+});
 
         // database.ref().child('users').child(user.uid).child('tree').child(key)
       }
