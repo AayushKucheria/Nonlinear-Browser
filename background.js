@@ -36,6 +36,6 @@ chrome.runtime.onStartup.addListener(function() {
 });
 
 window.addEventListener('beforeunload', function() {
-  var date = new Date();
+  var date = new Date(); //current Date object
   window.sessionStorage.setItem('time', date.getTime());
 })

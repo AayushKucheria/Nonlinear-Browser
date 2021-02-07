@@ -83,3 +83,20 @@ nav ul li ul li a:focus {
 	background: #fff;
 	box-shadow: 0 4px 10px rgba(10, 20, 30, .4);
 }
+
+/* .divElem {
+	position: fixed;
+} */
+
+.fa-trash-o {
+	position: relative;
+	bottom: 30px;
+	left: 80%;
+}
+
+.fa-car {
+	position: relative;
+	bottom : 30px;
+	left: 86%;
+	/* align-items: center; */
+}

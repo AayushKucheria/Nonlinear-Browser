@@ -1,5 +1,5 @@
 let idMapping = [];
-window.localRoot = {"id": "Root", "title": "Current Session", "lines": ["Current Session"], "children": [], "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
 var last_sesh;
 var fetch;
 var date = new Date();
@@ -9,8 +9,9 @@ function checkLastSession() {
   var isRefreshed = true;
   var previousTime = window.sessionStorage.getItem('time');
   var currentTime = date.getTime();
-  if(!previousTime || (previousTime && (currentTime - previousTime) > 3600000)) {
-    isRefreshed = false;
+  if(!previousTime || (previousTime && (currentTime - previousTime) > 3600000)) // if the time since the extension was loaded exceeds an hour
+  {
+    isRefreshed = false; // dont refresh
   }
 
   var current_url = window.location.search;
@@ -29,7 +30,8 @@ function checkLastSession() {
     lastSession = JSON.parse(window.localStorage.getItem('user'));
 
     if(lastSession) {
-      if(!isRefreshed) {
+      if(!isRefreshed) {//not Refreshed
+
         Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
         () => { // Merge with current session
           for(let [id, tabObj] of Object.entries(lastSession)) {
@@ -94,7 +96,6 @@ function loadWindowList(addCurrentSession) {
 
       for(var i=0; i < windowList.length; i++) {
         for (var j=0; j < windowList[i].tabs.length; j++) {
-
           let currentTab = windowList[i].tabs[j];
           if(data[currentTab.id]) { // Exists in data, update relevant fields
             let tabInData = data[currentTab.id];
@@ -103,6 +104,7 @@ function loadWindowList(addCurrentSession) {
             tabInData.windowId = windowList[i].id;
             tabInData.url = currentTab.url || '';
             tabInData.pendingUrl = currentTab.pendingUrl || '';
+            tabInData.read = currentTab.read;
             tabInData.favIconUrl = currentTab.favIconUrl || '';
             tabInData.parentId = currentTab.openedTabId ? currentTab.openerTabId : data[currentTab.id].parentId
           }
@@ -115,6 +117,7 @@ function loadWindowList(addCurrentSession) {
                                     "windowId": windowList[i].id,
                                     "url": currentTab.url || '',
                                     "pendingUrl":currentTab.pendingUrl || '',
+                                    "read" : false,
                                     "favIconUrl": currentTab.favIconUrl || '',
                                     "x0": innerWidth/2,
                                     "y0": innerHeight/2
@@ -140,6 +143,7 @@ function addNewTab(tab) {
                   "windowId": tab.windowId,
                   "url": tab.url || '',
                   "pendingUrl":tab.pendingUrl || '',
+                  "read": false,
                   "x0": 0,
                   "y0": 0,
                   "favIconUrl": tab.favIconUrl || ''

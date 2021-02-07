@@ -12,7 +12,7 @@
     "default_title": "Open Nonlinear Browser"
   },
   "manifest_version": 2,
-  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/ https://www.gstatic.com/ https://*.firebaseio.com https://www.googleapis.com https://apis.google.com https://ajax.googleapis.com https://code.jquery.com/jquery-3.5.1.js; object-src 'self'",
+  "content_security_policy": "script-src 'self' 'unsafe-eval' https://d3js.org/d3.v6.min.js https://w.appzi.io/ https://www.gstatic.com/ https://*.firebaseio.com  https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css https://www.googleapis.com https://apis.google.com https://ajax.googleapis.com https://code.jquery.com/jquery-3.5.1.js; object-src 'self'",
   "oauth2": {
     "client_id": "693229853662-0ib0k3hru04sb2da03e6nltso00at1ur.apps.googleusercontent.com",
     "scopes": [
