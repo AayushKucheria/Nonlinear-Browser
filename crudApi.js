@@ -130,21 +130,6 @@ function loadWindowList(addCurrentSession) {
   }
 };
 
-  //await SetupConnection();
-
-
-/* Making an ID-to-Index Map (for ease of access)
-  Syntax: [tab_id: index_in_data]
-  Example: [5648: 0, 5710: 4, 5736: 2, ..., 5788: 6]
-*/
-function updateIdMapping() {
-  idMapping = data.reduce((acc, elem, index) => {
-    acc[elem.id] = index;
-    return acc;
-  }, {});
-}
-
-//await SetupConnection();
 function addNewTab(tab) {
 
   let tabObj = {  "id": tab.id,
@@ -159,19 +144,15 @@ function addNewTab(tab) {
                   "y0": 0,
                   "favIconUrl": tab.favIconUrl || ''
                 };
-
-  data.push(tabObj);
-  // insertinDB(tabObj);
-  idMapping[tabObj.id] = data.indexOf(tabObj);
+  data[tabObj.id] = tabObj;
 
   if(tabObj.parentId === '' || tabObj.pendingUrl === "chrome://newtab/") {
-    // console.log("New tab is a root: ", tabObj);
     tabObj.parentId = '';
     localRoot.children.push(tabObj);
     updateTree(localRoot)
   }
   else {
-    const parentElement = data[idMapping[tabObj.parentId]];
+    const parentElement = data[tabObj.parentId];
     parentElement.children.push(tabObj);
     // console.log("New tab is a child: ", tabObj);
     updateTree(localRoot);
@@ -180,9 +161,8 @@ function addNewTab(tab) {
 }
 
 function updateTab(tabId, changeInfo) {
-  let indexInData = idMapping[tabId];
-  let updatedTab = data[indexInData];
-  // console.log("Updating tab ", tabId, " with index ", indexInData, " and obj ", updatedTab);
+  let updatedTab = data[tabId];
+
   var displayChanged = false
   for(var i in changeInfo) {
     if(updatedTab.hasOwnProperty(i)) {
@@ -209,31 +189,26 @@ function updateTab(tabId, changeInfo) {
 
 function removeSubtree(tabId) {
   console.log("Data before removal: ", data)
-  let indexInData = idMapping[tabId];
-  let removedTab = data.splice(indexInData, 1)
-  removedTab= removedTab[0];
-  console.log("Removing ", removedTab, " subtree from Data at index ", indexInData);
+  let removedTab = data[tabId]
+  data.pop(tabId)
+
   // Remove children from data
   let i=0;
-  // TODO: This is an infinite loop somehow. Specifically data.splice
   traverse(removedTab,
-    function(tab) { (i === 0)? ++i : data.splice(idMapping[tab.id], 1);},
+    function(tab) { (i === 0)? ++i : data.pop(tab.id);},
     function(tab) { return tab.children && tab.children.length > 0 ? tab.children : null;}
   );
-  console.log("Data after removal of subtree: ", data);
-  updateIdMapping();
+
   let parent;
   let parentId = removedTab.parentId;
   if(parentId === '') {
     parent = localRoot;
   }
   else {
-    parent = data[idMapping[parentId]];
+    parent = data[parentId];
   }
   // TODO does removing the object from data+localRoot cause the problem?
-  console.log("LocalRoot before removal: ", localRoot)
   parent.children.splice(parent.children.indexOf(removedTab), 1)
-  console.log("LocalRoot after removal of subtree: ", localRoot);
 
   updateTree(localRoot);
   localStore();

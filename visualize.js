@@ -97,13 +97,13 @@ var dragListener = d3.drag()
           if(d == window.currentRoot) return;
 
           if(selectedNode && selectedNode != draggingNode) { // The node hovered upon
-
-              let oldParent = d.parent.data;
-              d.data.parentId = selectedNode.data.id; // Update parentId
-              oldParent.children.splice(oldParent.children.indexOf(d.data), 1); // Remove from previous parent
-              selectedNode.data.children.push(d.data); // Add to new parent
-              console.log(window.localRoot);
-              updateTree(window.localRoot);
+            // Not getting updated in data?? TODO
+            let oldParent = d.parent.data;
+            d.data.parentId = selectedNode.data.id; // Update parentId
+            oldParent.children.splice(oldParent.children.indexOf(d.data), 1); // Remove from previous parent
+            selectedNode.data.children.push(d.data); // Add to new parent
+            console.log(window.localRoot);
+            updateTree(window.localRoot);
 
             endDrag(d, this, true);
           }
@@ -388,7 +388,7 @@ function drawTree(source) {
             elem.read = true;
             d3.select(res).attr('fill', '#646b6d')
           }
-          localStore(localRoot); // TODO
+          localStore();
         }
       }
     ]
@@ -760,7 +760,7 @@ function drawTree(source) {
     var nodeUpdate = nodeEnter.merge(node)
       .transition()
       .duration(duration)
-      .delay(d => 100* count++)
+      // .delay(d => 100* count++)
       .ease(d3.easeBackOut) // p2
       .attr("transform",d => `translate(${d.x},${d.y})`)
       // .attr('fill-opacity', 1);
@@ -819,13 +819,13 @@ function drawTree(source) {
     count = 0;
     var nodeExit = node.exit().transition()
       .duration(duration)
-      .delay(function(d, i) {
-        if(d.toggle)
-          return 100* count++;
-        else {
-          return 0;
-        }
-      })
+      // .delay(function(d, i) {
+      //   if(d.toggle)
+      //     return 100* count++;
+      //   else {
+      //     return 0;
+      //   }
+      // })
       .ease(d3.easeBackIn) // p2
       .attr('width', 1e-6)
       .attr('height', 1e-6)
@@ -854,7 +854,7 @@ function drawTree(source) {
     count = 0;
     var linkUpdate = linkEnter.merge(link).transition()
       .duration(duration) // doesn't work
-      .delay(d => 100 * count++) // works
+      // .delay(d => 100 * count++) // works
       // .ease(d3.easeBackOut) // doesn't work
       .attr('d', function(d) {
         return linkPathGenerator(d);
@@ -865,13 +865,13 @@ function drawTree(source) {
     var linkExit = link.exit()
       .transition()
       .duration(duration)
-      .delay(function(d, i) {
-        if(d.source.toggle || d.target.toggle)
-          return 100* count++;
-        else {
-          return 0;
-        }
-      })
+      // .delay(function(d, i) {
+      //   if(d.source.toggle || d.target.toggle)
+      //     return 100* count++;
+      //   else {
+      //     return 0;
+      //   }
+      // })
       .ease(d3.easeBackIn) // p2
       .attr('d', function(d) {
         if(d.source.toggle || d.target.toggle)
@@ -957,8 +957,8 @@ var floater = function() {
       centerNode(draggingNode);
       drawTree(window.currentRoot);
       draggingNode = null;
+      localStore();
     }
-    localStore();
   }
 
   function expand(d) {
