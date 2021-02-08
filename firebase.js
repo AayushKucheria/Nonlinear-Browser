@@ -1,15 +1,14 @@
-
 // ******** firebase
 var user;
 var firebaseConfig = {
-  apiKey: "AIzaSyBcXi7lHnFZPpiQJEwIvs9u_gp38zst1mQ",
-  databaseURL: "https://nonlinear-browser-default-rtdb.firebaseio.com",
-  authDomain: "nonlinear-browser.firebaseapp.com",
-  projectId: "nonlinear-browser",
-  storageBucket: "nonlinear-browser.appspot.com",
-  messagingSenderId: "693229853662",
-  appId: "1:693229853662:web:cc17084511b58095841b4f",
-  measurementId: "G-76DQZXB7F5"
+	apiKey: "AIzaSyBcXi7lHnFZPpiQJEwIvs9u_gp38zst1mQ",
+	databaseURL: "https://nonlinear-browser-default-rtdb.firebaseio.com",
+	authDomain: "nonlinear-browser.firebaseapp.com",
+	projectId: "nonlinear-browser",
+	storageBucket: "nonlinear-browser.appspot.com",
+	messagingSenderId: "693229853662",
+	appId: "1:693229853662:web:cc17084511b58095841b4f",
+	measurementId: "G-76DQZXB7F5"
 };
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
@@ -17,54 +16,53 @@ firebase.auth().useDeviceLanguage();
 
 var database = firebase.database();
 var currentRoot;
-currentRoot=window.localRoot;
+currentRoot = window.localRoot;
 var url;
 var childTree;
 
 // Initialize the FirebaseUI Widget using Firebase.
 // Details: https://github.com/firebase/firebaseui-web
 var uiConfig = {
-  callbacks: {
-    signInSuccessWithAuthResult: function(authResult) {
-      var user = authResult.user;
-      var credential = authResult.credential;
-      var isNewUser = authResult.additionalUserInfo.isNewUser;
-      var providerId = authResult.additionalUserInfo.providerId;
-      var operationType = authResult.operationType;
-      window.close(); // Closes the tab
+	callbacks: {
+		signInSuccessWithAuthResult: function(authResult) {
+			var user = authResult.user;
+			var credential = authResult.credential;
+			var isNewUser = authResult.additionalUserInfo.isNewUser;
+			var providerId = authResult.additionalUserInfo.providerId;
+			var operationType = authResult.operationType;
+			window.close(); // Closes the tab
 
-      return false; // Return value doesn't matter for us, since we'll be redirecting manually.
-    },
-    // signInFailure: function(error, credential) {
-    //   console.log("Sign in failed with error: ", error, " for user: ", credential);
-    //   return void; // Correct return value?
-    // }
-    uiShown: function() {
-      // The widget is rendered.
-    }
-  },
-  // Will use popup for IDP Providers sign-in flow instead of the default, redirect.
-  signInFlow: 'popup',
-  signInOptions: [
-    {
-      provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-      customParameters: {
-        prompt: 'select_account'
-      },
-      clientId: '693229853662-0ib0k3hru04sb2da03e6nltso00at1ur.apps.googleusercontent.com'
-    },
-    firebase.auth.EmailAuthProvider.PROVIDER_ID
-    // If yes enable on firebase console
-    // firebase.auth.TwitterAuthProvider.PROVIDER_ID,
-    // Don't need the rest
-    // firebase.auth.PhoneAuthProvider.PROVIDER_ID,
-    // firebase.auth.FacebookAuthProvider.PROVIDER_ID,
-    // firebase.auth.GithubAuthProvider.PROVIDER_ID
-  ],
-  // Terms of service url.
-  // tosUrl: '<your-tos-url>',
-  // Privacy policy url.
-  // privacyPolicyUrl: '<your-privacy-policy-url>'
+			return false; // Return value doesn't matter for us, since we'll be redirecting manually.
+		},
+		// signInFailure: function(error, credential) {
+		//   console.log("Sign in failed with error: ", error, " for user: ", credential);
+		//   return void; // Correct return value?
+		// }
+		uiShown: function() {
+			// The widget is rendered.
+		}
+	},
+	// Will use popup for IDP Providers sign-in flow instead of the default, redirect.
+	signInFlow: 'popup',
+	signInOptions: [{
+			provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+			customParameters: {
+				prompt: 'select_account'
+			},
+			clientId: '693229853662-0ib0k3hru04sb2da03e6nltso00at1ur.apps.googleusercontent.com'
+		},
+		firebase.auth.EmailAuthProvider.PROVIDER_ID
+		// If yes enable on firebase console
+		// firebase.auth.TwitterAuthProvider.PROVIDER_ID,
+		// Don't need the rest
+		// firebase.auth.PhoneAuthProvider.PROVIDER_ID,
+		// firebase.auth.FacebookAuthProvider.PROVIDER_ID,
+		// firebase.auth.GithubAuthProvider.PROVIDER_ID
+	],
+	// Terms of service url.
+	// tosUrl: '<your-tos-url>',
+	// Privacy policy url.
+	// privacyPolicyUrl: '<your-privacy-policy-url>'
 };
 
 /**
@@ -82,287 +80,150 @@ var uiConfig = {
  * When signed in, we also authenticate to the Firebase Realtime Database.
  */
 function initApp() {
-  // Listen for auth state changes.
-  firebase.auth().onAuthStateChanged(function(user) {
-    if(user) {
-      loggedInState();
-      checkUser(user);
-      getSavedTrees(user);
-    }
-    else {
-      loggedOutState();
-    }
-  });
+	// Listen for auth state changes.
+	firebase.auth().onAuthStateChanged(function(user) {
+		if (user) {
+			loggedInState();
+			checkUser(user);
+			getSavedTrees(user);
+		} else {
+			loggedOutState();
+		}
+	});
 }
 
 
 
 window.onload = function() {
-  initApp();
+	initApp();
 };
 
 
 // Check if user is new. If yes, add to database.
 function checkUser(user) {
-  var isNewUser = (user.metadata.creationTime === user.metadata.lastSignInTime) ? true : false;
-  if(isNewUser) {
-    console.log("Creating user: ", user.displayName);
-    createUser(user);
-  }
-  else {
-    console.log("User already exists: ", user.displayName);
-  }
+	var isNewUser = (user.metadata.creationTime === user.metadata.lastSignInTime) ? true : false;
+	if (isNewUser) {
+		console.log("Creating user: ", user.displayName);
+		createUser(user);
+	} else {
+		console.log("User already exists: ", user.displayName);
+	}
+}
+
+// WORKS
+function saveTree(source) {
+	user = firebase.auth().currentUser; //get the current user
+
+	if (!user) {
+		chrome.tabs.create({
+			url: chrome.extension.getURL("authUI.html")
+		}); //user needs to be signed in
+	} else {
+		checkUser(user);
+
+		var tree = database.ref().child('users').child(user.uid).child('tree'); //get the current tree of the user
+		var updates = {};
+
+		tree.once('value').then((snapshot) => {
+			if (!source.uid) {
+				source.uid = database.ref('users/' + user.uid + '/tree').push().key;
+			}
+			updates['users/' + user.uid + '/tree/' + source.uid] = source;
+			database.ref().update(updates, (error) => {
+				if (error) {
+          Fnon.Hint.Danger(source.title + ' save failed. Please try in some time.')
+				}
+        else {
+          Fnon.Hint.Success(source.title + ' saved successfully.')
+          getSavedTrees(user);
+				};
+			})
+		})
+	}
+};
+
+function clearSavedTrees() {
+	var ulElem = document.getElementById('dropdown');
+	while(ulElem.hasChildNodes()) {
+		ulElem.removeChild(ulElem.lastChild);
+	}
 }
 
 
-function saveTree(source) {
-  user = firebase.auth().currentUser; //get the current user
-
-  if(!user) {
-    chrome.tabs.create({url:chrome.extension.getURL("authUI.html")}); //user needs to be signed in
-  }
-  else {
-    checkUser(user);
-    console.log("user", user)
-
-    var tree = database.ref().child('users').child(user.uid).child('tree'); //get the current tree of the user
-    var updates = {};
-
-    tree.once('value').then((snapshot) => {
-      if(!source.uid) {
-        source.uid = database.ref('users/' + user.uid + '/tree').push().key;
-      }
-      updates['users/' + user.uid + '/tree/' + source.uid] = source;
-      database.ref().update(updates, (error) => {
-        if(error) {
-          console.log("Tree not saved.")
-          sendToast(source.title + " rabbit hole save failed.");
-        }
-        else {
-          // console.log("source.title is", source)
-          Fnon.Dialogue.Light({
-            title:'Save Tree Confirmation',
-            message:source.title+'  tree saved ',
-            callback:(closer,html)=> {
-              var ulElem = document.getElementById('dropdown');
-              // console.log("ulElem.length", ulElem.childNodes.length)
-              // while(ulElem.firstChild) {
-                for(i=0;i<ulElem.childNodes.length;i++)
-                {
-                  var ulChild = ulElem.childNodes[i]
-                  // console.log("ulChild", ulChild)
-                  if(ulChild instanceof HTMLDivElement)
-                  {
-                    // console.log("ul Child which is a div", ulChild)
-                    for(j=0; j<ulChild.childNodes.length; j++)
-                    {
-                      // console.log("ul ka child jo li hona chahiye", ulChild.childNodes[j])
-                      ulChild.removeChild(ulChild.childNodes[j]);
-                    }
-                  }
-                  // console.log("afafa", ulElem.childNodes[i]);
-                  // ulElem.removeChild(ulElem.childNodes[i]);
-                }
-              // }
-              getSavedTrees(user);
-            closer();
-       }
-        });
-    };
-  })
-})
-}};
-
 function getSavedTrees(user) {
-  var i=0;
-  var tree = database.ref().child('users').child(user.uid).child('tree');
+	clearSavedTrees();
+	var i = 0;
+	var tree = database.ref().child('users').child(user.uid).child('tree');
 
-  tree.once('value').then((snapshot) => {
-    snapshot.forEach(function(childSnapshot) {
-      newElement = document.createElement('li')
-      var temp_id = "tree" + i;
-      var key = childSnapshot.key;
-      // console.log("key is", key)
-      childTree = childSnapshot.val();
+	tree.once('value').then((snapshot) => {
+		snapshot.forEach(function(childSnapshot) {
+			newElement = document.createElement('li')
+			var temp_id = "tree" + i;
+			var key = childSnapshot.key;
+			// console.log("key is", key)
+			childTree = childSnapshot.val();
 
       // tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
       // console.log("added in dictionary", key)
       // console.log("window.localRoot", childTree)
       // console.log("title hai", childTree.title)
-      newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
+      // newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
+			tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
 
       var div = document.createElement("div");
       div.id = "div";
-      div.appendChild(newElement);
-      // div.className += "divElem"; //givin
-      var icon1 = document.createElement('i');
-      icon1.innerHTML = '<i class="fa fa-trash-o"></i>'
-      div.appendChild(icon1);
-      icon1.onclick = function()
-      {
-        console.log("delete initialized");
-        let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
-         //deletes the current tree being selected
-        Fnon.Alert.Light(childTree.title+' will be deleted!!', 'Attention!!', 'Ok Button', () => {
-          currentref.remove();
-          var ulElem = document.getElementById('dropdown');
-          // console.log("ulElem.length", ulElem.childNodes.length)
-          // while(ulElem.firstChild) {
-            for(i=0;i<ulElem.childNodes.length;i++)
-            {
-              var ulChild = ulElem.childNodes[i]
-              // console.log("ulChild", ulChild)
-              if(ulChild instanceof HTMLDivElement)
-              {
-                console.log("ul Child which is a div", ulChild)
-                for(j=0; j<ulChild.childNodes.length; j++)
-                {
-                  console.log("ul ka child jo li hona chahiye", ulChild.childNodes[j])
-                  ulChild.removeChild(ulChild.childNodes[j]);
-                }
-              }
-              console.log("afafa", ulElem.childNodes[i]);
-              // ulElem.removeChild(ulElem.childNodes[i]);
-            }
-          // }
-          getSavedTrees(user);
-        });
-      }
-      var icon2 = document.createElement('i');
-      icon2.innerHTML = '<i class="fa fa-car"></i>'
-      div.appendChild(icon2);
-      console.log("div is", div)
-      icon2.onclick = function()
-      {
-        var newSavedTreetitle = prompt('Enter the new title by which the tree should be saved')
-        currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
-       //updates the title of the tree
-        Fnon.Dialogue.Light({
-            title:'Saved Tree Title Change',
-            message:childTree.title+'  is now changed to '+ newSavedTreetitle,
-            callback:(closer,html)=>{
-                currentref.update({title:newSavedTreetitle});
-                var ulElem = document.getElementById('dropdown');
-                // console.log("ulElem.length", ulElem.childNodes.length)
-                // while(ulElem.firstChild) {
-                  for(i=0;i<ulElem.childNodes.length;i++)
-                  {
-                    var ulChild = ulElem.childNodes[i]
-                    // console.log("ulChild", ulChild)
-                    if(ulChild instanceof HTMLDivElement)
-                    {
-                      // console.log("ul Child which is a div", ulChild)
-                      for(j=0; j<ulChild.childNodes.length; j++)
-                      {
-                        // console.log("ul ka child jo li hona chahiye", ulChild.childNodes[j])
-                        ulChild.removeChild(ulChild.childNodes[j]);
-                      }
-                    }
-                    // console.log("afafa", ulElem.childNodes[i]);
-                    // ulElem.removeChild(ulElem.childNodes[i]);
-                  }
-                // }
-                getSavedTrees(user);
-                closer();
-    }
-});
 
-        // database.ref().child('users').child(user.uid).child('tree').child(key)
-      }
-      // icon2.classList.add("fa fa-car");
-      // newElement.appendChild(document.getElementById('fuck'))
-
-
-
-
-
+			newElement.innerHTML = '<a href="#" id="' + temp_id + '">' + childTree.title + '</a>'
       newElement.onclick = function() {
-        url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+key;
-        chrome.tabs.create({"url":url})
+        url = "chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html" + "?" + "user" + "=" + user.uid + "&" + "tree" + "=" + key;
+        chrome.tabs.create({
+          "url": url
+        })
       }
+			div.className += "divElem"; //givin
+			var icon1 = document.createElement('i');
+      icon1.className += 'fa fa-trash-o'
+			icon1.onclick = function() {
+				let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
+				//deletes the current tree being selected
+				var treeName = icon1.parentNode.childNodes[0].innerText; // Gets text of li in div
+				Fnon.Ask.Danger('Are you sure you want to delete ' + treeName, 'Confirmation', 'Yes', 'No', (result) => {
+          console.log(result);
+					currentref.remove();
+					getSavedTrees(user);
+				});
+			}
 
-      document.querySelector('.dropdown').appendChild(div);
-      i =i+1;
+			var icon2 = document.createElement('i');
+      icon2.className += 'fa fa-car'
+			icon2.onclick = function() {
+				var newTitle = prompt('Enter new name: ')
+				var previousTitle = icon1.parentNode.childNodes[0].innerText; // Gets text of li in div
+				currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
+        if(newTitle) {
+          currentref.update({
+            title: newTitle
+          });
+          Fnon.Hint.Success('Renamed ' + previousTitle + ' to ' + newTitle + ' successfully.');
+          getSavedTrees(user);
+        }
+			}
 
-    })
-  })
+      div.appendChild(newElement);
+      div.appendChild(icon1);
+      div.appendChild(icon2);
 
+			document.querySelector('.dropdown').appendChild(div);
+			i = i + 1;
+		})
+	})
 }
 
-
-// document.getElementById('ShowTrees').onclick=
-
-
-// function showSavedTrees() {
-//
-//     user = firebase.auth().currentUser;
-//     console.log("current root", window.localRoot)
-//     // let i=1;
-//     var tree = database.ref().child('users').child(user.uid).child('tree');
-//
-//     tree.once('value').then((snapshot) => {
-//     snapshot.forEach(function(childSnapshot) {
-//       var key = childSnapshot.key; // treeID
-//       // console.log("the child key", key)
-//       childTree = childSnapshot.val();
-//       //actual JSON Tree
-//       // console.log("childTree", childTree)
-//       if(i===1)
-//       {
-//         document.querySelector('#tree1').innerHTML = childTree.title;
-//         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-//         chrome.tabs.create({"url":url})
-//           // drawTree(window.localRoot)
-//         // .focus()
-//
-//       }
-//       if(i===2)
-//       {
-//         document.querySelector('#tree2').innerHTML = childTree.title;
-//         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-//         chrome.tabs.create({"url":url})
-//         // console.log("window.localRoot", childTree)
-//         // url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-//         // chrome.tabs.create({"url":url})
-//       }
-//       if(i===3)
-//       {
-//         document.querySelector('#tree3').innerHTML = childTree.title;
-//         url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+"user"+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-//         chrome.tabs.create({"url":url})
-//         // console.log("window.localRoot", childTree)
-//         // url="chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html"+"?"+user.displayName+"="+user.uid+"&"+"tree"+"="+childTree.uid;
-//         // chrome.tabs.create({"url":url})
-//       }
-//       i=i+1;
-//       // console.log("the child tree is", childTree)
-//     })
-//     // window.localRoot = currentRoot;
-//
-//     });
-//
-//
-//
-//
-//
-//     };
-
-// function getUrl()
-// {
-//   return url;
-// }
-//
-// function getUser()
-// {
-//   console.log("returns user")
-//   return user;
-// }
-
 function createUser(user) {
-    database.ref('users/' + user.uid).set({
-      userId: user.uid,
-      name: user.displayName,
-      email: user.email,
-    });
+	database.ref('users/' + user.uid).set({
+		userId: user.uid,
+		name: user.displayName,
+		email: user.email,
+	});
 
 }

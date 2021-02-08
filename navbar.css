@@ -77,6 +77,10 @@ nav ul li ul li a:focus {
 	color: #111;
 }
 
+.dropElem {
+	/* border-bottom: 0px; */
+}
+
 .dropdown {
 	display: none;
 	position: absolute;
@@ -84,9 +88,9 @@ nav ul li ul li a:focus {
 	box-shadow: 0 4px 10px rgba(10, 20, 30, .4);
 }
 
-/* .divElem {
-	position: fixed;
-} */
+.divElem {
+	/* vertical-align: middle; */
+}
 
 .fa-trash-o {
 	position: relative;
@@ -98,5 +102,6 @@ nav ul li ul li a:focus {
 	position: relative;
 	bottom : 30px;
 	left: 86%;
+
 	/* align-items: center; */
 }

@@ -656,10 +656,15 @@ function drawTree(source) {
       .attr('height', iconHeight)
       .attr('opacity',0)
       .on('click', function(event,d) {
+
+        // Get url of clicked tab
       chrome.tabs.query({'url': d.data.url}, function(tabs) {
         console.log("Tabs with this url in chrome: ", tabs);
+
+        // If exists
         if(tabs.length > 0) {
           console.log("Updating view to ", tabs[0])
+          // Focus on that tab and its window
           chrome.tabs.update(tabs[0].id, {
             active: true
           });
@@ -667,7 +672,7 @@ function drawTree(source) {
           focused: true
           });
         }
-        else {
+        else { // Create tab with this url
           console.log("Creating new tab");
           var newTab = {
             'openerTabId': d.data.parentId,
