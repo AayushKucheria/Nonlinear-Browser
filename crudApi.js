@@ -194,8 +194,7 @@ function updateTab(tabId, changeInfo) {
 function removeSubtree(tabId) {
   console.log("Data before removal: ", data)
   let removedTab = data[tabId]
-  data.pop(tabId)
-
+  delete data[tabId];
   // Remove children from data
   let i=0;
   traverse(removedTab,
