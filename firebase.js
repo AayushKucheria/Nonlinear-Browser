@@ -129,11 +129,14 @@ function saveTree(source) {
 				source.uid = database.ref('users/' + user.uid + '/tree').push().key;
 			}
 			updates['users/' + user.uid + '/tree/' + source.uid] = source;
+			var x = prompt('Enter the title with which you want to save the tree')
+			source.title = x; // It is necessary to change the title before update as update pushes it to the db
 			database.ref().update(updates, (error) => {
 				if (error) {
           Fnon.Hint.Danger(source.title + ' save failed. Please try in some time.')
 				}
         else {
+					// console.log("after change", source)
           Fnon.Hint.Success(source.title + ' saved successfully.')
           getSavedTrees(user);
 				};
@@ -172,7 +175,7 @@ function getSavedTrees(user) {
 
       var div = document.createElement("div");
       div.id = "div";
-
+			console.log("childTree?", childTree)
 			newElement.innerHTML = '<a href="#" id="' + temp_id + '">' + childTree.title + '</a>'
       newElement.onclick = function() {
         url = "chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html" + "?" + "user" + "=" + user.uid + "&" + "tree" + "=" + key;
