@@ -21,6 +21,7 @@ var allDescendants;
 var animationDuration = 500
 var newElement;
 var tree_dict = {};
+var gotoChecker = false;
 
 
 
@@ -65,6 +66,12 @@ var g = baseSvg.append('g')
 //Define the drag listener for drag/drop behaviour of nodes.
 var dragListener = d3.drag()
         .on("start", function(e,d) {
+
+          // if(d3.drag().clickDistance(10))
+          // {
+          //   console.log("chaa gaya start")
+          // }
+           //drag initiated
           if( d === window.currentRoot) return;
 
           dragStarted=true;
@@ -72,26 +79,35 @@ var dragListener = d3.drag()
           e.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
         })
         .on("drag", function(e,d) {
-          d3.select(this).lower();
 
-          d3.select(this).select('rect').transition().duration(animationDuration)
+          // var parent = this.parentNode;
+
+          console.log("this", this)
+
+          d3.select(this.parentNode).lower();
+
+          d3.select(this.parentNode).select('rect').transition().duration(animationDuration)
           .style("filter" , "url(#drop-shadow)") //shadow while dragging
 
           floater(); //shadow transition effect
           if(d === window.currentRoot) return;
 
           if(dragStarted) {
-            initiateDrag(d, this);
+            initiateDrag(d, this.parentNode);
           }
 
           var relCoords = d3.pointer(e);
           d.x0 =  d.x0 + e.dx;
           d.y0 =  d.y0 + e.dy;
-          d3.select(this).attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
+          d3.select(this.parentNode).attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
+          // console.log("yes", d3.select(this).attr("transform"))
         })
         .on("end", function(e,d) {
 
-          d3.select(this).select('rect').transition().duration(animationDuration)
+          // gotoChecker = true;
+
+
+          d3.select(this.parentNode).select('rect').transition().duration(animationDuration)
             .style('filter', 'unset')// stop shadow after having dragged
 
           if(d == window.currentRoot) return;
@@ -105,10 +121,10 @@ var dragListener = d3.drag()
             console.log(window.localRoot);
             updateTree(window.localRoot);
 
-            endDrag(d, this, true);
+            endDrag(d, this.parentNode, true);
           }
           else {
-            endDrag(d, this, false);
+            endDrag(d, this.parentNode, false);
           }
         });
 
@@ -150,6 +166,11 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
  });
 
 function wheeled(event,d) {
+
+  if(event.ctrlKey)
+  {
+    console.log("sfojsifj", event)
+  }
   // console.log("wheel event")
   // currentTransform = d3.zoomTransform(d);
   // console.log("currentTransform", currentTransform)
@@ -200,8 +221,13 @@ baseSvg.call(zoomer)
   .on('wheel.zoom', null)
   .on('dblclick.zoom',null)
   .on('wheel', function(event, d) {
-    console.log("Wheel pan detected.");
-     zoom(event)})
+    if(event.ctrlKey)
+    {
+    console.log("event with ctrl key pressed", event);
+    event.preventDefault();
+    }
+    zoom(event)}
+    )
   // .on("touchstart.zoom", () => console.log('here')
 ;
 
@@ -226,8 +252,14 @@ function zoom(event) {
   //       currentZoom = Math.max(currentZoom * 0.5, 0.5);
   //        }
   //  }
+  if(event.ctrlKey)
+  {
 
-  if(event.sourceEvent) { // mouse panning
+    currentZoom += event.deltaY * -0.01;
+    currentZoom = Math.min(Math.max(.5, currentZoom), 2);
+  }
+
+  else if(event.sourceEvent) { // mouse panning
     // console.log("Mouse panning ", event);
     currentPos.x = currentPos.x + event.sourceEvent.movementX * currentZoom;
     currentPos.y = currentPos.y + event.sourceEvent.movementY * currentZoom
@@ -428,7 +460,6 @@ function drawTree(source) {
       }
     })
       .attr('class', 'node')
-      .call(dragListener)
       .attr('id', function(d,i) {
         return d.data.id;
       })
@@ -491,6 +522,7 @@ function drawTree(source) {
       .attr('rx', '10')
       .attr('ry', '10')
       .attr('height', tabHeight)
+      .call(dragListener)
 
     nodeEnter.append('circle')
       .attr('class', 'ghostCircle')
@@ -589,12 +621,14 @@ function drawTree(source) {
       .attr('id','delete')
       .attr('xlink:href', 'res/black-bin.svg')
       .attr('class','icon')
-      .attr('x', tabWidth - iconWidth)
+      .attr('x', (tabWidth - iconWidth)+40)
       .attr('y', 0)
       .attr('width', iconWidth)
       .attr('height', iconHeight)
       .attr('opacity',0)
       .on('click', function(event,d) {
+
+        console.log("yes fuck you")
 
         // Remove tab from browser
         chrome.tabs.remove(d.data.id);
@@ -616,7 +650,7 @@ function drawTree(source) {
       .attr('id','go')
       .attr('xlink:href', 'res/arrow-right-top.svg')
       .attr('class','icon')
-      .attr('x', tabWidth - iconWidth)
+      .attr('x', tabWidth - iconWidth + 40)
       .attr('y', tabHeight - iconHeight)
       .attr('width', iconWidth)
       .attr('height', iconHeight)
@@ -933,8 +967,8 @@ var floater = function() {
 
   function initiateDrag(d, domNode) {
     draggingNode = d; // global variable
-    d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
-    d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
+    // d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
+    // d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
     d3.select(domNode).attr('class', 'node activeDrag');
 
     g.selectAll("path.link")
@@ -960,7 +994,7 @@ var floater = function() {
     d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
     d3.select(domNode).attr('class','node');
 
-    //restoring the mouseover event or we cannot drag it a 2nd time
+    // restoring the mouseover event or we cannot drag it a 2nd time
     d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
     //updateTempConnector();
     if(draggingNode !== null){

@@ -185,7 +185,7 @@ function getSavedTrees(user) {
       // console.log("key is", key)
       childTree = childSnapshot.val();
 
-      tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
+      // tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
       // console.log("added in dictionary", key)
       // console.log("window.localRoot", childTree)
       // console.log("title hai", childTree.title)
