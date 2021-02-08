@@ -687,7 +687,7 @@ function drawTree(source) {
         else { // Create tab with this url
           console.log("Creating new tab");
           var newTab = {
-            'openerTabId': d.data.parentId,
+            'openerTabId': parseInt(d.data.parentId), // For saved trees this var is string, converting with parseInt doesn't work.
             'url': d.data.url,
           }
           chrome.tabs.create(newTab);

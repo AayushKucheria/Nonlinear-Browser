@@ -35,10 +35,9 @@ function initToast() {
   tree.once('value').then((snapshot) => {
   console.log("afand", snapshot.val())
   current_tree = snapshot.val();
-  console.log("childTree", current_tree)
 
-  window.localRoot = current_tree;
-  initializeTree(window.localRoot);
+  window.localRoot[tree_id] = current_tree;
+  initializeTree(window.localRoot[tree_id]);
   document.title = current_tree.title;
 
   // console.log("window.localRoot after implementing dictionary ", tree_dict[tree_id])
