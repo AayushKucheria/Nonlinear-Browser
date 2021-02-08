@@ -82,7 +82,7 @@ var dragListener = d3.drag()
 
           // var parent = this.parentNode;
 
-          console.log("this", this)
+          // console.log("this", this)
 
           d3.select(this.parentNode).lower();
 
@@ -619,7 +619,12 @@ function drawTree(source) {
     nodeEnter.append('svg')
       .append('svg:image')
       .attr('id','delete')
-      .attr('xlink:href', 'res/black-bin.svg')
+      .attr('xlink:href', function(d){
+        if(!(d.data.id==='Root'))
+        {
+          return 'res/black-bin.svg';
+        }
+      })
       .attr('class','icon')
       .attr('x', (tabWidth - iconWidth)+40)
       .attr('y', 0)
@@ -648,7 +653,14 @@ function drawTree(source) {
     nodeEnter.append('svg')
       .append('svg:image')
       .attr('id','go')
-      .attr('xlink:href', 'res/arrow-right-top.svg')
+      .attr('xlink:href', function(d)
+      {
+        // console.log('d', d)
+        if(!(d.data.id === 'Root'))
+        {
+        return 'res/arrow-right-top.svg';
+        }
+      })
       .attr('class','icon')
       .attr('x', tabWidth - iconWidth + 40)
       .attr('y', tabHeight - iconHeight)
