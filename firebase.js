@@ -92,7 +92,9 @@ function initApp() {
 	});
 }
 
-
+document.querySelector('#log_out').addEventListener('click', function() {
+  firebase.auth().signOut();
+});
 
 window.onload = function() {
 	initApp();

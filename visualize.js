@@ -668,7 +668,7 @@ function drawTree(source) {
         else { // Create tab with this url
           console.log("Creating new tab");
           var newTab = {
-            'openerTabId': d.data.parentId,
+            'openerTabId': parseInt(d.data.parentId), // For saved trees this var is string, converting with parseInt doesn't work.
             'url': d.data.url,
           }
           chrome.tabs.create(newTab);
@@ -834,6 +834,7 @@ function drawTree(source) {
     // easeElasticOut.amplitude(1).period(0.6)
     // easeBackIn when going to root, easeBackOut when coming from root
     var count = 0;
+    // TODO Bad viz when a node with many children is toggled. The children ease at the start, but the other nodes replace them asap which makes it messy.
     var nodeUpdate = nodeEnter.merge(node)
       .transition()
       .duration(duration)
@@ -873,6 +874,8 @@ function drawTree(source) {
     nodeUpdate.select('.favicon')
       .attr('xlink:href', d => d.data.favIconUrl ? d.data.favIconUrl : 'res/rabbit.svg')
 
+    // TODO if toggled don't hide the icon: Visual indicator that children exist
+    // TODO toggle is cancelled if we create a new tab. Save toggle property in node.
     nodeUpdate.select('#toggle')
       .attr('xlink:href', function(d) {
         if(d.children)
@@ -1050,7 +1053,7 @@ var floater = function() {
     //updateTempConnector();
     if(draggingNode !== null){
       //update(root);
-      centerNode(draggingNode);
+      // centerNode(draggingNode);
       drawTree(window.currentRoot);
       draggingNode = null;
       localStore();

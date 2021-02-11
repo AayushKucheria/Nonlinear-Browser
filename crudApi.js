@@ -4,6 +4,7 @@ var last_sesh;
 var fetch;
 var date = new Date();
 window.data = {};
+let isCurrent = true;
 
 function checkLastSession() {
   var isRefreshed = true;
@@ -23,6 +24,7 @@ function checkLastSession() {
   // If loaded tree
   // TODO sync with data
   if(tree_id && user_id) {
+    isCurrent = false;
     fetchTree(user_id, tree_id)
   }
   else {
@@ -89,6 +91,7 @@ function dataToLocalRoot() {
 }
 // Load tree from scratch
 function loadWindowList(addCurrentSession) {
+  if(!isCurrent) return;
 
   // Get windows + tabs data from chrome api
   if(addCurrentSession) {
@@ -136,6 +139,7 @@ function loadWindowList(addCurrentSession) {
 };
 
 function addNewTab(tab) {
+  if(!isCurrent) return;
 
   let tabObj = {  "id": tab.id,
                   "title": tab.title || '',
@@ -168,6 +172,7 @@ function addNewTab(tab) {
 }
 
 function updateTab(tabId, changeInfo) {
+  if(!isCurrent) return;
   let updatedTab = data[tabId];
 
   var displayChanged = false
@@ -197,8 +202,7 @@ function updateTab(tabId, changeInfo) {
 function removeSubtree(tabId) {
   console.log("Data before removal: ", data)
   let removedTab = data[tabId]
-  data.pop(tabId)
-
+  delete data[tabId];
   // Remove children from data
   let i=0;
   traverse(removedTab,
