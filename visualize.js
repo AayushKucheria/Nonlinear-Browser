@@ -1,4 +1,4 @@
-const margin = { top: 20, right: 100, bottom: 100, left: 100};
+ const margin = { top: 20, right: 100, bottom: 100, left: 100};
 window.tabWidth = 200;
 const tabHeight = 80;
 const duration = 750;
@@ -167,15 +167,15 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
 
 function wheeled(event,d) {
 
-  if(event.ctrlKey)
-  {
-    console.log("sfojsifj", event)
-  }
-  // console.log("wheel event")
-  // currentTransform = d3.zoomTransform(d);
-  // console.log("currentTransform", currentTransform)
-  // console.log("currentTransform.k", currentTransform.k)
-  console.log("event", event)
+  // if(event.ctrlKey)
+  // {
+  //   console.log("sfojsifj", event)
+  // }
+  // // console.log("wheel event")
+  // // currentTransform = d3.zoomTransform(d);
+  // // console.log("currentTransform", currentTransform)
+  // // console.log("currentTransform.k", currentTransform.k)
+  // console.log("event", event)
 
   if(event.deltaY>0) {
       currentZoom = Math.min(currentZoom * 1.5, 1.5);
@@ -213,11 +213,6 @@ function wheeled(event,d) {
   // })
 
 baseSvg.call(zoomer)
-// For later: https://stackoverflow.com/questions/28603796/d3-remap-mousewheel-to-be-panning-gesture-instead-of-zoom-gesture
-  // .on('wheel.zoom',function(event,d){
-    // event.stopPropagation();
-    // wheeled(event,d)})
-  // console.log("wheeled event", wheeled
   .on('wheel.zoom', null)
   .on('dblclick.zoom',null)
   .on('wheel', function(event, d) {
@@ -227,31 +222,9 @@ baseSvg.call(zoomer)
     event.preventDefault();
     }
     zoom(event)}
-    )
-  // .on("touchstart.zoom", () => console.log('here')
-;
-
-
-// zoom.filter(function( ){
-//   return event.ctrlKey;
-// })
-
-//zoom.filter(event);
-
+    );
 
 function zoom(event) {
-
-  // if(event.ctrlKey)
-  // {
-  //   event.stopPropagation();
-  //   if(event.deltaY>0) {
-  //       currentZoom = Math.min(currentZoom * 1.5, 1.5);
-  //   }
-  //
-  //   else {
-  //       currentZoom = Math.max(currentZoom * 0.5, 0.5);
-  //        }
-  //  }
   if(event.ctrlKey)
   {
 
@@ -270,9 +243,7 @@ function zoom(event) {
     currentZoom = event.transform.k
     currentPos = {x: event.transform.x, y: event.transform.y}
   }
-  else { // touchpad
-    // console.log("Touchpad ", event);
-
+  else {
       currentPos.x = currentPos.x + event.wheelDeltaX * currentZoom
       currentPos.y = currentPos.y + event.wheelDeltaY * currentZoom
     // zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
@@ -366,17 +337,6 @@ function drawTree(source) {
       .y(d => d.parent? d.depth * 180 : d.depth * 180 + tabHeight)
     descendants.forEach(d => d.y = d.depth * 180)
 
-
-    // var submenu = [
-    //   {
-    //     title: "sirf testing",
-    //     action : function(event,d,elem)
-    //     {
-    //       console.log("bhosadi ka")
-    //     }
-    //   }
-    // ]
-
     var menu = [
       {
         title: "Rename Tab",
@@ -438,6 +398,10 @@ function drawTree(source) {
     // ** NODES ***
     var node = g.selectAll('g.node')
       .data(descendants, function(d) {
+        // if(d.data.toggle)
+        // {
+        //   toggleChildren(d);
+        // }
         return d.data.id;
       })
 
@@ -515,8 +479,19 @@ function drawTree(source) {
       })
       .attr("transform",d => `translate(${source.x0},${source.y0})`)
 
+
     // Tab Rectangle
     nodeEnter.append('rect')
+    //   {
+    //     if(d.data.parent.id === "Root")
+    //   {
+    //     return "block";
+    //   }
+    //   }
+    //   else {
+    //     return "none";
+    //   }
+    // })
       .attr('class', 'node')
       .attr('width', tabWidth)
       .attr('rx', '10')
@@ -613,7 +588,10 @@ function drawTree(source) {
       .attr('width', iconWidth)
       .attr('height', iconHeight)
       .attr('opacity',0)
-      .on('click', function(event,d) { toggleChildren(d)});
+      .on('click', function(event,d) {
+        toggleChildren(d)
+        localStore(window.data);});
+
 
     // Delete Icon
     nodeEnter.append('svg')
@@ -633,15 +611,18 @@ function drawTree(source) {
       .attr('opacity',0)
       .on('click', function(event,d) {
 
-        console.log("yes fuck you")
+        // console.log("yes fuck you")
 
         // Remove tab from browser
         chrome.tabs.remove(d.data.id);
 
         // Remove children from browser
         var removeChildren = d.data.children ? d.data.children : (d.data._children ? d.data._children : null)
+        if(removeChildren != null)
+        {
         removeTabs = removeChildren.map(child => child.id)
         chrome.tabs.remove(removeTabs);
+        }
 
         // Logging
         console.log("Removed ", d, " and ", removeChildren, " from chrome.")
@@ -694,6 +675,40 @@ function drawTree(source) {
         };
       });
   });
+
+  //   d3.selectAll('.node').attr('display', function(d)
+  // {
+  //   var flag = false;
+  //   console.log("d", d)
+  //   var ancestors = d.ancestors(); // get the ancestors which even include themselves
+  //
+  //
+  //
+  //   if(ancestors.length>1)
+  //   {
+  //   ancestors = ancestors.splice(0, 1);
+  //   console.log("ancestors are", ancestors ,"for", d.data.title)
+  //   ancestors.forEach((item, i) => {
+  //     if(item.data.toggle === true)
+  //     {
+  //       flag= true;
+  //       console.log("item which was toggled", item.data.toggle)
+  //
+  //     }
+  //   })}
+  //      // return 'block';
+  //     // toggleChildren(d);
+  //     // console.log("d not toggled", d)
+  //     if(flag === false)
+  //     {
+  //       console.log("block")
+  //     return 'block';
+  //   }
+  //   else {
+  //     console.log("none")
+  //     return 'none';
+  //   }
+  // })
         // // ============ HIDE tab
         // nodeEnter.append('svg')
         // .append('svg:image')
@@ -824,7 +839,19 @@ function drawTree(source) {
       .duration(duration)
       // .delay(d => 100* count++)
       .ease(d3.easeBackOut) // p2
-      .attr("transform",d => `translate(${d.x},${d.y})`)
+      .attr("transform",function(d)
+      {
+        `translate(${d.x},${d.y})`
+      })
+      //   console.log("d.data", d)
+      //   if(d.data.toggle)
+      //   {
+      //     console.log("entering toggle function")
+      //     toggleChildren(d);
+      //   }
+      // })
+
+
       // .attr('fill-opacity', 1);
 
     nodeUpdate.select('#line1')
@@ -879,6 +906,13 @@ function drawTree(source) {
     //   })
 
     count = 0;
+  //   var clog = d3.selectAll('.node').each(function(d)
+  // {
+  //   console.log("attr", d3.select(this).attr('display'))
+  // })
+
+
+
     var nodeExit = node.exit().transition()
       .duration(duration)
       // .delay(function(d, i) {
@@ -1031,51 +1065,12 @@ var floater = function() {
     }
   }
 
-  // function pan(domNode, direction) {
-  //       var speed = panSpeed;
-  //       if (panTimer) {
-  //           clearTimeout(panTimer);
-  //           translateCoords = d3.transform(svgGroup.attr("transform"));
-  //           if (direction == 'left' || direction == 'right') {
-  //               translateX = direction == 'left' ? translateCoords.translate[0] + speed : translateCoords.translate[0] - speed;
-  //               translateY = translateCoords.translate[1];
-  //           } else if (direction == 'up' || direction == 'down') {
-  //               translateX = translateCoords.translate[0];
-  //               translateY = direction == 'up' ? translateCoords.translate[1] + speed : translateCoords.translate[1] - speed;
-  //           }
-  //           scaleX = translateCoords.scale[0];
-  //           scaleY = translateCoords.scale[1];
-  //           scale = zoomListener.scale();
-  //           svgGroup.transition().attr("transform", "translate(" + translateX + "," + translateY + ")scale(" + scale + ")");
-  //           d3.select(domNode).select('g.node').attr("transform", "translate(" + translateX + "," + translateY + ")");
-  //           zoomListener.scale(zoomListener.scale());
-  //           zoomListener.translate([translateX, translateY]);
-  //           panTimer = setTimeout(function() {
-  //               pan(domNode, speed, direction);
-  //           }, 50);
-  //       }
-  //   }
-// var Connector = function() {
-//   var data = [];
-//   if (draggingNode !== null && selectedNode !== null) {
-//     data = [{
-//       source : {
-//         x : selectedNode.y0,
-//         y : selectedNode.x0
-//       } ,
-//       target : {
-//         x : draggingNode.y0,
-//         y : draggingNode.x0
-//       }
-//     }];
-//   }
-// }
-
 function toggleChildren(d) {
   if(d.children) {
     // Set toggle state true
     traverse(d, function(d) {
-      d.toggle = true;
+      // console.log("d", d)
+      d.data.toggle = true;
       },
       function(d) {
         return d.children && d.children.length > 0 ? d.children : null;
@@ -1088,7 +1083,7 @@ function toggleChildren(d) {
   else if(d._children) {
     // Set toggle state false
     traverse(d, function(d) {
-      d.toggle = false;
+      d.data.toggle = false;
       },
       function(d) {
         return d._children && d._children.length > 0 ? d._children : null;
