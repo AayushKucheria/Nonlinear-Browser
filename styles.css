@@ -57,9 +57,6 @@ body {
 .zoomButtons {
 	display: inline-block;
 	margin: 10px auto;
-	/* position: relative;
-	bottom: 50%;
-	left: 50%; */
 }
 
 #treeContainer {

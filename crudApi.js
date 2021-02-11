@@ -30,9 +30,10 @@ function checkLastSession() {
   else {
   // Fnon.Dialogue.Init({ closeButton: true })
     lastSession = JSON.parse(window.localStorage.getItem('user'));
-
+    // lastSession = lastSession.children;
     if(lastSession) {
       if(!isRefreshed) {//not Refreshed
+        console.log("Saved session: ", lastSession);
 
         Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
         () => { // Merge with current session
@@ -203,7 +204,7 @@ function removeSubtree(tabId) {
   // Remove children from data
   let i=0;
   traverse(removedTab,
-    function(tab) { (i === 0)? ++i : data.pop(tab.id);},
+    function(tab) { (i === 0)? ++i : delete data[tab.id];},
     function(tab) { return tab.children && tab.children.length > 0 ? tab.children : null;}
   );
 
@@ -223,6 +224,9 @@ function removeSubtree(tabId) {
 }
 
 function localStore() {
-  console.log(data);
+  console.log("Storing data = ", data);
+  // let temp = {"id": "Root", "title": "Current Session", "read":false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
+  //
+  // temp.children = data;
   window.localStorage.setItem('user', JSON.stringify(window.data)); //adds to localStorage
 }
