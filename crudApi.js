@@ -1,5 +1,5 @@
 let idMapping = [];
-window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "toggle": false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
 var last_sesh;
 var fetch;
 var date = new Date();
@@ -108,6 +108,7 @@ function loadWindowList(addCurrentSession) {
             tabInData.windowId = windowList[i].id;
             tabInData.url = currentTab.url || '';
             tabInData.pendingUrl = currentTab.pendingUrl || '';
+            tabInData.toggle = currentTab.toggle;
             tabInData.read = currentTab.read;
             tabInData.favIconUrl = currentTab.favIconUrl || '';
             tabInData.parentId = currentTab.openedTabId ? currentTab.openerTabId : data[currentTab.id].parentId
@@ -120,6 +121,7 @@ function loadWindowList(addCurrentSession) {
                                     "children": [],
                                     "windowId": windowList[i].id,
                                     "url": currentTab.url || '',
+                                    "toggle": false,
                                     "pendingUrl":currentTab.pendingUrl || '',
                                     "read" : false,
                                     "favIconUrl": currentTab.favIconUrl || '',
@@ -148,6 +150,7 @@ function addNewTab(tab) {
                   "windowId": tab.windowId,
                   "url": tab.url || '',
                   "pendingUrl":tab.pendingUrl || '',
+                  "toggle":false,
                   "read": false,
                   "x0": 0,
                   "y0": 0,

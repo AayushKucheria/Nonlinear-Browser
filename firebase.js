@@ -173,11 +173,11 @@ function getSavedTrees(user) {
       // console.log("window.localRoot", childTree)
       // console.log("title hai", childTree.title)
       // newElement.innerHTML = '<a href="#" id="'+temp_id+'">"'+childTree.title+'"</a>'
-			tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
+			// tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
 
       var div = document.createElement("div");
       div.id = "div";
-			console.log("childTree?", childTree)
+			// console.log("childTree?", childTree)
 			newElement.innerHTML = '<a href="#" id="' + temp_id + '">' + childTree.title + '</a>'
       newElement.onclick = function() {
         url = "chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html" + "?" + "user" + "=" + user.uid + "&" + "tree" + "=" + key;
@@ -200,7 +200,7 @@ function getSavedTrees(user) {
 			}
 
 			var icon2 = document.createElement('i');
-      icon2.className += 'fa fa-car'
+      icon2.className += 'fa fa-pencil-square-o'
 			icon2.onclick = function() {
 				var newTitle = prompt('Enter new name: ')
 				var previousTitle = icon1.parentNode.childNodes[0].innerText; // Gets text of li in div
