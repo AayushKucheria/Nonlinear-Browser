@@ -130,6 +130,7 @@ function saveTree(source) {
 			if (!source.uid) {
 				source.uid = database.ref('users/' + user.uid + '/tree').push().key;
 			}
+			console.log("Saving tree: ", source);
 			updates['users/' + user.uid + '/tree/' + source.uid] = source;
 			var x = prompt('Enter the title with which you want to save the tree')
 			source.title = x; // It is necessary to change the title before update as update pushes it to the db

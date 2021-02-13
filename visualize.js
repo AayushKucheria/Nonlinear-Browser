@@ -327,7 +327,25 @@ function delete_tab(node) {
 
 function drawTree(source) {
   // Fnon.Wait.Ripple('Loading tree');
-  console.log("Drawing tree ", window.localRoot);
+  console.log("Drawing tree ", window.currentRoot);
+
+  traverse(window.currentRoot,
+    function(d) {
+      if(d && !(d._children) && d.data.toggle && d.children) {
+        d._children = d.children;
+        d.children = null;
+      }
+    },
+    function(d) {
+      if(d.data.toggle) {
+        return null
+      }
+      else {
+        return d.children
+      }
+    })
+
+    console.log("Root after toggle fiasco: ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     allLinks = links;
@@ -400,12 +418,9 @@ function drawTree(source) {
     // ** NODES ***
     var node = g.selectAll('g.node')
       .data(descendants, function(d) {
-        // if(d.data.toggle)
-        // {
-        //   toggleChildren(d);
-        // }
         return d.data.id;
       })
+
 
     function getTranslation(transform) {
       var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -437,8 +452,8 @@ function drawTree(source) {
           // .style("filter", "url(#drop-shadow)")
           ;
 
-        // Blur text and favicon
-        d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style("filter", "url(#blur)");
+        // Blur text and favicon *to add text .selectAll('text, .favicon')
+        d3.select(this).selectAll('.favicon').transition().duration(animationDuration).style("filter", "url(#blur)");
 
         // Show tool icons
         d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',1);
@@ -460,7 +475,7 @@ function drawTree(source) {
           .style('filter', 'unset');
 
         // Remove text blur
-        d3.select(this).selectAll('text, .favicon').transition().duration(animationDuration).style('filter', 'unset');
+        d3.select(this).selectAll('.favicon').transition().duration(animationDuration).style('filter', 'unset');
 
         // Hide tool icons
         d3.select(this).selectAll('.icon').transition().duration(animationDuration).attr('opacity',0);
@@ -940,7 +955,7 @@ function drawTree(source) {
       .attr('width', 1e-6)
       .attr('height', 1e-6)
       .attr("transform", function(d) {
-        if(d.toggle)
+        if(d.data.toggle)
         return `translate(${source.x},${source.y})`;
       }) // d.parent.x, d.parent.y to toggle to root
       .remove();
@@ -1001,6 +1016,8 @@ function drawTree(source) {
     Fnon.Wait.Remove();
 
   }
+
+  // checkToggle()
 
 //   var x=d3.select('.node').filter(function (d)
 // {
@@ -1088,38 +1105,47 @@ var floater = function() {
     }
   }
 
-  function expand(d) {
-    if(d._children) {
-      d._children = d.children;
-      d._children.forEach(expand);
-      d._children=null;
-    }
-  }
 
+// function checkToggle() {
+//   traverse(window.currentRoot,
+//   function(d) {
+//     if(d.data.toggle) {
+//       toggleChildren(d)
+//     }
+//   },
+//   function(d) {
+//     if(d.data.toggle)
+//       return null;
+//     else
+//       return d.children
+//   })
+// }
 function toggleChildren(d) {
+  console.log("Data before toggle: ", d);
   if(d.children) {
-    // Set toggle state true
-    traverse(d, function(d) {
-      // console.log("d", d)
-      d.data.toggle = true;
-      },
-      function(d) {
-        return d.children && d.children.length > 0 ? d.children : null;
-      }
-    );
-
+  //   // Set toggle state true
+  //   traverse(d, function(d) {
+  //     d.data.toggle = true;
+  //     },
+  //     function(d) {
+  //       return d.children && d.children.length > 0 ? d.children : null;
+  //     }
+    // );
+    d.data.toggle = true;
     d._children = d.children;
     d.children = null;
+    console.log("Data after toggle: ", d);
   }
   else if(d._children) {
+    d.data.toggle = false;
     // Set toggle state false
-    traverse(d, function(d) {
-      d.data.toggle = false;
-      },
-      function(d) {
-        return d._children && d._children.length > 0 ? d._children : null;
-      }
-    );
+    // traverse(d, function(d) {
+    //   d.data.toggle = false;
+    //   },
+    //   function(d) {
+    //     return d._children && d._children.length > 0 ? d._children : null;
+    //   }
+    // );
 
     d.children = d._children;
     d._children = null;
