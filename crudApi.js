@@ -178,7 +178,7 @@ function updateTab(tabId, changeInfo) {
   if(!isCurrent) return;
   let updatedTab = data[tabId];
 
-  console.log("change info", changeInfo)
+  // console.log("change info", changeInfo)
   var displayChanged = false
   for(var i in changeInfo) {
     if(updatedTab.hasOwnProperty(i)) {

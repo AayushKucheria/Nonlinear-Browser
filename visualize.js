@@ -22,6 +22,8 @@ var animationDuration = 500
 var newElement;
 var tree_dict = {};
 var gotoChecker = false;
+var clickFlag;
+var dragCommenced = false;
 
 
 
@@ -65,26 +67,23 @@ var g = baseSvg.append('g')
 
 //Define the drag listener for drag/drop behaviour of nodes.
 var dragListener = d3.drag()
-        .on("start", function(e,d) {
-          console.log("this", this)
-
-          // if(d3.drag().clickDistance(10))
-          // {
-          //   console.log("chaa gaya start")
-          // }
-           //drag initiated
+        .on("start", function(e,d) { //on mousedown
+          console.log("start")
           if( d === window.currentRoot) return;
 
-          dragStarted=true;
+          dragCommenced = true;
+
 
           e.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
         })
         .on("drag", function(e,d) {
 
-          // var parent = this.parentNode;
+          // console.log("drag")
 
-          // console.log("this", this)
 
+           //mouse-move
+          clickFlag=true;
+          // console.log("clickFlag", clickFlag)
           d3.select(this).lower();
 
           d3.selectAll(this).select('rect').transition().duration(animationDuration)
@@ -93,29 +92,39 @@ var dragListener = d3.drag()
           floater(); //shadow transition effect
           if(d === window.currentRoot) return;
 
-          if(dragStarted) {
-            initiateDrag(d, this);
-          }
+          if(dragCommenced) {
+          initiateDrag(d, this);
+        }
+
 
           var relCoords = d3.pointer(e);
           d.x0 =  d.x0 + e.dx;
           d.y0 =  d.y0 + e.dy;
           d3.select(this).attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
+          // console.log("drag started", clickFlag)
           // console.log("yes", d3.select(this).attr("transform"))
         })
         .on("end", function(e,d) {
+          // mouse up/release
 
-          if(event.defaultPrevented)
+          // console.log("end", clickFlag)
+
+          if(clickFlag)
           {
-
-
-
+            // console.log("adfadfda")
+            clickFlag = false;
+            dragCommenced = false;
           d3.select(this).select('rect').transition().duration(animationDuration)
             .style('filter', 'unset')// stop shadow after having dragged
 
           if(d == window.currentRoot) return;
 
-          if(selectedNode && selectedNode != draggingNode) { // The node hovered upon
+          // console.log("d", d)
+          // console.log("selectedNode", selectedNode)
+          // console.log("draggingNode", draggingNode)
+          if(selectedNode && selectedNode != draggingNode) {
+             // The node hovered upon
+             console.log("end console logging")
             // Not getting updated in data?? TODO
             let oldParent = d.parent.data;
             d.data.parentId = selectedNode.data.id; // Update parentId
@@ -318,7 +327,7 @@ function delete_tab(node) {
 
 function drawTree(source) {
   // Fnon.Wait.Ripple('Loading tree');
-  // console.log("Drawing tree ", window.currentRoot);
+  console.log("Drawing tree ", window.localRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     allLinks = links;
@@ -407,17 +416,6 @@ function drawTree(source) {
 
 
     var nodeEnter = node.enter().append('g')
-      .style('fill',function(d) {
-      if((d.data.read == false)||(d.data.read == undefined))
-      {
-        return '#21b3dc';
-      }
-      else {
-        return '#646b6d';
-      }
-
-
-      })
       // .call(dragListener)
       .attr('class', 'node')
       .attr('id', function(d,i) {
@@ -474,6 +472,7 @@ function drawTree(source) {
         //   .transition().duration(animationDuration).style('stroke', '#ccc');
       })
       .attr("transform",d => `translate(${source.x0},${source.y0})`)
+      .call(dragListener)
 
 
     // Tab Rectangle
@@ -503,13 +502,13 @@ function drawTree(source) {
         else { // Create tab with this url
           console.log("Creating new tab");
           var newTab = {
-            'openerTabId': parseInt(d.data.parentId), // For saved trees this var is string, converting with parseInt doesn't work.
+            // 'openerTabId': parseInt(d.data.parentId), // For saved trees this var is string, converting with parseInt doesn't work.
             'url': d.data.url,
           }
           chrome.tabs.create(newTab);
         };
       });
-  }).call(dragListener)
+  })
 
 
 
@@ -828,6 +827,29 @@ function drawTree(source) {
       .duration(duration)
       // .delay(d => 100* count++)
       .ease(d3.easeBackOut) // p2
+      .style('fill',function(d) {
+        // console.log("d",d)
+      if(d.data.deleted == true)
+      {
+        return '#ff0000';//red
+      }
+      else if((d.data.read == false)||(d.data.read == undefined))
+      {
+        console.log("aja")
+        return '#21b3dc'; //blue
+      }
+      else {
+        console.log("abhi")
+        return '#646b6d'; //brown
+      }})
+    //   .attr('style', function(d)
+    // {
+    //   if(d.data.deleted)
+    //   {
+    //     console.log("entering delete change",d)
+    //     return '#ff0000';
+    //   }
+    // })
       .attr("transform",d => `translate(${d.x},${d.y})`)
       // .attr("transform",function(d)
       // {
@@ -1012,13 +1034,30 @@ var floater = function() {
     draggingNode = d; // global variable
     // d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
     // d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
+
+    console.log("d", d)
     d3.select(domNode).attr('class', 'node activeDrag');
 
-    g.selectAll("path.link")
-      .data(allLinks, function(de) {
-        return (de.target.data.id === d.data.id || de.source.data.id === d.data.id);
-      })
-      .remove();
+    var temp = g.selectAll("path.link")
+      .data(allLinks)
+      .filter(function(de) {
+        // console.log("de", de)
+         if(de.target.data.id === d.data.id || de.source.data.id === d.data.id)
+         {
+           console.log("success", de)
+           return true;
+         }
+         else {
+           // console.log("fail, ", de)
+           return false;
+         }
+      }).remove();
+      // .join(exit => {
+      //   console.log("exit", exit)
+      //   exit.remove();
+      // });
+      // console.log("temp", temp)
+      // temp.remove();
 
     g.selectAll('.node')
       .data(d.descendants(), de => de.data.id)
@@ -1029,7 +1068,7 @@ var floater = function() {
       })
       .remove();
 
-    dragStarted = false;
+    dragCommenced = false;
   }
 
   function endDrag(d, domNode, onNode) {
@@ -1118,6 +1157,25 @@ document.querySelectorAll('.drop').forEach(item => {
     this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "none");
   }
 });
+
+
+function checkfordelete(tabId)
+{
+  console.log("tab is", data[tabId])
+  data[tabId].deleted = true;
+  localStore();
+  drawTree(window.localRoot);
+}
+//   d3.selectAll('.node').attr('style', function(d)
+// {
+//   console.log("hello", d)
+//   if((d.data.id == tabId)&&(d.data.deleted == true))
+//   {
+//     console.log("aaja", d)
+//     return '#ff0000';
+//   }
+// })
+// }
 
 // function changefill(id)
 // {
