@@ -326,25 +326,23 @@ function delete_tab(node) {
 function drawTree(source) {
   // Fnon.Wait.Ripple('Loading tree');
   console.log("Drawing tree ", window.currentRoot);
-
+ 
   traverse(window.currentRoot,
     function(d) {
       if(d && !(d._children) && d.data.toggle && d.children) {
         d._children = d.children;
-        // d.children = null;
+        d.children = null;
       }
     },
     function(d) {
       if(d.data.toggle) {
-        console.log("Not returning children");
         return null
       }
       else {
-        console.log("Real children: ", d.data.children)
-        console.log("d3 children ", d.children);
         return d.children
       }
     })
+
     console.log("Root after toggle fiasco: ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
@@ -418,12 +416,9 @@ function drawTree(source) {
     // ** NODES ***
     var node = g.selectAll('g.node')
       .data(descendants, function(d) {
-        // if(d.data.toggle)
-        // {
-        //   toggleChildren(d);
-        // }
         return d.data.id;
       })
+
 
     function getTranslation(transform) {
       var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -502,16 +497,6 @@ function drawTree(source) {
 
     // Tab Rectangle
     nodeEnter.append('rect')
-    //   {
-    //     if(d.data.parent.id === "Root")
-    //   {
-    //     return "block";
-    //   }
-    //   }
-    //   else {
-    //     return "none";
-    //   }
-    // })
       .attr('class', 'node')
       .attr('width', tabWidth)
       .attr('rx', '10')
@@ -860,10 +845,7 @@ function drawTree(source) {
       .duration(duration)
       // .delay(d => 100* count++)
       .ease(d3.easeBackOut) // p2
-      .attr("transform",function(d)
-      {
-        `translate(${d.x},${d.y})`
-      })
+      .attr("transform", d => `translate(${d.x},${d.y})`)
       //   console.log("d.data", d)
       //   if(d.data.toggle)
       //   {
@@ -949,7 +931,7 @@ function drawTree(source) {
       .attr('width', 1e-6)
       .attr('height', 1e-6)
       .attr("transform", function(d) {
-        if(d.toggle)
+        if(d.data.toggle)
         return `translate(${source.x},${source.y})`;
       }) // d.parent.x, d.parent.y to toggle to root
       .remove();
@@ -1082,14 +1064,6 @@ var floater = function() {
     }
   }
 
-  function expand(d) {
-    if(d._children) {
-      d._children = d.children;
-      d._children.forEach(expand);
-      d._children=null;
-    }
-  }
-
 
 // function checkToggle() {
 //   traverse(window.currentRoot,
@@ -1106,6 +1080,7 @@ var floater = function() {
 //   })
 // }
 function toggleChildren(d) {
+  console.log("Data before toggle: ", d);
   if(d.children) {
   //   // Set toggle state true
   //   traverse(d, function(d) {
@@ -1118,7 +1093,7 @@ function toggleChildren(d) {
     d.data.toggle = true;
     d._children = d.children;
     d.children = null;
-    console.log("Data after toggle: ", d.data);
+    console.log("Data after toggle: ", d);
   }
   else if(d._children) {
     d.data.toggle = false;
