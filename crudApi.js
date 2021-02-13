@@ -1,5 +1,5 @@
 let idMapping = [];
-window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "toggle": false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
+window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "deleted":false, "toggle": false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
 var last_sesh;
 var fetch;
 var date = new Date();
@@ -109,6 +109,7 @@ function loadWindowList(addCurrentSession) {
             tabInData.url = currentTab.url || '';
             tabInData.pendingUrl = currentTab.pendingUrl || '';
             tabInData.toggle = currentTab.toggle;
+            tabInData.deleted = currentTab.deleted;
             tabInData.read = currentTab.read;
             tabInData.favIconUrl = currentTab.favIconUrl || '';
             tabInData.parentId = currentTab.openedTabId ? currentTab.openerTabId : data[currentTab.id].parentId
@@ -122,6 +123,7 @@ function loadWindowList(addCurrentSession) {
                                     "windowId": windowList[i].id,
                                     "url": currentTab.url || '',
                                     "toggle": false,
+                                    "deleted": false,
                                     "pendingUrl":currentTab.pendingUrl || '',
                                     "read" : false,
                                     "favIconUrl": currentTab.favIconUrl || '',
@@ -151,6 +153,7 @@ function addNewTab(tab) {
                   "url": tab.url || '',
                   "pendingUrl":tab.pendingUrl || '',
                   "toggle":false,
+                  "deleted": false,
                   "read": false,
                   "x0": 0,
                   "y0": 0,
@@ -176,6 +179,7 @@ function updateTab(tabId, changeInfo) {
   if(!isCurrent) return;
   let updatedTab = data[tabId];
 
+  console.log("change info", changeInfo)
   var displayChanged = false
   for(var i in changeInfo) {
     if(updatedTab.hasOwnProperty(i)) {
