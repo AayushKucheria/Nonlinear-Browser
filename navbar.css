@@ -84,6 +84,8 @@ nav ul li ul li a:focus {
 .dropdown {
 	display: none;
 	position: absolute;
+	max-height: 600px;
+	overflow: auto;
 	background: #fff;
 	box-shadow: 0 4px 10px rgba(10, 20, 30, .4);
 }

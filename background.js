@@ -30,12 +30,24 @@ chrome.browserAction.onClicked.addListener(function(tab) {
   });
 });
 
+function handleRemovedTab(tabId)
+{
+  console.log("tabid", tabId)
+ // checkfordelete(tabId);
+}
+
+chrome.tabs.onRemoved.addListener(handleRemovedTab);
+
+
+
 // Works
 chrome.runtime.onStartup.addListener(function() {
   chrome.tabs.create({"url": 'tabs_api.html'});
 });
 
-window.addEventListener('beforeunload', function() {
+window.addEventListener('beforeunload', function(e) {
+  // console.log("e", e)
   var date = new Date(); //current Date object
   window.sessionStorage.setItem('time', date.getTime());
+
 })

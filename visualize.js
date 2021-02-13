@@ -66,6 +66,7 @@ var g = baseSvg.append('g')
 //Define the drag listener for drag/drop behaviour of nodes.
 var dragListener = d3.drag()
         .on("start", function(e,d) {
+          console.log("this", this)
 
           // if(d3.drag().clickDistance(10))
           // {
@@ -84,30 +85,32 @@ var dragListener = d3.drag()
 
           // console.log("this", this)
 
-          d3.select(this.parentNode).lower();
+          d3.select(this).lower();
 
-          d3.select(this.parentNode).select('rect').transition().duration(animationDuration)
+          d3.selectAll(this).select('rect').transition().duration(animationDuration)
           .style("filter" , "url(#drop-shadow)") //shadow while dragging
 
           floater(); //shadow transition effect
           if(d === window.currentRoot) return;
 
           if(dragStarted) {
-            initiateDrag(d, this.parentNode);
+            initiateDrag(d, this);
           }
 
           var relCoords = d3.pointer(e);
           d.x0 =  d.x0 + e.dx;
           d.y0 =  d.y0 + e.dy;
-          d3.select(this.parentNode).attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
+          d3.select(this).attr("transform", "translate(" + d.x0 + "," + d.y0 +")");
           // console.log("yes", d3.select(this).attr("transform"))
         })
         .on("end", function(e,d) {
 
-          // gotoChecker = true;
+          if(event.defaultPrevented)
+          {
 
 
-          d3.select(this.parentNode).select('rect').transition().duration(animationDuration)
+
+          d3.select(this).select('rect').transition().duration(animationDuration)
             .style('filter', 'unset')// stop shadow after having dragged
 
           if(d == window.currentRoot) return;
@@ -121,12 +124,12 @@ var dragListener = d3.drag()
             console.log(window.localRoot);
             updateTree(window.localRoot);
 
-            endDrag(d, this.parentNode, true);
+            endDrag(d, this, true);
           }
           else {
-            endDrag(d, this.parentNode, false);
+            endDrag(d, this, false);
           }
-        });
+        }});
 
 var defs = g.append("defs");
 
@@ -166,16 +169,6 @@ const zoomer = d3.zoom().scaleExtent([0.5, 1.5])
  });
 
 function wheeled(event,d) {
-
-  // if(event.ctrlKey)
-  // {
-  //   console.log("sfojsifj", event)
-  // }
-  // // console.log("wheel event")
-  // // currentTransform = d3.zoomTransform(d);
-  // // console.log("currentTransform", currentTransform)
-  // // console.log("currentTransform.k", currentTransform.k)
-  // console.log("event", event)
 
   if(event.deltaY>0) {
       currentZoom = Math.min(currentZoom * 1.5, 1.5);
@@ -415,14 +408,17 @@ function drawTree(source) {
 
     var nodeEnter = node.enter().append('g')
       .style('fill',function(d) {
-
-      if(d.data.read == false) {
+      if((d.data.read == false)||(d.data.read == undefined))
+      {
         return '#21b3dc';
       }
       else {
         return '#646b6d';
       }
-    })
+
+
+      })
+      // .call(dragListener)
       .attr('class', 'node')
       .attr('id', function(d,i) {
         return d.data.id;
@@ -482,22 +478,40 @@ function drawTree(source) {
 
     // Tab Rectangle
     nodeEnter.append('rect')
-    //   {
-    //     if(d.data.parent.id === "Root")
-    //   {
-    //     return "block";
-    //   }
-    //   }
-    //   else {
-    //     return "none";
-    //   }
-    // })
       .attr('class', 'node')
       .attr('width', tabWidth)
       .attr('rx', '10')
       .attr('ry', '10')
       .attr('height', tabHeight)
-      .call(dragListener)
+      .on('dblclick', function(event,d) {
+
+        // Get url of clicked tab
+      chrome.tabs.query({'url': d.data.url}, function(tabs) {
+        console.log("Tabs with this url in chrome: ", tabs);
+
+        // If exists
+        if(tabs.length > 0) {
+          console.log("Updating view to ", tabs[0])
+          // Focus on that tab and its window
+          chrome.tabs.update(tabs[0].id, {
+            active: true
+          });
+          chrome.windows.update(tabs[0].windowId, {
+          focused: true
+          });
+        }
+        else { // Create tab with this url
+          console.log("Creating new tab");
+          var newTab = {
+            'openerTabId': parseInt(d.data.parentId), // For saved trees this var is string, converting with parseInt doesn't work.
+            'url': d.data.url,
+          }
+          chrome.tabs.create(newTab);
+        };
+      });
+  }).call(dragListener)
+
+
 
     nodeEnter.append('circle')
       .attr('class', 'ghostCircle')
@@ -631,50 +645,24 @@ function drawTree(source) {
         console.log("localRoot children: ", localRoot.children)
     });
 
-    nodeEnter.append('svg')
-      .append('svg:image')
-      .attr('id','go')
-      .attr('xlink:href', function(d)
-      {
-        // console.log('d', d)
-        if(!(d.data.id === 'Root'))
-        {
-        return 'res/arrow-right-top.svg';
-        }
-      })
-      .attr('class','icon')
-      .attr('x', tabWidth - iconWidth + 40)
-      .attr('y', tabHeight - iconHeight)
-      .attr('width', iconWidth)
-      .attr('height', iconHeight)
-      .attr('opacity',0)
-      .on('click', function(event,d) {
+    // nodeEnter.append('svg')
+    //   .append('svg:image')
+    //   .attr('id','go')
+    //   .attr('xlink:href', function(d)
+    //   {
+    //     // console.log('d', d)
+    //     if(!(d.data.id === 'Root'))
+    //     {
+    //     return 'res/arrow-right-top.svg';
+    //     }
+    //   })
+    //   .attr('class','icon')
+    //   .attr('x', tabWidth - iconWidth + 40)
+    //   .attr('y', tabHeight - iconHeight)
+    //   .attr('width', iconWidth)
+    //   .attr('height', iconHeight)
+    //   .attr('opacity',0)
 
-        // Get url of clicked tab
-      chrome.tabs.query({'url': d.data.url}, function(tabs) {
-        console.log("Tabs with this url in chrome: ", tabs);
-
-        // If exists
-        if(tabs.length > 0) {
-          console.log("Updating view to ", tabs[0])
-          // Focus on that tab and its window
-          chrome.tabs.update(tabs[0].id, {
-            active: true
-          });
-          chrome.windows.update(tabs[0].windowId, {
-          focused: true
-          });
-        }
-        else { // Create tab with this url
-          console.log("Creating new tab");
-          var newTab = {
-            'openerTabId': parseInt(d.data.parentId), // For saved trees this var is string, converting with parseInt doesn't work.
-            'url': d.data.url,
-          }
-          chrome.tabs.create(newTab);
-        };
-      });
-  });
 
   //   d3.selectAll('.node').attr('display', function(d)
   // {
@@ -840,10 +828,11 @@ function drawTree(source) {
       .duration(duration)
       // .delay(d => 100* count++)
       .ease(d3.easeBackOut) // p2
-      .attr("transform",function(d)
-      {
-        `translate(${d.x},${d.y})`
-      })
+      .attr("transform",d => `translate(${d.x},${d.y})`)
+      // .attr("transform",function(d)
+      // {
+      //   `translate(${d.x},${d.y})`
+      // })
       //   console.log("d.data", d)
       //   if(d.data.toggle)
       //   {
@@ -1129,3 +1118,58 @@ document.querySelectorAll('.drop').forEach(item => {
     this.querySelectorAll('.dropdown').forEach(elem => elem.style.display = "none");
   }
 });
+
+// function changefill(id)
+// {
+//
+// }
+
+// function checkfordelete(tabId)
+// {
+//   var d = localRoot;
+//   var i = 0;
+//   var changed = false;
+//
+//   var updatedTab =
+
+  // while((d.children.length>0)&&(i<d.children.length))
+  // {
+  //   if(d.children[i].id === tabId)
+  //   {
+  //     console.log("milgya",d.children[i])
+  //     d.children[i].deleted = true;
+  //     changed = true;
+  //   }
+  //   i=i+1;
+  // }
+
+//   traverse(d, function(d)
+// {
+//   console.log("d", d)
+//   if(d.id === tabId)
+//   {
+//     changed = true;
+//     d.deleted = true;
+//     console.log("yep")
+//   }
+// },
+//   function(d)
+//   {
+//   if(d.children)
+//   function(d)
+//   {
+//     console.log("d children", d)
+//     if(d.id === tabId)
+//     {
+//       changed = true;
+//       d.deleted = true;
+//     }
+//   }
+// )
+//   if(changed){
+//     console.log("kyu nahi")
+//     drawTree(window.localRoot);
+//   }
+//
+//
+// }
