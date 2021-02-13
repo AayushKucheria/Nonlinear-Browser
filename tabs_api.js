@@ -18,7 +18,7 @@ chrome.tabs.onRemoved.addListener(function(tabId) {
     chrome.browserAction.setBadgeText({text: ''});
   }
 });
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo) {
   updateTab(tabId, changeInfo)
 })
 // chrome.windows.onBoundsChanged.addListener(function(wId) {

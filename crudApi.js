@@ -7,6 +7,7 @@ window.data = {};
 let isCurrent = true;
 
 function checkLastSession() {
+
   var isRefreshed = true;
   var previousTime = window.sessionStorage.getItem('time');
   var currentTime = date.getTime();
@@ -182,7 +183,7 @@ function updateTab(tabId, changeInfo) {
   console.log("change info", changeInfo)
   var displayChanged = false
   for(var i in changeInfo) {
-    if(updatedTab.hasOwnProperty(i)) {
+    if(updatedTab && updatedTab.hasOwnProperty(i)) {
       updatedTab[i] = changeInfo[i];
       if(i === 'title' || i === 'favIconUrl')
         displayChanged = true
