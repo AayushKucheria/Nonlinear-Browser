@@ -30,14 +30,6 @@ chrome.browserAction.onClicked.addListener(function(tab) {
   });
 });
 
-function handleRemovedTab(tabId)
-{
-  console.log("tabid", tabId)
- checkfordelete(tabId);
-}
-
-chrome.tabs.onRemoved.addListener(handleRemovedTab);
-
 
 
 // Works

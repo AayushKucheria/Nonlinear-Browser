@@ -17,6 +17,11 @@ chrome.tabs.onRemoved.addListener(function(tabId) {
   if(tabId === window.extensionId) {
     chrome.browserAction.setBadgeText({text: ''});
   }
+  if(data[tabId]) {
+    data[tabId].deleted = true;
+    localStore();
+    drawTree(window.localRoot);
+  }
 });
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo) {
   updateTab(tabId, changeInfo)

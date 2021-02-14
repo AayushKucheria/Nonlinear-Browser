@@ -88,10 +88,6 @@ rect.node {
   stroke-width: 2px;
 }
 
-read {
-	fill: #646b6d;
-}
-
 text {
   pointer-events: none;
   font-family: 'Roboto';
