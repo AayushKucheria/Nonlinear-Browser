@@ -50,6 +50,11 @@ nav ul li a {
 nav ul li a:hover,
 nav ul li a:focus {
 	background: rgba(0, 0, 0, .15);
+
+	text-decoration-line: underline;
+  text-decoration-thickness: initial;
+  text-decoration-style: initial;
+  text-decoration-color: initial;
 }
 
 nav ul li a:focus {
@@ -67,14 +72,16 @@ nav ul li ul li {
 
 nav ul li ul li a {
 	background: transparent;
-	color: #555;
+	color: #0000ff;
 	border-bottom: 1px solid #DDE0E7;
+	cursor: pointer;
 }
 
 nav ul li ul li a:hover,
 nav ul li ul li a:focus {
 	background: #eee;
-	color: #111;
+	color : #0000ff;
+	cursor: pointer;
 }
 
 .dropElem {
@@ -88,6 +95,7 @@ nav ul li ul li a:focus {
 	overflow: auto;
 	background: #fff;
 	box-shadow: 0 4px 10px rgba(10, 20, 30, .4);
+
 }
 
 .divElem {
@@ -98,12 +106,14 @@ nav ul li ul li a:focus {
 	position: relative;
 	bottom: 30px;
 	left: 80%;
+	cursor: crosshair;
 }
 
 .fa-pencil-square-o {
 	position: relative;
 	bottom : 30px;
 	left: 86%;
+	cursor: crosshair;
 
 	/* align-items: center; */
 }
