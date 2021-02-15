@@ -190,7 +190,7 @@ function getSavedTrees(user) {
       }
 			div.className += "divElem"; //givin
 			var icon1 = document.createElement('i');
-      icon1.className += 'fa fa-trash-o fa-lg'
+      icon1.className += 'fa fa-pencil-square-o fa-lg'
 			icon1.onclick = function() {
 				let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
 				//deletes the current tree being selected
@@ -203,7 +203,7 @@ function getSavedTrees(user) {
 			}
 
 			var icon2 = document.createElement('i');
-      icon2.className += 'fa fa-pencil-square-o fa-lg'
+      icon2.className += 'fa fa-trash-o fa-lg'
 			icon2.onclick = function() {
 				var newTitle = prompt('Enter new name: ')
 				var previousTitle = icon1.parentNode.childNodes[0].innerText; // Gets text of li in div

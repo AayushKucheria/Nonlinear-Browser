@@ -94,7 +94,7 @@ nav ul li ul li a:focus {
 	max-height: 600px;
 	overflow: auto;
 	background: #fff;
-	box-shadow: 0 4px 10px rgba(10, 20, 30, .4);
+	/* box-shadow: 0 4px 10px rgba(10, 20, 30, .4); */
 
 }
 
@@ -102,18 +102,18 @@ nav ul li ul li a:focus {
 	/* vertical-align: middle; */
 }
 
-.fa-trash-o {
+.fa-pencil-square-o {
 	position: relative;
 	bottom: 30px;
 	left: 80%;
-	cursor: crosshair;
+	cursor: pointer;
 }
 
-.fa-pencil-square-o {
+.fa-trash-o {
 	position: relative;
 	bottom : 30px;
 	left: 86%;
-	cursor: crosshair;
+	cursor: pointer;
 
 	/* align-items: center; */
 }
