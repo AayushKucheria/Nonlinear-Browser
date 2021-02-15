@@ -166,7 +166,7 @@ function getSavedTrees(user) {
 			newElement = document.createElement('li')
 			var temp_id = "tree" + i;
 			var key = childSnapshot.key;
-			// console.log("key is", key)
+			newElement.id = key
 			childTree = childSnapshot.val();
 
       // tree_dict[key] = childTree; // adding the current json file to the dictionary whose key is this tree's id
@@ -181,10 +181,12 @@ function getSavedTrees(user) {
 			// console.log("childTree?", childTree)
 			newElement.innerHTML = '<a href="#" id="' + temp_id + '">' + childTree.title + '</a>'
       newElement.onclick = function() {
-        url = "chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html" + "?" + "user" + "=" + user.uid + "&" + "tree" + "=" + key;
-        chrome.tabs.create({
-          "url": url
-        })
+				console.log("Fetching ", this.id, " for ", user.uid);
+				fetchTree(user.uid, this.id)
+        // url = "chrome-extension://jjbpfnijgokebcbepdobkbneconogbkm/tabs_api.html" + "?" + "user" + "=" + user.uid + "&" + "tree" + "=" + key;
+        // chrome.tabs.create({
+        //   "url": url
+        // })
       }
 			div.className += "divElem"; //givin
 			var icon1 = document.createElement('i');

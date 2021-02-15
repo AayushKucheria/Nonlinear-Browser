@@ -68,7 +68,7 @@ var g = baseSvg.append('g')
 //Define the drag listener for drag/drop behaviour of nodes.
 var dragListener = d3.drag()
         .on("start", function(e,d) { //on mousedown
-          console.log("start")
+          // console.log("start")
           if( d === window.currentRoot) return;
 
           dragCommenced = true;
@@ -77,7 +77,7 @@ var dragListener = d3.drag()
           e.sourceEvent.stopPropagation();// suppress the mouseover event on the node being dragged
         })
         .on("drag", function(e,d) {//mouse-move
-          console.log("Drag");
+          // console.log("Drag");
           clickFlag=true;
           // console.log("clickFlag", clickFlag)
           d3.select(this).lower();
@@ -114,11 +114,13 @@ var dragListener = d3.drag()
 
             if(selectedNode && selectedNode != draggingNode) {
                // The node hovered upon
-               console.log("end console logging")
+               console.log("Selected Node = ", selectedNode)
               // Not getting updated in data?? TODO
               let oldParent = d.parent.data;
               d.data.parentId = selectedNode.data.id; // Update parentId
               oldParent.children.splice(oldParent.children.indexOf(d.data), 1); // Remove from previous parent
+              if(!selectedNode.data.children)
+                selectedNode.data.children = [];
               selectedNode.data.children.push(d.data); // Add to new parent
               console.log(window.localRoot);
               updateTree(window.localRoot);
@@ -129,9 +131,9 @@ var dragListener = d3.drag()
               endDrag(d, this, false);
             }
           }
-          else {
-            openTab(d.data)
-          }
+          // else {
+          //   openTab(d)
+          // }
       });
 
 var defs = g.append("defs");
@@ -214,7 +216,7 @@ baseSvg.call(zoomer)
   .on('wheel', function(event, d) {
     if(event.ctrlKey)
     {
-    console.log("event with ctrl key pressed", event);
+    // console.log("event with ctrl key pressed", event);
     event.preventDefault();
     }
     zoom(event)}
@@ -234,7 +236,7 @@ function zoom(event) {
     currentPos.y = currentPos.y + event.sourceEvent.movementY * currentZoom
   }
   else if(event.transform) { // Actual zoom
-    console.log("Actual Zoom ", event);
+    // console.log("Actual Zoom ", event);
 
     currentZoom = event.transform.k
     currentPos = {x: event.transform.x, y: event.transform.y}
@@ -339,7 +341,6 @@ function drawTree(source) {
       }
     })
 
-    console.log("Root after toggle fiasco: ", window.currentRoot);
     const tree = treeLayout(window.currentRoot)
     const links = tree.links()
     allLinks = links;
@@ -372,7 +373,7 @@ function drawTree(source) {
       {
         title: "Copy URL",
         action: function(event,d,elem) {
-          console.log("just to check d",elem)
+          // console.log("just to check d",elem)
           var promise = navigator.clipboard.writeText(elem.data.url);
         }
       },
@@ -467,6 +468,10 @@ function drawTree(source) {
         .attr('ry', '10')
         .attr('height', tabHeight)
         .on('click', function(event,d) {
+          openTab(d);
+          // Get url of clicked tab
+        })
+        .on('dblclick', function(event,d) {
           openTab(d);
           // Get url of clicked tab
         })
@@ -566,6 +571,7 @@ function drawTree(source) {
           // console.log("yes fuck you")
 
           // Remove tab from browser
+          console.log("Deleted tab ", d.data.id);
           chrome.tabs.remove(d.data.id);
 
           // Remove children from browser
@@ -807,7 +813,7 @@ document.querySelectorAll('.drop').forEach(item => {
 
 
 function openTab(tab) {
-
+  // console.log("Opening tab ", tab);
   chrome.tabs.query({'url': tab.data.url}, function(tabs) {
     // If exists
     if(tabs.length > 0) {
