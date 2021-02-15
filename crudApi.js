@@ -60,7 +60,7 @@ function checkLastSession() {
 }
 
 function dataToLocalRoot() {
-  console.log("Data = ", data);
+  // console.log("Data = ", data);
   // For each tab, if it's a root (i.e. it doesn't have a parent),
   // Then add it to the list of roots
   // Else, Find its parent and insert the tab in the parent's children list.
@@ -139,17 +139,17 @@ function loadWindowList(addCurrentSession) {
 
 function addNewTab(tab) {
   // Check if this url is already in one of our tabs in data
-  console.log("Checking new tab ", tab.url, " with id ", tab.id);
-  for(let [id, tabObj] of Object.entries(data)) {
-    // console.log("Checking existing tab ", tabObj.url, " with id ", tabObj.id);
-    if(tabObj.url === tab.url || tabObj.pendingUrl === tab.url) {
-      console.log("Updating ", tab.title, " s id to ", tab.id);
-      tabObj.id = tab.id;
-      console.log("New id: ", tabObj.id);
-      console.log("Whole root: ", window.localRoot);
-      return;
-    }
-  };
+  // console.log("Checking new tab ", tab.url, " with id ", tab.id);
+  // for(let [id, tabObj] of Object.entries(data)) {
+  //   // console.log("Checking existing tab ", tabObj.url, " with id ", tabObj.id);
+  //   if(tabObj.url === tab.url || tabObj.pendingUrl === tab.url) {
+  //     console.log("Updating ", tab.title, " s id to ", tab.id);
+  //     tabObj.id = tab.id;
+  //     console.log("New id: ", tabObj.id);
+  //     console.log("Whole root: ", window.localRoot);
+  //     return;
+  //   }
+  // };
   let tabObj = {  "id": tab.id,
                   "title": tab.title || '',
                   "parentId": tab.openerTabId || '',
@@ -211,9 +211,11 @@ function updateTab(tabId, changeInfo) {
 }
 
 function removeSubtree(tabId) {
-  // console.log("Data before removal: ", data)
+  // console.log("Data before removal: ", data[tabId]);
   let removedTab = data[tabId]
   delete data[tabId];
+  // console.log("Data before removal: ", removedTab);
+
   // Remove children from data
   let i=0;
   traverse(removedTab,
