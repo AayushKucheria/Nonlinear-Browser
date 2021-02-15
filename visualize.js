@@ -101,7 +101,7 @@ var dragListener = d3.drag()
         .on("end", function(e,d) {
           // mouse up/release
 
-          console.log("end", clickFlag)
+          // console.log("end", clickFlag)
 
           if(clickFlag) {
             // console.log("adfadfda")
@@ -122,7 +122,7 @@ var dragListener = d3.drag()
               if(!selectedNode.data.children)
                 selectedNode.data.children = [];
               selectedNode.data.children.push(d.data); // Add to new parent
-              console.log(window.localRoot);
+              // console.log(window.localRoot);
               updateTree(window.localRoot);
 
               endDrag(d, this, true);
@@ -323,7 +323,7 @@ function delete_tab(node) {
 
 function drawTree(source) {
   // Fnon.Wait.Ripple('Loading tree');
-  console.log("Drawing tree ", window.currentRoot);
+  // console.log("Drawing tree ", window.currentRoot);
 
   traverse(window.currentRoot,
     function(d) {
@@ -583,11 +583,11 @@ function drawTree(source) {
           }
 
           // Logging
-          console.log("Removed ", d, " and ", removeChildren, " from chrome.")
+          // console.log("Removed ", d, " and ", removeChildren, " from chrome.")
           // Remove subtree from nonlinear
           removeSubtree(d.data.id);
           // exitStuff();
-          console.log("localRoot children: ", localRoot.children)
+          // console.log("localRoot children: ", localRoot.children)
       });
 
       count = 0;
@@ -762,13 +762,13 @@ var floater = function() {
 //   })
 // }
 function toggleChildren(d) {
-  console.log("Data before toggle: ", d);
+  // console.log("Data before toggle: ", d);
   if(d.children) {
 
     d.data.toggle = true;
     d._children = d.children;
     d.children = null;
-    console.log("Data after toggle: ", d);
+    // console.log("Data after toggle: ", d);
   }
   else if(d._children) {
     d.data.toggle = false;
