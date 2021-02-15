@@ -15,65 +15,52 @@ function checkLastSession() {
   {
     isRefreshed = false; // dont refresh
   }
-
-  var current_url = window.location.search;
-  const urlParams = new URLSearchParams(current_url);
-  const tree_id = urlParams.get('tree');
-  const user_id = urlParams.get('user');
   var current_tree;
-
-  // If loaded tree
-  // TODO sync with data
-  if(tree_id && user_id) {
-    isCurrent = false;
-    fetchTree(user_id, tree_id)
-  }
-  else {
   // Fnon.Dialogue.Init({ closeButton: true })
-    lastSession = JSON.parse(window.localStorage.getItem('user'));
-    // lastSession = lastSession.children;
-    if(lastSession) {
-      if(!isRefreshed) {//not Refreshed
-        console.log("Saved session: ", lastSession);
+  lastSession = JSON.parse(window.localStorage.getItem('user'));
+  // lastSession = lastSession.children;
+  if(lastSession) {
+    if(!isRefreshed) {//not Refreshed
+      // console.log("Saved session: ", lastSession);
 
-        Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
-        () => { // Merge with current session
-          for(let [id, tabObj] of Object.entries(lastSession)) {
-            if(!data[id]) {
-              tabObj.children = []; // Objects get children when converted to localRoot, doing it before will fuck stuff up.
-              data[id] = tabObj;
-            }
-          }
-          loadWindowList(true); // Merge
-        },
-        () => { // Don't restore
-          console.log("Not refreshed and don't restore previous session.")
-          loadWindowList(true);
-        });
-      }
-      else { // Refreshed. Restore previous tree without current Session
-        console.log("Refreshed. Only restore previous session")
-
+      Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
+      () => { // Merge with current session
         for(let [id, tabObj] of Object.entries(lastSession)) {
           if(!data[id]) {
             tabObj.children = []; // Objects get children when converted to localRoot, doing it before will fuck stuff up.
             data[id] = tabObj;
           }
         }
-              //;return tab.children && tab.children.length > 0 ? tab.children : null;}
-        console.log("Data after refresh: ", data);
-        loadWindowList(false);
+        loadWindowList(true); // Merge
+      },
+      () => { // Don't restore
+        // console.log("Not refreshed and don't restore previous session.")
+        loadWindowList(true);
+      });
+    }
+    else { // Refreshed. Restore previous tree without current Session
+      // console.log("Refreshed. Only restore previous session")
+
+      for(let [id, tabObj] of Object.entries(lastSession)) {
+        if(!data[id]) {
+          tabObj.children = []; // Objects get children when converted to localRoot, doing it before will fuck stuff up.
+          data[id] = tabObj;
+        }
       }
+            //;return tab.children && tab.children.length > 0 ? tab.children : null;}
+      // console.log("Data after refresh: ", data);
+      loadWindowList(false);
     }
-    else {
-      console.log('No session stored. Creating new');
-      // No session stored. Creating new.
-      loadWindowList(true);
-    }
+  }
+  else {
+    // console.log('No session stored. Creating new');
+    // No session stored. Creating new.
+    loadWindowList(true);
   }
 }
 
 function dataToLocalRoot() {
+  console.log("Data = ", data);
   // For each tab, if it's a root (i.e. it doesn't have a parent),
   // Then add it to the list of roots
   // Else, Find its parent and insert the tab in the parent's children list.
@@ -91,10 +78,18 @@ function dataToLocalRoot() {
   localStore();
   initializeTree(window.localRoot)
 }
+
+function localRootToData() {
+  traverse(window.localRoot.children[localRoot.children.length - 1],
+  function(d) {
+    data[d.id] = d;
+  },
+  function(d) {
+    return d.children
+  });
+}
 // Load tree from scratch
 function loadWindowList(addCurrentSession) {
-  if(!isCurrent) return;
-
   // Get windows + tabs data from chrome api
   if(addCurrentSession) {
     chrome.windows.getAll({ populate: true }, function(windowList) {
@@ -143,8 +138,18 @@ function loadWindowList(addCurrentSession) {
 };
 
 function addNewTab(tab) {
-  if(!isCurrent) return;
-
+  // Check if this url is already in one of our tabs in data
+  console.log("Checking new tab ", tab.url, " with id ", tab.id);
+  for(let [id, tabObj] of Object.entries(data)) {
+    // console.log("Checking existing tab ", tabObj.url, " with id ", tabObj.id);
+    if(tabObj.url === tab.url || tabObj.pendingUrl === tab.url) {
+      console.log("Updating ", tab.title, " s id to ", tab.id);
+      tabObj.id = tab.id;
+      console.log("New id: ", tabObj.id);
+      console.log("Whole root: ", window.localRoot);
+      return;
+    }
+  };
   let tabObj = {  "id": tab.id,
                   "title": tab.title || '',
                   "parentId": tab.openerTabId || '',
@@ -206,7 +211,7 @@ function updateTab(tabId, changeInfo) {
 }
 
 function removeSubtree(tabId) {
-  console.log("Data before removal: ", data)
+  // console.log("Data before removal: ", data)
   let removedTab = data[tabId]
   delete data[tabId];
   // Remove children from data
@@ -232,7 +237,7 @@ function removeSubtree(tabId) {
 }
 
 function localStore() {
-  console.log("Storing data = ", data);
+  // console.log("Storing data = ", data);
   // let temp = {"id": "Root", "title": "Current Session", "read":false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
   //
   // temp.children = data;

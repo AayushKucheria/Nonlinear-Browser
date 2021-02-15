@@ -6,8 +6,6 @@ function initToast() {
     position: 'center-bottom',
     animation: 'slide-bottom'
   });
-
-
 }
 
 // async function fetchUser(user_id)
@@ -28,21 +26,15 @@ function initToast() {
  function fetchTree(user_id,tree_id)
 {
   // user=firebase.auth().currentUser;
-  console.log("User id = ", user_id);
-  console.log("Tree id = ", tree_id);
   var tree = database.ref().child('users').child(user_id).child('tree').child(tree_id);
 
   tree.once('value').then((snapshot) => {
-  console.log("afand", snapshot.val())
-  current_tree = snapshot.val();
+  console.log("Loading tree: ", snapshot.val())
 
-  window.localRoot[tree_id] = current_tree;
-  initializeTree(window.localRoot[tree_id]);
-  document.title = current_tree.title;
+  window.localRoot.children.push(snapshot.val());
+  localRootToData();
+  initializeTree(window.localRoot);
 
-  // console.log("window.localRoot after implementing dictionary ", tree_dict[tree_id])
-  // initializeTree(tree_dict[tree_id]);
-  // document.title = tree_dict[tree_id].title;
 })
 }
 
