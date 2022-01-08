@@ -40,7 +40,7 @@ var uiConfig = {
 			customParameters: {
 				prompt: 'select_account'
 			},
-			clientId: '693229853662-0ib0k3hru04sb2da03e6nltso00at1ur.apps.googleusercontent.com'
+			clientId: 'yooo.apps.googleusercontent.com'
 		},
 		firebase.auth.EmailAuthProvider.PROVIDER_ID
 		// If yes enable on firebase console
