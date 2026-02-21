@@ -56,33 +56,24 @@ Chrome 139 removes MV2 support entirely. This is the highest-priority work and t
 
 ---
 
-## Phase 2 — Firebase / Auth (Critical, currently non-functional)
+## Phase 2 — Cloud Sync / Auth ✅ DONE (replaced with localStorage)
 
-### 2.1 Fill in real Firebase config
-- [ ] Create a Firebase project (or reuse existing) and get the real `firebaseConfig` object
-- [ ] Replace the empty `firebaseConfig = {}` in `firebase.js` with real values
-- [ ] Store secrets appropriately (not hardcoded if this goes public)
+Firebase was removed entirely and replaced with a simple `localStorage`-based implementation.
 
-### 2.2 Fix hardcoded placeholder client ID
-- [ ] `firebase.js:43` — `clientId: 'yooo.apps.googleusercontent.com'` → real OAuth client ID
+### What was removed
+- `firebase.js`, `authUI.js`, `authUI.html` — deleted
+- `lib/firebase-app.js`, `lib/firebase-auth.js`, `lib/firebase-database.js`, `lib/firebase-ui-auth.js` (~621 KB) — deleted
+- `oauth2` and `key` fields from `manifest.json` — removed
+- `identity` permission from `manifest.json` — removed
+- Sign in / Log out nav items from `tabs_api.html` — removed
 
-### 2.3 Upgrade Firebase SDK (8.2.2 → v11 modular)
-- [ ] Replace vendored Firebase 8.x files in `lib/` with modular SDK imports
-- [ ] Rewrite `firebase.js` using the modular API (`import { initializeApp } from 'firebase/app'` etc.)
-  - `firebase.initializeApp(config)` → `initializeApp(config)`
-  - `firebase.auth()` → `getAuth(app)`
-  - `firebase.database()` → `getDatabase(app)`
-  - `firebase.auth().onAuthStateChanged(...)` → `onAuthStateChanged(auth, ...)`
-  - `firebase.auth().signOut()` → `signOut(auth)`
-- [ ] Upgrade FirebaseUI from 4.6.1 to current (6.x) or replace with custom sign-in UI (FirebaseUI has had slow updates)
-- [ ] Note: modular SDK requires a bundler (Rollup/Vite/esbuild). This is a good time to add a minimal build step.
-
-### 2.4 Fix swapped delete/rename icons in `firebase.js`
-- [x] `icon1` has `fa-pencil-square-o` class but runs delete logic — swapped onclick bodies so pencil=rename, trash=delete
-- [x] `icon2` has `fa-trash-o` class but runs rename logic — same
-
-### 2.5 `firebase.js` — `chrome.extension.getURL` in `saveTree`
-- [x] `chrome.extension.getURL("authUI.html")` → `chrome.runtime.getURL("authUI.html")` (missed from Phase 1)
+### What replaced it
+- [x] `savedTrees.js` — localStorage-based save/load/rename/delete for named tree snapshots
+  - `saveTree()` — prompts for title, deep-clones `window.localRoot`, stores in `localStorage['savedTrees']`
+  - `getSavedTrees()` — populates the "Saved Trees" dropdown from localStorage
+  - `fetchTree(id)` — loads a saved snapshot into the current tree
+  - Rename (pencil) and delete (trash) icons work the same as before
+- [x] No sign-in required; trees are saved locally per browser profile
 
 ---
 
@@ -160,10 +151,8 @@ Chrome 139 removes MV2 support entirely. This is the highest-priority work and t
 ## Suggested Order of Attack
 
 ```
-✅ Phase 1 (MV3) → ✅ Phase 3 (bugs) → Phase 2 (Firebase) → Phase 4 (deprecations) → Phase 5 (build)
+✅ Phase 1 (MV3) → ✅ Phase 3 (bugs) → ✅ Phase 2 (localStorage) → Phase 4 (deprecations) → Phase 5 (build)
 ```
-
-Phase 2 (Firebase modular) naturally leads into Phase 5 (bundler) since you'll need one anyway.
 
 ---
 
@@ -176,10 +165,11 @@ Phase 2 (Firebase modular) naturally leads into Phase 5 (bundler) since you'll n
 | `close.js` | 1.3 ✅ |
 | `tabs_api.js` | 1.4, 1.5 ✅ |
 | `tabs_api.html` | 1.5, 1.6, 5.1 ✅ |
-| `authUI.html` | 1.6, 2.3 (1.6 ✅) |
-| `lib/` | 1.6 ✅ (new directory) |
-| `firebase.js` | 2.1, 2.2, 2.3, 2.4, 3.8 (3.8 ✅) |
-| `authUI.js` | 2.3 |
+| `authUI.html` | 1.6 ✅, 2 (deleted) ✅ |
+| `lib/` | 1.6 ✅ (Firebase files removed in Phase 2) |
+| `firebase.js` | 2 (deleted) ✅ |
+| `authUI.js` | 2 (deleted) ✅ |
+| `savedTrees.js` | 2 ✅ (new file) |
 | `context_menu.js` | 3.1, 3.2 ✅ |
 | `visualize.js` | 3.3, 3.4, 3.6, 4.1, 4.2, 4.4 (3.3–3.6 ✅) |
 | `crudApi.js` | 3.5, 5.4 (3.5 ✅) |

@@ -23,21 +23,6 @@ function initToast() {
 //   })};
 
 
- function fetchTree(user_id,tree_id)
-{
-  // user=firebase.auth().currentUser;
-  var tree = database.ref().child('users').child(user_id).child('tree').child(tree_id);
-
-  tree.once('value').then((snapshot) => {
-  console.log("Loading tree: ", snapshot.val())
-
-  window.localRoot.children.push(snapshot.val());
-  localRootToData();
-  initializeTree(window.localRoot);
-
-})
-}
-
 // ================ Wrapping Tab Titles
 function wrapText(text) {
   let words = text.split(/(?=[\s\\/%,\.])/),
@@ -85,14 +70,3 @@ function traverse(parent, traverseFn, childrenFn) {
   }
 }
 
-function loggedInState() {
-  document.querySelector('#log_in').style.display = 'none';
-  document.querySelector('#log_out').style.display = 'block';
-  Fnon.Hint.Success('Signed in successfully!');
-};
-
-function loggedOutState() {
-  document.querySelector('#log_in').style.display = 'block';
-  document.querySelector('#log_out').style.display = 'none';
-  Fnon.Hint.Success('Logged out successfully!');
-}

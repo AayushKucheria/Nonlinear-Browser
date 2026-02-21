@@ -2,7 +2,7 @@
 
 Chrome Extension (Manifest V3) that visualises browser tabs as an interactive D3 tree.
 No build system. No bundler. No module format. Plain script tags loaded by the browser.
-Third-party JS (D3, Firebase, fnon, jQuery) is vendored into `lib/` — MV3 prohibits remote scripts.
+Third-party JS (D3, fnon, jQuery) is vendored into `lib/` — MV3 prohibits remote scripts.
 
 ---
 
@@ -26,11 +26,11 @@ npm test           # Jest 29
 | `tabs_api.js` | Bootstraps the UI; receives tab events from the service worker via `chrome.runtime.onMessage` and drives the tree |
 | `close.js` | UI page unload handler — clears badge via `chrome.action`, saves session timestamp |
 | `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD functions |
-| `helperFunctions.js` | `traverse`, `wrapText`, `visualLength`, toast/auth helpers |
+| `helperFunctions.js` | `traverse`, `wrapText`, `visualLength` |
 | `visualize.js` | D3 rendering — `drawTree`, `updateTree`, `initializeTree`; also owns `floaterActive` drag glow |
 | `context_menu.js` | Right-click context menu |
-| `firebase.js` / `authUI.js` | Firebase auth & cloud sync (optional path) |
-| `lib/` | Vendored JS: `d3.v6.min.js`, `firebase-*.js`, `firebase-ui-auth.js`, `fnon.min.js`, `jquery-3.5.1.min.js` |
+| `savedTrees.js` | localStorage-based tree snapshots — `saveTree`, `getSavedTrees`, `fetchTree` |
+| `lib/` | Vendored JS: `d3.v6.min.js`, `fnon.min.js`, `jquery-3.5.1.min.js` |
 
 **Global state (set on `window`):**
 - `window.localRoot` — root node of the tab tree (`{id, title, children, …}`)
@@ -67,7 +67,6 @@ valid 4-element array — all text lands on line 0.
 - `global.chrome` — MV3 stubs for tabs, windows, action, runtime (replaces old browserAction/extension stubs)
 - `global.d3` — empty object (prevents ReferenceError)
 - `global.Fnon` — stub for toast/dialog library
-- `global.firebase` — stub
 - `global.updateTree`, `global.initializeTree`, `global.drawTree` — `jest.fn()`
 - `global.tabWidth = 200`, `global.innerWidth = 1280`, `global.innerHeight = 720`
 - `<span id="ruler">` injected into jsdom body
@@ -93,7 +92,6 @@ valid 4-element array — all text lands on line 0.
 - `floaterActive` flag stopping the drag-glow animation
 - `.interrupt()` calls stopping in-flight D3 transitions
 - Service worker ↔ UI message passing (`sendToUI` / `chrome.runtime.onMessage`)
-- Firebase `_unsubscribeAuth` teardown
 - `removeEventListener` for `click.contextMenu`
 
 See `FIXES.md` for the full fix plan and remaining work.

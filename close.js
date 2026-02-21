@@ -11,6 +11,5 @@ window.onunload = function() {
     chrome.tabs.onUpdated.removeListener(window._tabListeners.onUpdated);
     chrome.tabs.onActivated.removeListener(window._tabListeners.onActivated);
   }
-  if (window._unsubscribeAuth) window._unsubscribeAuth();
   chrome.action.setBadgeText({text: ''});
 }

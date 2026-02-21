@@ -2,7 +2,7 @@
   "name": "Nonlinear Browser",
   "description": "Representing browser tabs in a tree for contextual thought",
   "version": "0.5.0",
-  "permissions": ["tabs", "identity", "notifications", "storage"],
+  "permissions": ["tabs", "notifications", "storage"],
   "background": {
     "service_worker": "background.js"
   },
@@ -13,13 +13,5 @@
   "manifest_version": 3,
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
-  },
-  "oauth2": {
-    "client_id": "todo.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/userinfo.email",
-      "https://www.googleapis.com/auth/userinfo.profile"
-    ]
-  },
-  "key": "todo"
+  }
 }

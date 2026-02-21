@@ -6,14 +6,6 @@
 <head>
   <meta charset="utf-8"/>
 
-  <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
-  <script defer src="lib/firebase-app.js"></script>
-
-  <!-- Add Firebase products that you want to use -->
-  <script defer src="lib/firebase-auth.js"></script>
-  <script defer src="lib/firebase-database.js"></script>
-  <script src="lib/firebase-ui-auth.js"></script>
-  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 
@@ -43,8 +35,6 @@
       </li>
       <li><a href="mailto:nonlinearbrowser@gmail.com" target="_blank" rel="noopener noreferrer">Contact</a></li>
       <li><a href="https://trello.com/b/2cBWPaJ4/nonlinear-roadmap" target="_blank" rel="noopener noreferrer">Roadmap</a></li>
-      <li id="log_in"><a href="authUI.html" target="_blank" rel="noopener noreferrer">Sign up/Log in (required to save trees)</a></li>
-      <li id="log_out" style="display:none"><a href="#">Log out</a></li>
    	</ul>
   </nav>
 
@@ -67,7 +57,7 @@
     <script src='crudApi.js'></script>
     <script src='close.js'></script>
     <script src="tabs_api.js"></script>
-    <script defer src="firebase.js"></script>
+    <script src="savedTrees.js"></script>
 
 
   </body>
