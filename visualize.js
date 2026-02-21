@@ -24,6 +24,7 @@ var tree_dict = {};
 var gotoChecker = false;
 var clickFlag;
 var dragCommenced = false;
+var floaterActive = false;
 
 
 
@@ -82,10 +83,10 @@ var dragListener = d3.drag()
           // console.log("clickFlag", clickFlag)
           d3.select(this).lower();
 
-          d3.selectAll(this).select('rect').transition().duration(animationDuration)
+          d3.selectAll(this).select('rect').interrupt().transition().duration(animationDuration)
           .style("filter" , "url(#drop-shadow)") //shadow while dragging
 
-          floater(); //shadow transition effect
+          if (!floaterActive) { floaterActive = true; floater(); } //shadow transition effect
           if(d === window.currentRoot) return;
 
           if(dragCommenced) {
@@ -107,7 +108,7 @@ var dragListener = d3.drag()
             // console.log("adfadfda")
             clickFlag = false;
             dragCommenced = false;
-            d3.select(this).select('rect').transition().duration(animationDuration)
+            d3.select(this).select('rect').interrupt().transition().duration(animationDuration)
               .style('filter', 'unset')// stop shadow after having dragged
 
             if(d == window.currentRoot) return;
@@ -242,8 +243,8 @@ function zoom(event) {
     currentPos = {x: event.transform.x, y: event.transform.y}
   }
   else {
-      currentPos.x = currentPos.x + event.wheelDeltaX * currentZoom
-      currentPos.y = currentPos.y + event.wheelDeltaY * currentZoom
+      currentPos.x = currentPos.x + (-event.deltaX) * currentZoom
+      currentPos.y = currentPos.y + (-event.deltaY) * currentZoom
     // zoomer.translateBy(g, event.wheelDeltaX, event.wheelDeltaY);
   }
   g.attr('transform', 'translate(' + [currentPos.x, currentPos.y] + ')scale(' + currentZoom + ')')
@@ -289,7 +290,7 @@ var updateTempConnector = function() {
     link.enter().append("path")
         .attr("class", "templink")
         .attr("d", function(d) {
-          d3.linkVertical()
+          return d3.linkVertical()
             .x(d.x)
             .y(d.y)
         })
@@ -478,7 +479,7 @@ function drawTree(source) {
 
       nodeEnter.append('circle')
         .attr('class', 'ghostCircle')
-        .attr('radius', 200)
+        .attr('r', 200)
         .attr('opacity', 1)
         .style('fill', 'red')
           .attr('pointer-events', 'mouseover')
@@ -598,6 +599,7 @@ function drawTree(source) {
     function updateStuff() {
       var count = 0;
       nodeUpdate = nodeEnter.merge(node)
+        .interrupt()
         .transition()
         .duration(duration)
         .ease(d3.easeBackOut) // p2
@@ -651,7 +653,7 @@ function drawTree(source) {
         })
 
       count = 0;
-      linkUpdate = linkEnter.merge(link).transition()
+      linkUpdate = linkEnter.merge(link).interrupt().transition()
         .duration(duration)
         .attr('d', function(d) {
           return linkPathGenerator(d);
@@ -688,6 +690,7 @@ var dest_min = 2, dest_max = 10, dest = dest_min;
 
 //Causes the shadow transition
 var floater = function() {
+  if (!floaterActive) return;
   if(dest === dest_min) {
     dest = dest_max;
   }
@@ -730,6 +733,8 @@ var floater = function() {
   }
 
   function endDrag(d, domNode, onNode) {
+    floaterActive = false;
+    if (feOffset) feOffset.interrupt();
     selectedNode = null;
     d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
     d3.select(domNode).attr('class','node');

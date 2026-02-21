@@ -5,45 +5,34 @@ function bootStrap() {
   document.title = window.localRoot.title;
   // setup();
 }
-chrome.tabs.onCreated.addListener(function(tab) {
-  if(tab.url === chrome.extension.getURL('tabs_api.html')) {
-    window.extensionId = tab.id;
 
+window.extensionId;
+
+// Receive tab events forwarded from the service worker
+chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+  switch (message.type) {
+    case 'tabCreated':
+      var tab = message.tab;
+      if (tab.url === chrome.runtime.getURL('tabs_api.html')) {
+        window.extensionId = tab.id;
+      }
+      addNewTab(tab);
+      break;
+    case 'tabRemoved':
+      if (data[message.tabId]) {
+        data[message.tabId].deleted = true;
+        localStore();
+        drawTree(window.localRoot);
+      }
+      break;
+    case 'tabUpdated':
+      updateTab(message.tabId, message.changeInfo);
+      break;
+    case 'tabActivated':
+      break;
   }
-  addNewTab(tab);
 });
-chrome.tabs.onRemoved.addListener(function(tabId) {
-  // TODO BUG not working
-  if(tabId === window.extensionId) {
-    chrome.browserAction.setBadgeText({text: ''});
-  }
-  if(data[tabId]) {
-    data[tabId].deleted = true;
-    localStore();
-    drawTree(window.localRoot);
-  }
-});
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo) {
-  updateTab(tabId, changeInfo)
-})
-// chrome.windows.onBoundsChanged.addListener(function(wId) {
-//   // update(window.currentRoot);
-// });
-// let currentTabId;
-chrome.tabs.onActivated.addListener(function(tabId) {
-  // if(tabId == extensionTabID) // Reached extension, highlight previous tab
-    // highlightTab(currentTabId) // Previous value
-    // currentTabId = tabId; // Update to current value
-})
+
 document.addEventListener('DOMContentLoaded', function() {
   bootStrap();
-
 });
-// $(document).ready(bootStrap());
-// document.querySelector('#log_out').addEventListener('click', () => {
-//   chrome.runtime.sendMessage({ message: 'log_out'}, function(response) {
-//     if(response.message === 'success') {
-//       // Do something.
-//     }
-//   })
-// })

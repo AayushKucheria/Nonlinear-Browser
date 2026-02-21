@@ -72,7 +72,7 @@ var uiConfig = {
  */
 function initApp() {
 	// Listen for auth state changes.
-	firebase.auth().onAuthStateChanged(function(user) {
+	window._unsubscribeAuth = firebase.auth().onAuthStateChanged(function(user) {
 		if (user) {
 			loggedInState();
 			checkUser(user);
@@ -154,7 +154,7 @@ function getSavedTrees(user) {
 
 	tree.once('value').then((snapshot) => {
 		snapshot.forEach(function(childSnapshot) {
-			newElement = document.createElement('li')
+			let newElement = document.createElement('li')
 			var temp_id = "tree" + i;
 			var key = childSnapshot.key;
 			newElement.id = key
@@ -170,7 +170,11 @@ function getSavedTrees(user) {
       var div = document.createElement("div");
       div.id = "div";
 			// console.log("childTree?", childTree)
-			newElement.innerHTML = '<a href="#" id="' + temp_id + '">' + childTree.title + '</a>'
+			var a = document.createElement('a');
+			a.href = '#';
+			a.id = temp_id;
+			a.textContent = childTree.title;
+			newElement.appendChild(a);
       newElement.onclick = function() {
 				console.log("Fetching ", this.id, " for ", user.uid);
 				fetchTree(user.uid, this.id)

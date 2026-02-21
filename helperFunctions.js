@@ -53,7 +53,7 @@ function wrapText(text) {
       res[++line] += words[word++];
     }
   }
-  if(res[4])
+  if(word < words.length)
     res[3] = res[3].substring(0, res[3].length-3) + "..."
   return res;
 }
@@ -64,7 +64,7 @@ function visualLength(text) {
   // ruler.style.fontWeight = 500;
   // ruler.style.fontFamily = 'Roboto'
   ruler.visibility = 'hidden';
-  ruler.innerHTML = text;
+  ruler.textContent = text;
   return ruler.offsetWidth;
 }
 

@@ -1,45 +1,47 @@
+// MV3 Service Worker
 
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-// var openedTabId;
-// var openedWindowId;
-window.extensionId;
-var initial=true;
-
-window.onbeforeunload = null;
-
-
-chrome.browserAction.onClicked.addListener(function(tab) {
-  chrome.tabs.query({'url': chrome.extension.getURL("tabs_api.html")}, function(tabs) {
-    if(tabs.length > 0) {
-      window.extensionId = tabs[0].id;
-      chrome.tabs.update(tabs[0].id, {
-      active: true
-      });
-    chrome.windows.update(tabs[0].windowId, {
-      focused: true
-      });
-    }
-    else {
-      chrome.tabs.create({url:chrome.extension.getURL("tabs_api.html")});
-
-      chrome.browserAction.setBadgeBackgroundColor({color: '#4688F1'});
-      chrome.browserAction.setBadgeText({text: 'ON'});
+chrome.action.onClicked.addListener(function(tab) {
+  chrome.tabs.query({url: chrome.runtime.getURL("tabs_api.html")}, function(tabs) {
+    if (tabs.length > 0) {
+      chrome.tabs.update(tabs[0].id, {active: true});
+      chrome.windows.update(tabs[0].windowId, {focused: true});
+    } else {
+      chrome.tabs.create({url: chrome.runtime.getURL("tabs_api.html")});
+      chrome.action.setBadgeBackgroundColor({color: '#4688F1'});
+      chrome.action.setBadgeText({text: 'ON'});
     }
   });
 });
 
-
-
-// Works
 chrome.runtime.onStartup.addListener(function() {
-  chrome.tabs.create({"url": 'tabs_api.html'});
+  chrome.tabs.create({url: chrome.runtime.getURL('tabs_api.html')});
 });
 
-window.addEventListener('beforeunload', function(e) {
-  // console.log("e", e)
-  var date = new Date(); //current Date object
-  window.sessionStorage.setItem('time', date.getTime());
+// Forward tab events to the UI page
+chrome.tabs.onCreated.addListener(function(tab) {
+  sendToUI({type: 'tabCreated', tab: tab});
+});
 
-})
+chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
+  sendToUI({type: 'tabRemoved', tabId: tabId});
+});
+
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+  sendToUI({type: 'tabUpdated', tabId: tabId, changeInfo: changeInfo});
+});
+
+chrome.tabs.onActivated.addListener(function(activeInfo) {
+  sendToUI({type: 'tabActivated', activeInfo: activeInfo});
+});
+
+function sendToUI(message) {
+  chrome.tabs.query({url: chrome.runtime.getURL("tabs_api.html")}, function(tabs) {
+    for (var i = 0; i < tabs.length; i++) {
+      chrome.tabs.sendMessage(tabs[i].id, message, function() {
+        if (chrome.runtime.lastError) {
+          // UI tab not ready yet — ignore
+        }
+      });
+    }
+  });
+}

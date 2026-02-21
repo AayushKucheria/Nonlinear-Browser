@@ -1,8 +1,16 @@
 window.onbeforeunload = function() {
+  var date = new Date();
+  window.sessionStorage.setItem('time', date.getTime());
   return "Would you really like to close your browser?";
 }
 
 window.onunload = function() {
-  chrome.browserAction.setBadgeText({text: ''});
-  return "Would you really like to close your browser?";
+  if (window._tabListeners) {
+    chrome.tabs.onCreated.removeListener(window._tabListeners.onCreated);
+    chrome.tabs.onRemoved.removeListener(window._tabListeners.onRemoved);
+    chrome.tabs.onUpdated.removeListener(window._tabListeners.onUpdated);
+    chrome.tabs.onActivated.removeListener(window._tabListeners.onActivated);
+  }
+  if (window._unsubscribeAuth) window._unsubscribeAuth();
+  chrome.action.setBadgeText({text: ''});
 }

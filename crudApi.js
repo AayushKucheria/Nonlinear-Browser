@@ -80,7 +80,7 @@ function dataToLocalRoot() {
 }
 
 function localRootToData() {
-  traverse(window.localRoot.children[localRoot.children.length - 1],
+  traverse(window.localRoot.children[window.localRoot.children.length - 1],
   function(d) {
     data[d.id] = d;
   },
@@ -108,7 +108,7 @@ function loadWindowList(addCurrentSession) {
             tabInData.deleted = currentTab.deleted;
             tabInData.read = currentTab.read;
             tabInData.favIconUrl = currentTab.favIconUrl || '';
-            tabInData.parentId = currentTab.openedTabId ? currentTab.openerTabId : data[currentTab.id].parentId
+            tabInData.parentId = currentTab.openerTabId ? currentTab.openerTabId : data[currentTab.id].parentId
           }
           else {
             data[currentTab.id] = { "id": currentTab.id,
@@ -184,6 +184,7 @@ function addNewTab(tab) {
 function updateTab(tabId, changeInfo) {
   if(!isCurrent) return;
   let updatedTab = data[tabId];
+  if (!updatedTab) return;
 
   // console.log("change info", changeInfo)
   var displayChanged = false
@@ -205,7 +206,7 @@ function updateTab(tabId, changeInfo) {
   }
 
   if(displayChanged) {
-    updateTree(localRoot);
+    updateTree(window.localRoot);
   }
   // Not changing localStore here, too many update requests
 }
