@@ -9,7 +9,7 @@ window.contextMenu = function(event, d, menu, openCallback) {
   d3.select('.contextMenu').remove();
 
   // Create div element that'll hold the context menu
-  d3.selectAll('contextMenu').data([1])
+  d3.selectAll('.contextMenu').data([1])
     .enter()
     .append('div')
       .attr('class', 'contextMenu')

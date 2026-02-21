@@ -240,20 +240,19 @@ describe('localRootToData', () => {
     expect(window.data['tab1']).toBe(child);
   });
 
-  test('traverses the last child and all its descendants', () => {
+  test('traverses all children and their descendants', () => {
     const grandchild = makeTab('gc');
     const child1     = makeTab('c1');
     const child2     = makeTab('c2');
     child2.children  = [grandchild];
 
-    window.localRoot.children = [child1, child2]; // child2 is last
+    window.localRoot.children = [child1, child2];
 
     localRootToData();
 
-    expect(window.data['c2']).toBe(child2);
-    expect(window.data['gc']).toBe(grandchild);
-    // child1 is NOT the last child — localRootToData only walks the last one
-    expect(window.data['c1']).toBeUndefined();
+    expect(window.data['c1']).toBeDefined();   // all siblings included
+    expect(window.data['c2']).toBeDefined();
+    expect(window.data['gc']).toBeDefined();
   });
 
   test('does nothing when localRoot.children is empty (no crash)', () => {

@@ -36,7 +36,7 @@ function getSavedTrees() {
     };
 
     var icon1 = document.createElement('i');
-    icon1.className = 'fa fa-pencil-square-o fa-lg';
+    icon1.textContent = '✏';
     icon1.onclick = function(e) {
       e.stopPropagation();
       var newTitle = prompt('Enter new name:');
@@ -53,7 +53,7 @@ function getSavedTrees() {
     };
 
     var icon2 = document.createElement('i');
-    icon2.className = 'fa fa-trash-o fa-lg';
+    icon2.textContent = '🗑';
     icon2.onclick = function(e) {
       e.stopPropagation();
       var treeName = tree.title;
@@ -77,7 +77,8 @@ function fetchTree(tree_id) {
   var tree = saved.find(function(t) { return t.id === tree_id; });
   if (!tree) return;
   console.log('Loading tree:', tree.title);
-  window.localRoot.children.push(tree.snapshot);
+  window.localRoot = tree.snapshot;
+  window.data = {};
   localRootToData();
   initializeTree(window.localRoot);
 }

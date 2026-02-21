@@ -80,12 +80,11 @@ function dataToLocalRoot() {
 }
 
 function localRootToData() {
-  traverse(window.localRoot.children[window.localRoot.children.length - 1],
-  function(d) {
-    data[d.id] = d;
-  },
-  function(d) {
-    return d.children
+  window.localRoot.children.forEach(function(child) {
+    traverse(child,
+      function(d) { data[d.id] = d; },
+      function(d) { return d.children; }
+    );
   });
 }
 // Load tree from scratch
