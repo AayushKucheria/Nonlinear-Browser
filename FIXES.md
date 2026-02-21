@@ -78,8 +78,11 @@ Chrome 139 removes MV2 support entirely. This is the highest-priority work and t
 - [ ] Note: modular SDK requires a bundler (Rollup/Vite/esbuild). This is a good time to add a minimal build step.
 
 ### 2.4 Fix swapped delete/rename icons in `firebase.js`
-- [ ] `icon1` has `fa-pencil-square-o` class but runs delete logic — swap the actions or swap the icon classes
-- [ ] `icon2` has `fa-trash-o` class but runs rename logic — same
+- [x] `icon1` has `fa-pencil-square-o` class but runs delete logic — swapped onclick bodies so pencil=rename, trash=delete
+- [x] `icon2` has `fa-trash-o` class but runs rename logic — same
+
+### 2.5 `firebase.js` — `chrome.extension.getURL` in `saveTree`
+- [x] `chrome.extension.getURL("authUI.html")` → `chrome.runtime.getURL("authUI.html")` (missed from Phase 1)
 
 ---
 

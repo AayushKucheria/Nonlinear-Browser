@@ -109,7 +109,7 @@ function saveTree(source) {
 
 	if (!user) {
 		chrome.tabs.create({
-			url: chrome.extension.getURL("authUI.html")
+			url: chrome.runtime.getURL("authUI.html")
 		}); //user needs to be signed in
 	} else {
 		checkUser(user);
@@ -187,22 +187,9 @@ function getSavedTrees(user) {
 			var icon1 = document.createElement('i');
       icon1.className += 'fa fa-pencil-square-o fa-lg'
 			icon1.onclick = function() {
-				let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
-				//deletes the current tree being selected
-				var treeName = icon1.parentNode.childNodes[0].innerText; // Gets text of li in div
-				Fnon.Ask.Danger('Are you sure you want to delete ' + treeName, 'Confirmation', 'Yes', 'No', (result) => {
-          console.log(result);
-					currentref.remove();
-					getSavedTrees(user);
-				});
-			}
-
-			var icon2 = document.createElement('i');
-      icon2.className += 'fa fa-trash-o fa-lg'
-			icon2.onclick = function() {
 				var newTitle = prompt('Enter new name: ')
 				var previousTitle = icon1.parentNode.childNodes[0].innerText; // Gets text of li in div
-				currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
+				let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
         if(newTitle) {
           currentref.update({
             title: newTitle
@@ -210,6 +197,19 @@ function getSavedTrees(user) {
           Fnon.Hint.Success('Renamed ' + previousTitle + ' to ' + newTitle + ' successfully.');
           getSavedTrees(user);
         }
+			}
+
+			var icon2 = document.createElement('i');
+      icon2.className += 'fa fa-trash-o fa-lg'
+			icon2.onclick = function() {
+				let currentref = database.ref().child('users').child(user.uid).child('tree').child(key);
+				//deletes the current tree being selected
+				var treeName = icon2.parentNode.childNodes[0].innerText; // Gets text of li in div
+				Fnon.Ask.Danger('Are you sure you want to delete ' + treeName, 'Confirmation', 'Yes', 'No', (result) => {
+          console.log(result);
+					currentref.remove();
+					getSavedTrees(user);
+				});
 			}
 
       div.appendChild(newElement);
