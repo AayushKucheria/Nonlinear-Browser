@@ -11,7 +11,7 @@ var currentTransform = d3.zoomIdentity;
 
 treeLayout = d3.tree()
   .nodeSize([tabWidth, tabHeight])
-  .separation(function(a, b) { return 1.5; });
+  .separation(function(a, b) { return 1.5; }); // 1.5× node width between siblings
 
 var baseDiv = d3.select('body').append('div')
   .classed('svg-container', true);
@@ -56,6 +56,8 @@ function initializeTree(localRoot) {
 
 function updateTree(localRoot) {
   window.currentRoot = d3.hierarchy(localRoot);
+  window.currentRoot.x0 = localRoot.x0;
+  window.currentRoot.y0 = localRoot.y0;
   drawTree(window.currentRoot);
 }
 
@@ -80,9 +82,9 @@ function drawTree(source) {
 
   const linkPathGenerator = d3.linkVertical()
     .x(d => d.x + tabWidth / 2)
-    .y(d => d.parent ? d.depth * 180 : d.depth * 180 + tabHeight);
+    .y(d => d.parent ? d.depth * 180 : d.depth * 180 + tabHeight); // 180px per depth level
 
-  descendants.forEach(d => d.y = d.depth * 180);
+  descendants.forEach(d => d.y = d.depth * 180); // vertical position = depth × row height
 
   var menu = [
     {
@@ -90,6 +92,7 @@ function drawTree(source) {
       action: function(event, d, elem) {
         var result = prompt('Enter new name: ');
         if (result) {
+          if (!data[elem.data.id]) return; // tab was closed while dialog was open
           elem.data.title = result;
           elem.data.lines = wrapText(result);
           drawTree(window.currentRoot);

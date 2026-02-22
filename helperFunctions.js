@@ -13,7 +13,7 @@ function wrapText(text) {
     res = ["", "", "", ""];
     var line=0, word=0;
   while(line < 4 && word < words.length) {
-    let limit = line < 2 ? 0.5 * window.tabWidth : 0.7 * window.tabWidth
+    let limit = line < 2 ? 0.5 * window.tabWidth : 0.7 * window.tabWidth // lines 0-1: 50% width; lines 2-3: 70%
     if((visualLength(res[line]) + visualLength(words[word])) < limit) {
       res[line] +=  " " + words[word++];
     }
@@ -28,7 +28,7 @@ function wrapText(text) {
 
 function visualLength(text) {
   var ruler = document.getElementById('ruler')
-  ruler.visibility = 'hidden';
+  ruler.style.visibility = 'hidden';
   ruler.textContent = text;
   return ruler.offsetWidth;
 }

@@ -76,7 +76,6 @@ function fetchTree(tree_id) {
   var saved = AppStorage.savedTrees.load();
   var tree = saved.find(function(t) { return t.id === tree_id; });
   if (!tree) return;
-  console.log('Loading tree:', tree.title);
   window.localRoot = tree.snapshot;
   window.data = {};
   localRootToData();

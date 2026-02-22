@@ -1,7 +1,6 @@
 window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "deleted":false, "toggle": false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
 var date = new Date();
 window.data = {};
-let isCurrent = true;
 
 function checkLastSession() {
 
@@ -138,19 +137,18 @@ function addNewTab(tab) {
 
   if(tabObj.parentId === '' || tabObj.pendingUrl === "chrome://newtab/") {
     tabObj.parentId = '';
-    localRoot.children.push(tabObj);
-    updateTree(localRoot)
+    window.localRoot.children.push(tabObj);
+    updateTree(window.localRoot)
   }
   else {
     const parentElement = data[tabObj.parentId];
     parentElement.children.push(tabObj);
-    updateTree(localRoot);
+    updateTree(window.localRoot);
   }
   localStore();
 }
 
 function updateTab(tabId, changeInfo) {
-  if(!isCurrent) return;
   let updatedTab = data[tabId];
   if (!updatedTab) return;
 
@@ -186,14 +184,14 @@ function removeSubtree(tabId) {
   let parent;
   let parentId = removedTab.parentId;
   if(parentId === '') {
-    parent = localRoot;
+    parent = window.localRoot;
   }
   else {
     parent = data[parentId];
   }
   parent.children.splice(parent.children.indexOf(removedTab), 1)
 
-  updateTree(localRoot);
+  updateTree(window.localRoot);
   localStore();
 }
 
