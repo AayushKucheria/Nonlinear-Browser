@@ -25,6 +25,8 @@ npm test           # Jest 29
 | `background.js` | **MV3 service worker** — handles `chrome.action.onClicked`, startup, and forwards tab events to the UI page via `chrome.tabs.sendMessage` |
 | `tabs_api.js` | Bootstraps the UI; receives tab events from the service worker via `chrome.runtime.onMessage` and drives the tree |
 | `close.js` | UI page unload handler — clears badge via `chrome.action`, saves session timestamp |
+| `storage.js` | Storage layer — `window.AppStorage`; all localStorage/sessionStorage access and key names live here |
+| `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` calls live here |
 | `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD functions |
 | `helperFunctions.js` | `traverse`, `wrapText`, `visualLength` |
 | `visualize.js` | D3 rendering — `drawTree`, `updateTree`, `initializeTree`; single `d3.zoom()` for pan/zoom |
@@ -49,7 +51,8 @@ enclosing module-wrapper scope and become callable from every test.
 
 **Eval order matters in `crudApi.test.js`:**
 1. `helperFunctions.js` — provides `wrapText` / `traverse` used by crudApi
-2. `crudApi.js` — provides `updateTab`, `addNewTab`, `removeSubtree`, `localRootToData`
+2. `storage.js` — defines `window.AppStorage` (real implementation, not the setup.js stub)
+3. `crudApi.js` — provides `updateTab`, `addNewTab`, `removeSubtree`, `localRootToData`
 
 **`let`-declared top-level vars** (e.g. `let isCurrent = true` in crudApi.js) are scoped to the
 eval block and cannot be overridden from tests. Tests run with the defaults (`isCurrent = true`).
@@ -67,6 +70,8 @@ valid 4-element array — all text lands on line 0.
 - `global.chrome` — MV3 stubs for tabs, windows, action, runtime (replaces old browserAction/extension stubs)
 - `global.d3` — empty object (prevents ReferenceError)
 - `global.Fnon` — stub for toast/dialog library
+- `global.AppStorage` — stub with `jest.fn()` methods; overridden by `eval(storage.js)` in `crudApi.test.js`
+- `global.BrowserApi` — stub with `jest.fn()` methods for all Chrome tab/window calls
 - `global.updateTree`, `global.initializeTree`, `global.drawTree` — `jest.fn()`
 - `global.tabWidth = 200`, `global.innerWidth = 1280`, `global.innerHeight = 720`
 - `<span id="ruler">` injected into jsdom body
