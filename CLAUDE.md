@@ -27,7 +27,7 @@ npm test           # Jest 29
 | `close.js` | UI page unload handler — clears badge via `chrome.action`, saves session timestamp |
 | `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD functions |
 | `helperFunctions.js` | `traverse`, `wrapText`, `visualLength` |
-| `visualize.js` | D3 rendering — `drawTree`, `updateTree`, `initializeTree`; also owns `floaterActive` drag glow |
+| `visualize.js` | D3 rendering — `drawTree`, `updateTree`, `initializeTree`; single `d3.zoom()` for pan/zoom |
 | `context_menu.js` | Right-click context menu |
 | `savedTrees.js` | localStorage-based tree snapshots — `saveTree`, `getSavedTrees`, `fetchTree` |
 | `lib/` | Vendored JS: `d3.v6.min.js`, `fnon.min.js`, `jquery-3.5.1.min.js` |
@@ -89,12 +89,9 @@ valid 4-element array — all text lands on line 0.
 
 ## What cannot be unit tested (requires live browser)
 
-- `floaterActive` flag stopping the drag-glow animation
 - `.interrupt()` calls stopping in-flight D3 transitions
 - Service worker ↔ UI message passing (`sendToUI` / `chrome.runtime.onMessage`)
 - `removeEventListener` for `click.contextMenu`
-
-See `FIXES.md` for the full fix plan and remaining work.
 
 ---
 
