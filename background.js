@@ -30,10 +30,6 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   sendToUI({type: 'tabUpdated', tabId: tabId, changeInfo: changeInfo});
 });
 
-chrome.tabs.onActivated.addListener(function(activeInfo) {
-  sendToUI({type: 'tabActivated', activeInfo: activeInfo});
-});
-
 function sendToUI(message) {
   chrome.tabs.query({url: chrome.runtime.getURL("tabs_api.html")}, function(tabs) {
     for (var i = 0; i < tabs.length; i++) {

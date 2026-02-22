@@ -1,5 +1,4 @@
 
-
 function initToast() {
 
   Fnon.Hint.Init({
@@ -8,26 +7,10 @@ function initToast() {
   });
 }
 
-// async function fetchUser(user_id)
-// {
-//   // console.log("user id", user_id)
-//   var user_tree = database.ref().child('users').child(user_id)
-//
-//     // console.log("tree user ", user_tree)
-//
-//   user_tree.once('value').then((snapshot) => {
-//
-//     console.log("snapshot.val", snapshot.val())
-//     return snapshot.val();
-//
-//   })};
-
-
 // ================ Wrapping Tab Titles
 function wrapText(text) {
   let words = text.split(/(?=[\s\\/%,\.])/),
-    res = ["", "", "", ""],
-    limit = false;
+    res = ["", "", "", ""];
     var line=0, word=0;
   while(line < 4 && word < words.length) {
     let limit = line < 2 ? 0.5 * window.tabWidth : 0.7 * window.tabWidth
@@ -45,9 +28,6 @@ function wrapText(text) {
 
 function visualLength(text) {
   var ruler = document.getElementById('ruler')
-  // ruler.style.fontSize = '16px';
-  // ruler.style.fontWeight = 500;
-  // ruler.style.fontFamily = 'Roboto'
   ruler.visibility = 'hidden';
   ruler.textContent = text;
   return ruler.offsetWidth;
@@ -69,4 +49,3 @@ function traverse(parent, traverseFn, childrenFn) {
     }
   }
 }
-

@@ -23,12 +23,6 @@ body {
   height: 100%;
 }
 
-.svg-content-responsive {
-  display: inline-block;
-  width: 100%;
-  height: 100%;
-}
-
 /* ── Zoom buttons ─────────────────────────────────────────────────────────── */
 
 .zb {
@@ -90,13 +84,4 @@ hr {
   background-color: #000029;
   border: 1px inset;
   overflow: hidden;
-}
-
-.overlay {
-  fill: none;
-  pointer-events: all;
-}
-
-.hide {
-  display: none;
 }

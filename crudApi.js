@@ -1,7 +1,4 @@
-let idMapping = [];
 window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "deleted":false, "toggle": false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
-var last_sesh;
-var fetch;
 var date = new Date();
 window.data = {};
 let isCurrent = true;
@@ -15,14 +12,9 @@ function checkLastSession() {
   {
     isRefreshed = false; // dont refresh
   }
-  var current_tree;
-  // Fnon.Dialogue.Init({ closeButton: true })
   lastSession = JSON.parse(window.localStorage.getItem('user'));
-  // lastSession = lastSession.children;
   if(lastSession) {
     if(!isRefreshed) {//not Refreshed
-      // console.log("Saved session: ", lastSession);
-
       Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
       () => { // Merge with current session
         for(let [id, tabObj] of Object.entries(lastSession)) {
@@ -34,37 +26,26 @@ function checkLastSession() {
         loadWindowList(true); // Merge
       },
       () => { // Don't restore
-        // console.log("Not refreshed and don't restore previous session.")
         loadWindowList(true);
       });
     }
     else { // Refreshed. Restore previous tree without current Session
-      // console.log("Refreshed. Only restore previous session")
-
       for(let [id, tabObj] of Object.entries(lastSession)) {
         if(!data[id]) {
           tabObj.children = []; // Objects get children when converted to localRoot, doing it before will fuck stuff up.
           data[id] = tabObj;
         }
       }
-            //;return tab.children && tab.children.length > 0 ? tab.children : null;}
-      // console.log("Data after refresh: ", data);
       loadWindowList(false);
     }
   }
   else {
-    // console.log('No session stored. Creating new');
     // No session stored. Creating new.
     loadWindowList(true);
   }
 }
 
 function dataToLocalRoot() {
-  // console.log("Data = ", data);
-  // For each tab, if it's a root (i.e. it doesn't have a parent),
-  // Then add it to the list of roots
-  // Else, Find its parent and insert the tab in the parent's children list.
-  // localRoot.children = []
   for(let [id, tabObj] of Object.entries(data)) {
     if(!tabObj.parentId || tabObj.parentId === '') {
       window.localRoot.children.push(tabObj);
@@ -87,6 +68,7 @@ function localRootToData() {
     );
   });
 }
+
 // Load tree from scratch
 function loadWindowList(addCurrentSession) {
   // Get windows + tabs data from chrome api
@@ -137,18 +119,6 @@ function loadWindowList(addCurrentSession) {
 };
 
 function addNewTab(tab) {
-  // Check if this url is already in one of our tabs in data
-  // console.log("Checking new tab ", tab.url, " with id ", tab.id);
-  // for(let [id, tabObj] of Object.entries(data)) {
-  //   // console.log("Checking existing tab ", tabObj.url, " with id ", tabObj.id);
-  //   if(tabObj.url === tab.url || tabObj.pendingUrl === tab.url) {
-  //     console.log("Updating ", tab.title, " s id to ", tab.id);
-  //     tabObj.id = tab.id;
-  //     console.log("New id: ", tabObj.id);
-  //     console.log("Whole root: ", window.localRoot);
-  //     return;
-  //   }
-  // };
   let tabObj = {  "id": tab.id,
                   "title": tab.title || '',
                   "parentId": tab.openerTabId || '',
@@ -174,7 +144,6 @@ function addNewTab(tab) {
   else {
     const parentElement = data[tabObj.parentId];
     parentElement.children.push(tabObj);
-    // console.log("New tab is a child: ", tabObj);
     updateTree(localRoot);
   }
   localStore();
@@ -185,7 +154,6 @@ function updateTab(tabId, changeInfo) {
   let updatedTab = data[tabId];
   if (!updatedTab) return;
 
-  // console.log("change info", changeInfo)
   var displayChanged = false
   for(var i in changeInfo) {
     if(updatedTab && updatedTab.hasOwnProperty(i)) {
@@ -194,12 +162,6 @@ function updateTab(tabId, changeInfo) {
         displayChanged = true
       if(i === 'title') {
         updatedTab['lines'] = wrapText(changeInfo[i]);
-
-        // TODO Doesn't work. If a tab is redirected to a site that
-        // doesn't have a favIconUrl, nonlinear displays the previous favIcon.
-        // chrome.tabs.get(tabId, function(tab) {
-        //   updatedTab['favIconUrl'] = tab.favIconUrl;
-        // });
       }
     }
   }
@@ -211,10 +173,8 @@ function updateTab(tabId, changeInfo) {
 }
 
 function removeSubtree(tabId) {
-  // console.log("Data before removal: ", data[tabId]);
   let removedTab = data[tabId]
   delete data[tabId];
-  // console.log("Data before removal: ", removedTab);
 
   // Remove children from data
   let i=0;
@@ -231,7 +191,6 @@ function removeSubtree(tabId) {
   else {
     parent = data[parentId];
   }
-  // TODO does removing the object from data+localRoot cause the problem?
   parent.children.splice(parent.children.indexOf(removedTab), 1)
 
   updateTree(localRoot);
@@ -239,9 +198,5 @@ function removeSubtree(tabId) {
 }
 
 function localStore() {
-  // console.log("Storing data = ", data);
-  // let temp = {"id": "Root", "title": "Current Session", "read":false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
-  //
-  // temp.children = data;
   window.localStorage.setItem('user', JSON.stringify(window.data)); //adds to localStorage
 }

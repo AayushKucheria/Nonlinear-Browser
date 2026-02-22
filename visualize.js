@@ -59,12 +59,6 @@ function updateTree(localRoot) {
   drawTree(window.currentRoot);
 }
 
-function delete_tab(node) {
-  var parent = node.parent;
-  parent.children = parent.children.filter(d => d != node);
-  drawTree(window.currentRoot);
-}
-
 // ── Draw ──────────────────────────────────────────────────────────────────────
 
 function drawTree(source) {

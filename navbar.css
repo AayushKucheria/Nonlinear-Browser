@@ -1,14 +1,4 @@
 
-/* body { */
-/* -moz-osx-font-smoothing:grayscale; comment */
-/* -ms-flex-direction:column;
--webkit-box-direction:normal;
--webkit-box-orient:vertical; */
-/* -webkit-font-smoothing:antialiased; comment */
-/* display:flex;
-flex-direction:column;
-} */
-
 nav {
 	margin: 0 auto;
 	background: #008FEA;
@@ -61,11 +51,6 @@ nav ul li a:focus {
 	color: white;
 }
 
-/* nav ul li a:not(:only-child)::after {
-	padding-left: 4px;
-	content: ' ▾';
-} */
-
 nav ul li ul li {
 	min-width: 190px;
 }
@@ -84,36 +69,13 @@ nav ul li ul li a:focus {
 	cursor: pointer;
 }
 
-.dropElem {
-	/* border-bottom: 0px; */
-}
-
 .dropdown {
 	display: none;
 	position: absolute;
 	max-height: 600px;
 	overflow: auto;
 	background: #fff;
-	/* box-shadow: 0 4px 10px rgba(10, 20, 30, .4); */
-
 }
 
 .divElem {
-	/* vertical-align: middle; */
-}
-
-.fa-pencil-square-o {
-	position: relative;
-	bottom: 30px;
-	left: 80%;
-	cursor: pointer;
-}
-
-.fa-trash-o {
-	position: relative;
-	bottom : 30px;
-	left: 86%;
-	cursor: pointer;
-
-	/* align-items: center; */
 }

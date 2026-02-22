@@ -3,8 +3,7 @@
 @param d = Node
 
 */
-window.contextMenu = function(event, d, menu, openCallback) {
-  //console.log("Starting custom menu function");
+window.contextMenu = function(event, d, menu) {
   // Remove stale menu div before creating a new one
   d3.select('.contextMenu').remove();
 
@@ -32,15 +31,9 @@ window.contextMenu = function(event, d, menu, openCallback) {
     @param clickEvent = MouseClick on choice
     @param choice = {title: , action: } */
     .on('click', function(clickEvent, choice) {
-    //  console.log("Event = ", event, " and d = ", d);
-      //console.log("ClickEvent = ", clickEvent, " and choice = ", choice)
       choice.action(event, clickEvent, d);
       d3.select('.contextMenu').style('display', 'none');
     });
-
-  // openCallback allows an action to fire before the menu is displayed
-  // Eg: Closing a tooltip
-  if(openCallback) openCallback(data);
 
   d3.select('.contextMenu')
     .style('left', (event.pageX - 2) + 'px')

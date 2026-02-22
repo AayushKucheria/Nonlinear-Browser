@@ -5,11 +5,5 @@ window.onbeforeunload = function() {
 }
 
 window.onunload = function() {
-  if (window._tabListeners) {
-    chrome.tabs.onCreated.removeListener(window._tabListeners.onCreated);
-    chrome.tabs.onRemoved.removeListener(window._tabListeners.onRemoved);
-    chrome.tabs.onUpdated.removeListener(window._tabListeners.onUpdated);
-    chrome.tabs.onActivated.removeListener(window._tabListeners.onActivated);
-  }
   chrome.action.setBadgeText({text: ''});
 }

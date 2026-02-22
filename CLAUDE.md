@@ -2,7 +2,7 @@
 
 Chrome Extension (Manifest V3) that visualises browser tabs as an interactive D3 tree.
 No build system. No bundler. No module format. Plain script tags loaded by the browser.
-Third-party JS (D3, fnon, jQuery) is vendored into `lib/` — MV3 prohibits remote scripts.
+Third-party JS (D3, fnon) is vendored into `lib/` — MV3 prohibits remote scripts.
 
 ---
 
@@ -30,7 +30,7 @@ npm test           # Jest 29
 | `visualize.js` | D3 rendering — `drawTree`, `updateTree`, `initializeTree`; single `d3.zoom()` for pan/zoom |
 | `context_menu.js` | Right-click context menu |
 | `savedTrees.js` | localStorage-based tree snapshots — `saveTree`, `getSavedTrees`, `fetchTree` |
-| `lib/` | Vendored JS: `d3.v6.min.js`, `fnon.min.js`, `jquery-3.5.1.min.js` |
+| `lib/` | Vendored JS: `d3.v6.min.js`, `fnon.min.js` |
 
 **Global state (set on `window`):**
 - `window.localRoot` — root node of the tab tree (`{id, title, children, …}`)
