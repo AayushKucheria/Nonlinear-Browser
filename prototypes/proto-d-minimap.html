@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proto D — LTR + Edge Pan + Pin-as-Root + Minimap</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #controls {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 100;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ctrl-btn {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    color: #a0aec0;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .ctrl-btn:hover { background: #0f3460; color: #fff; }
+
+  /* Breadcrumb */
+  #breadcrumb {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    background: #0d1b2a;
+    border: 1px solid #1e3a5a;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    max-width: 60vw;
+    overflow: hidden;
+  }
+  #breadcrumb.visible { opacity: 1; pointer-events: auto; }
+  .bc-crumb {
+    color: #718096;
+    cursor: pointer;
+    padding: 0 2px;
+    transition: color 0.15s;
+  }
+  .bc-crumb:hover { color: #90cdf4; }
+  .bc-crumb.current { color: #e2e8f0; cursor: default; }
+  .bc-sep { color: #2d4a6a; margin: 0 4px; user-select: none; }
+
+  /* Hint */
+  #hint {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 100;
+    font-size: 11px;
+    color: #4a5568;
+    line-height: 1.7;
+  }
+
+  /* Main SVG */
+  svg#tree-svg {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .link {
+    fill: none;
+    stroke: #2d3748;
+    stroke-width: 1.5px;
+  }
+
+  .node rect.bg {
+    fill: #16213e;
+    stroke: #2d4a7a;
+    stroke-width: 1px;
+  }
+  .node:hover rect.bg { fill: #1a2f5e; stroke: #4a90d9; }
+  .node.pinned rect.bg { fill: #1e3a6e; stroke: #63b3ed; stroke-width: 2px; }
+  .node text.title { fill: #e2e8f0; font-size: 12px; font-weight: 500; pointer-events: none; }
+  .node text.domain { fill: #718096; font-size: 10px; pointer-events: none; }
+  .node text.indicator { fill: #4a5568; font-size: 10px; pointer-events: none; }
+  .node image { pointer-events: none; }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    z-index: 300;
+    background: #0d1b2a;
+    border: 1px solid #2d4a7a;
+    border-radius: 8px;
+    padding: 10px 14px;
+    max-width: 320px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip .tt-title { font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; line-height: 1.4; }
+  #tooltip .tt-url   { font-size: 11px; color: #63b3ed; word-break: break-all; line-height: 1.4; }
+  #tooltip .tt-meta  { font-size: 11px; color: #718096; margin-top: 4px; }
+
+  /* Minimap container */
+  #minimap-wrap {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 200;
+    width: 200px;
+    height: 130px;
+    background: rgba(10, 15, 30, 0.88);
+    border: 1px solid #1e3a5a;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: crosshair;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.5);
+  }
+  #minimap-label {
+    position: absolute;
+    top: 4px;
+    left: 7px;
+    font-size: 9px;
+    color: #4a5568;
+    pointer-events: none;
+    user-select: none;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  svg#minimap-svg {
+    display: block;
+    width: 200px;
+    height: 130px;
+  }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <span style="font-size:13px;font-weight:600;color:#63b3ed;margin-right:4px;">Nonlinear</span>
+  <button class="ctrl-btn" id="btn-reset">Reset View</button>
+  <button class="ctrl-btn" id="btn-expand">Expand All</button>
+  <button class="ctrl-btn" id="btn-collapse">Collapse Branches</button>
+</div>
+
+<div id="breadcrumb"></div>
+
+<div id="hint">
+  Scroll to pan &nbsp;·&nbsp; Pinch or Ctrl+scroll to zoom &nbsp;·&nbsp; Drag to pan<br>
+  Click to toggle &nbsp;·&nbsp; <strong style="color:#90cdf4">Double-click to pin subtree</strong> &nbsp;·&nbsp; Esc to go up
+</div>
+
+<div id="tooltip">
+  <div class="tt-title"></div>
+  <div class="tt-url"></div>
+  <div class="tt-meta"></div>
+</div>
+
+<svg id="tree-svg">
+  <g id="canvas">
+    <g id="links"></g>
+    <g id="nodes"></g>
+  </g>
+</svg>
+
+<div id="minimap-wrap">
+  <div id="minimap-label">Overview</div>
+  <svg id="minimap-svg">
+    <g id="mm-links"></g>
+    <g id="mm-nodes"></g>
+    <rect id="mm-viewport" fill="rgba(99,179,237,0.12)" stroke="#63b3ed" stroke-width="1" rx="2"></rect>
+  </svg>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+const MOCK_TREE = {
+  id: 0, title: "Current Session", url: "", favicon: "",
+  children: [
+    {
+      id: 1, title: 'Google Search "D3 tree layout"', url: "https://google.com/search?q=D3+tree",
+      children: [
+        {
+          id: 2, title: "D3 Documentation — d3-hierarchy", url: "https://d3js.org/d3-hierarchy",
+          children: [
+            { id: 3, title: "d3-hierarchy API reference", url: "https://d3js.org/d3-hierarchy#tree", children: [] },
+            { id: 4, title: "d3-zoom API reference", url: "https://d3js.org/d3-zoom", children: [] },
+            { id: 5, title: "d3-drag API reference", url: "https://d3js.org/d3-drag", children: [] },
+          ]
+        },
+        {
+          id: 6, title: "Observable — Collapsible Tree", url: "https://observablehq.com/@d3/collapsible-tree",
+          children: [
+            { id: 7, title: "Observable — Tree of Life", url: "https://observablehq.com/@d3/tree-of-life", children: [] },
+            { id: 8, title: "Observable — Radial Tree", url: "https://observablehq.com/@d3/radial-tree", children: [] },
+          ]
+        },
+        { id: 9, title: "Stack Overflow — D3 tree collapse", url: "https://stackoverflow.com/questions/d3-tree", children: [] },
+      ]
+    },
+    {
+      id: 10, title: "GitHub", url: "https://github.com",
+      children: [
+        {
+          id: 11, title: "nonlinear-browser — GitHub repo", url: "https://github.com/user/nonlinear-browser",
+          children: [
+            { id: 12, title: "Issue #12 — Tree layout overflow", url: "https://github.com/user/nonlinear-browser/issues/12", children: [] },
+            { id: 13, title: "Issue #15 — Favicon not loading", url: "https://github.com/user/nonlinear-browser/issues/15", children: [] },
+            { id: 14, title: "Pull Requests — open", url: "https://github.com/user/nonlinear-browser/pulls", children: [] },
+            { id: 15, title: "Actions — CI status", url: "https://github.com/user/nonlinear-browser/actions", children: [] },
+          ]
+        },
+        { id: 16, title: "d3/d3 — repository", url: "https://github.com/d3/d3", children: [] },
+        { id: 17, title: "microsoft/vscode", url: "https://github.com/microsoft/vscode", children: [] },
+        {
+          id: 18, title: "sindresorhus/awesome", url: "https://github.com/sindresorhus/awesome",
+          children: [
+            { id: 19, title: "awesome-nodejs", url: "https://github.com/sindresorhus/awesome-nodejs", children: [] },
+            { id: 20, title: "awesome-chrome-extensions", url: "https://github.com/benschwarz/awesome-chrome-extensions", children: [] },
+          ]
+        },
+        { id: 21, title: "anthropics/claude-code", url: "https://github.com/anthropics/claude-code", children: [] },
+      ]
+    },
+    {
+      id: 22, title: "YouTube", url: "https://youtube.com",
+      children: [
+        { id: 23, title: "D3.js Tutorial — Full Course (4 hours)", url: "https://youtube.com/watch?v=d3tut", children: [] },
+        { id: 24, title: "Lo-fi hip hop radio — beats to code to", url: "https://youtube.com/watch?v=lofi", children: [] },
+        { id: 25, title: "Chrome Extension Tutorial 2024", url: "https://youtube.com/watch?v=ext2024", children: [] },
+      ]
+    },
+    {
+      id: 26, title: "Reddit", url: "https://reddit.com",
+      children: [
+        {
+          id: 27, title: "r/programming", url: "https://reddit.com/r/programming",
+          children: [
+            { id: 28, title: "D3.js tips and tricks — 50 comments", url: "https://reddit.com/r/programming/comments/d3tips", children: [] },
+            { id: 29, title: "Chrome Extensions in 2024 — worth it?", url: "https://reddit.com/r/programming/comments/chromeext", children: [] },
+            { id: 30, title: "Ask HN: Best tab managers?", url: "https://reddit.com/r/programming/comments/tabmgr", children: [] },
+          ]
+        },
+        {
+          id: 31, title: "r/webdev", url: "https://reddit.com/r/webdev",
+          children: [
+            { id: 32, title: "CSS Grid vs Flexbox — when to use each", url: "https://reddit.com/r/webdev/comments/gridvsflex", children: [] },
+            { id: 33, title: "Show r/webdev: My tab tree extension", url: "https://reddit.com/r/webdev/comments/showtabtree", children: [] },
+          ]
+        },
+        { id: 34, title: "r/MachineLearning", url: "https://reddit.com/r/MachineLearning", children: [] },
+      ]
+    },
+    {
+      id: 35, title: "MDN Web Docs", url: "https://developer.mozilla.org",
+      children: [
+        { id: 36, title: "Chrome Extension API — MV3 overview", url: "https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions", children: [] },
+        { id: 37, title: "Web APIs — ResizeObserver", url: "https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver", children: [] },
+        { id: 38, title: "CSS — clip-path", url: "https://developer.mozilla.org/en-US/docs/Web/CSS/clip-path", children: [] },
+      ]
+    },
+    {
+      id: 39, title: "Hacker News", url: "https://news.ycombinator.com",
+      children: [
+        { id: 40, title: "Ask HN: How do you manage 100+ tabs?", url: "https://news.ycombinator.com/item?id=tab100", children: [] },
+        { id: 41, title: "Show HN: Nonlinear browser tabs", url: "https://news.ycombinator.com/item?id=shownonlinear", children: [] },
+        { id: 42, title: "The unreasonable effectiveness of D3", url: "https://news.ycombinator.com/item?id=d3eff", children: [] },
+      ]
+    },
+    {
+      id: 43, title: "Figma — Design mockups", url: "https://figma.com",
+      children: [
+        { id: 44, title: "Nonlinear Browser — UI prototype", url: "https://figma.com/file/nonlinear-ui", children: [] },
+        { id: 45, title: "Compact node design explorations", url: "https://figma.com/file/compact-nodes", children: [] },
+      ]
+    },
+    {
+      id: 46, title: "Gmail", url: "https://mail.google.com",
+      children: [
+        { id: 47, title: "Re: D3 tree layout feedback", url: "https://mail.google.com/mail/u/0/#inbox/abc123", children: [] },
+        { id: 48, title: "GitHub notification digest", url: "https://mail.google.com/mail/u/0/#inbox/def456", children: [] },
+      ]
+    },
+    { id: 49, title: "ChatGPT — conversation about D3", url: "https://chat.openai.com", children: [] },
+    { id: 50, title: "Claude — code review session", url: "https://claude.ai", children: [] },
+  ]
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const NODE_W    = 160;
+const NODE_H    = 52;
+const H_GAP     = 200;
+const V_GAP     = 72;
+const EDGE_ZONE = 60;
+const MAX_SPEED = 8;
+const MM_W      = 200;
+const MM_H      = 130;
+const MM_PAD    = 10;
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let pinStack = [];
+let currentRootData = MOCK_TREE;
+let currentTransform = d3.zoomIdentity;
+let lastNodes = [];        // nodes from the current (pinned) render
+let fullNodes = [];        // nodes from the always-full tree render (for minimap)
+let pinnedIds = new Set(); // node IDs in the currently pinned subtree
+
+// ─── SVG setup ────────────────────────────────────────────────────────────────
+const VW = window.innerWidth;
+const VH = window.innerHeight;
+
+const svg    = d3.select("#tree-svg");
+const canvas = d3.select("#canvas");
+const linksG = d3.select("#links");
+const nodesG = d3.select("#nodes");
+
+const mmSvg   = d3.select("#minimap-svg");
+const mmLinks = d3.select("#mm-links");
+const mmNodes = d3.select("#mm-nodes");
+const mmVP    = d3.select("#mm-viewport");
+
+// ─── Zoom ─────────────────────────────────────────────────────────────────────
+const zoom = d3.zoom()
+  .scaleExtent([0.05, 6])
+  .filter(event => {
+    if (event.type === 'wheel') return event.ctrlKey;
+    return !event.ctrlKey && !event.button;
+  })
+  .on("zoom", e => {
+    currentTransform = e.transform;
+    canvas.attr("transform", e.transform);
+    updateMinimapViewport();
+  });
+
+svg.call(zoom);
+
+svg.on("wheel.pan", event => {
+  event.preventDefault();
+  if (event.ctrlKey) return;
+  zoom.translateBy(svg, -event.deltaX * 0.5, -event.deltaY * 0.5);
+}, { passive: false });
+
+// ─── Tree layout ──────────────────────────────────────────────────────────────
+const treeLayout = d3.tree()
+  .nodeSize([V_GAP, H_GAP])
+  .separation((a, b) => a.parent === b.parent ? 1.0 : 1.2);
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function buildHierarchy(data) {
+  return d3.hierarchy(data, d => d._collapsed ? null : d.children);
+}
+
+function buildFullHierarchy(data) {
+  // Always expand all for minimap
+  return d3.hierarchy(data, d => (d.children && d.children.length) ? d.children : null);
+}
+
+function getDomain(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); }
+  catch { return ''; }
+}
+
+function getFavicon(url) {
+  try {
+    const origin = new URL(url).origin;
+    return `https://www.google.com/s2/favicons?domain=${origin}&sz=16`;
+  } catch { return null; }
+}
+
+function countDescendants(data) {
+  return (data.children || []).reduce((s, c) => s + 1 + countDescendants(c), 0);
+}
+
+function setAllCollapsed(node, collapsed) {
+  if (node.children && node.children.length) node._collapsed = collapsed;
+  (node.children || []).forEach(c => setAllCollapsed(c, collapsed));
+}
+
+function collectSubtreeIds(data, set) {
+  set.add(data.id);
+  (data.children || []).forEach(c => collectSubtreeIds(c, set));
+}
+
+// ─── Fit to viewport ──────────────────────────────────────────────────────────
+function fitToNodes(nodes, animate = true) {
+  if (!nodes.length) return;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  nodes.forEach(d => {
+    minX = Math.min(minX, d.screenX);
+    maxX = Math.max(maxX, d.screenX + NODE_W);
+    minY = Math.min(minY, d.screenY);
+    maxY = Math.max(maxY, d.screenY + NODE_H);
+  });
+  const tw = maxX - minX + 80;
+  const th = maxY - minY + 80;
+  const scale = Math.min((VW * 0.9) / tw, (VH * 0.9) / th, 3);
+  const tx = (VW - tw * scale) / 2 - (minX - 40) * scale;
+  const ty = (VH - th * scale) / 2 - (minY - 40) * scale;
+  const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
+  const sel = animate ? svg.transition().duration(500).ease(d3.easeCubicInOut) : svg;
+  sel.call(zoom.transform, t);
+}
+
+// ─── Link path ────────────────────────────────────────────────────────────────
+function ltrLink(d) {
+  const sx = d.source.screenX + NODE_W;
+  const sy = d.source.screenY + NODE_H / 2;
+  const tx = d.target.screenX;
+  const ty = d.target.screenY + NODE_H / 2;
+  const mx = (sx + tx) / 2;
+  return `M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
+}
+
+// ─── Breadcrumb ───────────────────────────────────────────────────────────────
+function renderBreadcrumb() {
+  const bc = document.getElementById("breadcrumb");
+  if (pinStack.length === 0) {
+    bc.classList.remove("visible");
+    bc.innerHTML = '';
+    return;
+  }
+  bc.classList.add("visible");
+  const crumbs = [...pinStack, currentRootData];
+  bc.innerHTML = '';
+  crumbs.forEach((node, i) => {
+    const isCurrent = i === crumbs.length - 1;
+    const span = document.createElement("span");
+    span.className = "bc-crumb" + (isCurrent ? " current" : "");
+    span.textContent = node.title || "(root)";
+    if (!isCurrent) span.addEventListener("click", () => popTo(i));
+    bc.appendChild(span);
+    if (!isCurrent) {
+      const sep = document.createElement("span");
+      sep.className = "bc-sep";
+      sep.textContent = " › ";
+      bc.appendChild(sep);
+    }
+  });
+}
+
+// ─── Pin navigation ───────────────────────────────────────────────────────────
+function pinNode(nodeData) {
+  pinStack.push(currentRootData);
+  currentRootData = nodeData;
+  pinnedIds = new Set();
+  collectSubtreeIds(nodeData, pinnedIds);
+  render(true);
+  renderBreadcrumb();
+}
+
+function popTo(index) {
+  currentRootData = pinStack[index];
+  pinStack = pinStack.slice(0, index);
+  if (pinStack.length > 0) {
+    pinnedIds = new Set();
+    collectSubtreeIds(currentRootData, pinnedIds);
+  } else {
+    pinnedIds = new Set();
+  }
+  render(true);
+  renderBreadcrumb();
+}
+
+function resetPin() {
+  pinStack = [];
+  currentRootData = MOCK_TREE;
+  pinnedIds = new Set();
+  render(true);
+  renderBreadcrumb();
+}
+
+// ─── Main Render ──────────────────────────────────────────────────────────────
+function render(autoFit = false) {
+  // Build full tree for minimap (always from MOCK_TREE)
+  const fullRoot = buildFullHierarchy(MOCK_TREE);
+  treeLayout(fullRoot);
+  const fOffX = 60, fOffY = VH / 2;
+  fullRoot.each(d => {
+    d.screenX = d.y + fOffX;
+    d.screenY = d.x + fOffY;
+  });
+  fullNodes = fullRoot.descendants();
+
+  // Build current (pinned) tree
+  const root = buildHierarchy(currentRootData);
+  treeLayout(root);
+  const offsetX = 60, offsetY = VH / 2;
+  root.each(d => {
+    d.screenX = d.y + offsetX;
+    d.screenY = d.x + offsetY;
+  });
+  lastNodes = root.descendants();
+
+  // ── Links ──
+  const linkSel = linksG.selectAll(".link").data(root.links(), d => d.target.data.id);
+  linkSel.enter().append("path").attr("class", "link")
+    .merge(linkSel).attr("d", ltrLink);
+  linkSel.exit().remove();
+
+  // ── Nodes ──
+  const nodeSel = nodesG.selectAll(".node").data(lastNodes, d => d.data.id);
+
+  const nodeEnter = nodeSel.enter().append("g")
+    .attr("class", "node")
+    .attr("transform", d => `translate(${d.screenX},${d.screenY})`)
+    .style("cursor", "pointer");
+
+  nodeEnter.append("rect")
+    .attr("class", "bg")
+    .attr("width", NODE_W).attr("height", NODE_H)
+    .attr("rx", 5).attr("ry", 5);
+
+  nodeEnter.append("image")
+    .attr("x", 8).attr("y", 10)
+    .attr("width", 14).attr("height", 14);
+
+  nodeEnter.append("text").attr("class", "title")
+    .attr("y", 21).attr("text-anchor", "start");
+
+  nodeEnter.append("text").attr("class", "domain")
+    .attr("x", 8).attr("y", 40).attr("text-anchor", "start");
+
+  nodeEnter.append("text").attr("class", "indicator")
+    .attr("x", NODE_W - 8).attr("y", 21).attr("text-anchor", "end");
+
+  nodeEnter
+    .on("click", (event, d) => {
+      if (d.data.children && d.data.children.length) {
+        d.data._collapsed = !d.data._collapsed;
+        render();
+      }
+    })
+    .on("dblclick", (event, d) => {
+      event.stopPropagation();
+      if (d.data.children && d.data.children.length) pinNode(d.data);
+    })
+    .on("mouseenter", (event, d) => {
+      const desc = countDescendants(d.data);
+      document.querySelector("#tooltip .tt-title").textContent = d.data.title || "(no title)";
+      document.querySelector("#tooltip .tt-url").textContent = d.data.url || "";
+      document.querySelector("#tooltip .tt-meta").textContent =
+        desc > 0 ? `${desc} child tab${desc !== 1 ? 's' : ''}` : '';
+      document.getElementById("tooltip").classList.add("visible");
+      moveTip(event);
+    })
+    .on("mousemove", moveTip)
+    .on("mouseleave", () => document.getElementById("tooltip").classList.remove("visible"));
+
+  const nodeMerge = nodeEnter.merge(nodeSel);
+  nodeMerge.attr("transform", d => `translate(${d.screenX},${d.screenY})`);
+  nodeMerge.attr("class", d => "node" + (d.depth === 0 && pinStack.length > 0 ? " pinned" : ""));
+
+  nodeMerge.select("image")
+    .attr("href", d => d.data.url ? getFavicon(d.data.url) : null)
+    .style("display", d => d.data.url ? null : "none");
+
+  nodeMerge.select("text.title").text(d => {
+    const hasIcon = !!d.data.url;
+    const maxChars = Math.floor((NODE_W - (hasIcon ? 36 : 16)) / 6.5);
+    const t = d.data.title || "(no title)";
+    return t.length > maxChars ? t.slice(0, maxChars - 1) + "…" : t;
+  }).attr("x", d => d.data.url ? 28 : 8);
+
+  nodeMerge.select("text.domain").text(d => getDomain(d.data.url));
+
+  nodeMerge.select("text.indicator").text(d => {
+    if (!d.data.children || !d.data.children.length) return '';
+    return d.data._collapsed ? '▶' : '▼';
+  });
+
+  nodeSel.exit().remove();
+
+  if (autoFit) fitToNodes(lastNodes, false);
+
+  // Update minimap after render
+  renderMinimap();
+  updateMinimapViewport();
+}
+
+// ─── Minimap ─────────────────────────────────────────────────────────────────
+function renderMinimap() {
+  if (!fullNodes.length) return;
+
+  // Compute bounding box of full tree
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  fullNodes.forEach(d => {
+    minX = Math.min(minX, d.screenX);
+    maxX = Math.max(maxX, d.screenX + NODE_W);
+    minY = Math.min(minY, d.screenY);
+    maxY = Math.max(maxY, d.screenY + NODE_H);
+  });
+
+  const tw = maxX - minX;
+  const th = maxY - minY;
+  const usableW = MM_W - MM_PAD * 2;
+  const usableH = MM_H - MM_PAD * 2;
+  const scale = Math.min(usableW / tw, usableH / th);
+  const offX = MM_PAD + (usableW - tw * scale) / 2 - minX * scale;
+  const offY = MM_PAD + (usableH - th * scale) / 2 - minY * scale;
+
+  // Store for viewport indicator
+  mmSvg.node()._mmScale = scale;
+  mmSvg.node()._mmOffX = offX;
+  mmSvg.node()._mmOffY = offY;
+
+  const nodeW = Math.max(NODE_W * scale, 3);
+  const nodeH = Math.max(NODE_H * scale, 2);
+
+  // Build link data from full hierarchy (reconstruct from fullNodes)
+  const fullRoot = buildFullHierarchy(MOCK_TREE);
+  treeLayout(fullRoot);
+  const fOffX = 60, fOffY = VH / 2;
+  fullRoot.each(d => {
+    d.screenX = d.y + fOffX;
+    d.screenY = d.x + fOffY;
+  });
+
+  // Links
+  const mmLinkSel = mmLinks.selectAll("line").data(fullRoot.links(), d => d.target.data.id);
+  mmLinkSel.enter().append("line")
+    .merge(mmLinkSel)
+    .attr("x1", d => d.source.screenX * scale + offX + nodeW)
+    .attr("y1", d => d.source.screenY * scale + offY + nodeH / 2)
+    .attr("x2", d => d.target.screenX * scale + offX)
+    .attr("y2", d => d.target.screenY * scale + offY + nodeH / 2)
+    .attr("stroke", d => {
+      if (pinnedIds.size === 0) return "#2d3748";
+      return pinnedIds.has(d.target.data.id) ? "#3a6ad4" : "#1a2030";
+    })
+    .attr("stroke-width", 0.5)
+    .attr("stroke-opacity", d => {
+      if (pinnedIds.size === 0) return 0.8;
+      return pinnedIds.has(d.target.data.id) ? 1 : 0.3;
+    });
+  mmLinkSel.exit().remove();
+
+  // Nodes
+  const mmNodeSel = mmNodes.selectAll("rect").data(fullRoot.descendants(), d => d.data.id);
+  mmNodeSel.enter().append("rect")
+    .merge(mmNodeSel)
+    .attr("x", d => d.screenX * scale + offX)
+    .attr("y", d => d.screenY * scale + offY)
+    .attr("width", nodeW)
+    .attr("height", nodeH)
+    .attr("rx", 1)
+    .attr("fill", d => {
+      if (pinnedIds.size === 0) return "#2d4a7a";
+      if (d.data.id === currentRootData.id) return "#63b3ed";
+      return pinnedIds.has(d.data.id) ? "#3a6ad4" : "#1a2030";
+    })
+    .attr("opacity", d => {
+      if (pinnedIds.size === 0) return 0.8;
+      return pinnedIds.has(d.data.id) ? 1 : 0.35;
+    });
+  mmNodeSel.exit().remove();
+}
+
+function updateMinimapViewport() {
+  const s = mmSvg.node()._mmScale;
+  const ox = mmSvg.node()._mmOffX;
+  const oy = mmSvg.node()._mmOffY;
+  if (!s) return;
+
+  // Current viewport in canvas-space (inverse of transform)
+  const t = currentTransform;
+  const vpLeft   = -t.x / t.k;
+  const vpTop    = -t.y / t.k;
+  const vpRight  = (VW - t.x) / t.k;
+  const vpBottom = (VH - t.y) / t.k;
+
+  const x = vpLeft * s + ox;
+  const y = vpTop  * s + oy;
+  const w = (vpRight - vpLeft)  * s;
+  const h = (vpBottom - vpTop) * s;
+
+  mmVP.attr("x", x).attr("y", y).attr("width", w).attr("height", h);
+}
+
+// ─── Minimap click → jump viewport ───────────────────────────────────────────
+document.getElementById("minimap-wrap").addEventListener("click", event => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const mx = event.clientX - rect.left;
+  const my = event.clientY - rect.top;
+
+  const s = mmSvg.node()._mmScale;
+  const ox = mmSvg.node()._mmOffX;
+  const oy = mmSvg.node()._mmOffY;
+  if (!s) return;
+
+  // Canvas coordinate clicked
+  const canvasX = (mx - ox) / s;
+  const canvasY = (my - oy) / s;
+
+  // Center viewport on that canvas point
+  const t = currentTransform;
+  const newTx = VW / 2 - canvasX * t.k;
+  const newTy = VH / 2 - canvasY * t.k;
+  svg.transition().duration(300).call(
+    zoom.transform,
+    d3.zoomIdentity.translate(newTx, newTy).scale(t.k)
+  );
+});
+
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+function moveTip(event) {
+  const m = 14;
+  let x = event.clientX + m, y = event.clientY + m;
+  if (x + 340 > VW) x = event.clientX - 340 - m;
+  if (y + 100 > VH) y = event.clientY - 100 - m;
+  const tt = document.getElementById("tooltip");
+  tt.style.left = x + "px";
+  tt.style.top  = y + "px";
+}
+
+// ─── Edge Panning ─────────────────────────────────────────────────────────────
+let edgePanRaf = null;
+let mousePos = { x: -9999, y: -9999 };
+
+svg.on("mousemove.edgepan", event => {
+  const [mx, my] = d3.pointer(event, document.body);
+  mousePos = { x: mx, y: my };
+  if (!edgePanRaf) edgePanRaf = requestAnimationFrame(edgePanLoop);
+});
+
+svg.on("mouseleave.edgepan", () => {
+  mousePos = { x: -9999, y: -9999 };
+});
+
+function edgePanLoop() {
+  edgePanRaf = null;
+  const { x, y } = mousePos;
+  let dx = 0, dy = 0;
+
+  if (x < EDGE_ZONE) {
+    const t = (EDGE_ZONE - x) / EDGE_ZONE;
+    dx = t * t * MAX_SPEED;
+  } else if (x > VW - EDGE_ZONE) {
+    const t = (x - (VW - EDGE_ZONE)) / EDGE_ZONE;
+    dx = -(t * t * MAX_SPEED);
+  }
+
+  if (y < EDGE_ZONE) {
+    const t = (EDGE_ZONE - y) / EDGE_ZONE;
+    dy = t * t * MAX_SPEED;
+  } else if (y > VH - EDGE_ZONE) {
+    const t = (y - (VH - EDGE_ZONE)) / EDGE_ZONE;
+    dy = -(t * t * MAX_SPEED);
+  }
+
+  if (dx !== 0 || dy !== 0) {
+    zoom.translateBy(svg, dx, dy);
+    edgePanRaf = requestAnimationFrame(edgePanLoop);
+  }
+}
+
+// ─── Controls ─────────────────────────────────────────────────────────────────
+document.getElementById("btn-reset").addEventListener("click", resetPin);
+
+document.getElementById("btn-expand").addEventListener("click", () => {
+  setAllCollapsed(currentRootData, false);
+  render();
+  fitToNodes(lastNodes, true);
+});
+
+document.getElementById("btn-collapse").addEventListener("click", () => {
+  (currentRootData.children || []).forEach(c => setAllCollapsed(c, true));
+  (currentRootData.children || []).forEach(c => { c._collapsed = false; });
+  render();
+  fitToNodes(lastNodes, true);
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && pinStack.length > 0) popTo(pinStack.length - 1);
+});
+
+// ─── Initial render ───────────────────────────────────────────────────────────
+render(true);
+</script>
+</body>
+</html>

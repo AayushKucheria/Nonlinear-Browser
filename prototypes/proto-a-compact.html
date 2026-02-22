@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proto A — Compact Nodes</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #controls {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 100;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ctrl-btn {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    color: #a0aec0;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .ctrl-btn:hover { background: #0f3460; color: #fff; }
+
+  #info {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 100;
+    font-size: 11px;
+    color: #4a5568;
+  }
+
+  svg {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  /* Links */
+  .link {
+    fill: none;
+    stroke: #2d3748;
+    stroke-width: 1.5px;
+  }
+
+  /* Node group */
+  .node rect {
+    rx: 5;
+    ry: 5;
+    stroke-width: 1px;
+  }
+
+  .node rect.bg {
+    fill: #16213e;
+    stroke: #2d4a7a;
+  }
+  .node rect.bg:hover,
+  .node:hover rect.bg {
+    fill: #1a2f5e;
+    stroke: #4a90d9;
+  }
+  .node.active rect.bg {
+    stroke: #63b3ed;
+    fill: #1e3a6e;
+  }
+
+  .node text.title {
+    fill: #e2e8f0;
+    font-size: 12px;
+    font-weight: 500;
+    pointer-events: none;
+  }
+
+  .node text.domain {
+    fill: #718096;
+    font-size: 10px;
+    pointer-events: none;
+  }
+
+  .node image {
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <span style="font-size:13px;font-weight:600;color:#63b3ed;margin-right:4px;">Nonlinear</span>
+  <button class="ctrl-btn" id="btn-reset">Reset Zoom</button>
+  <button class="ctrl-btn" id="btn-expand">Expand All</button>
+  <button class="ctrl-btn" id="btn-collapse">Collapse All</button>
+</div>
+<div id="info">Scroll to zoom · Drag to pan · Click to toggle</div>
+
+<svg id="tree-svg">
+  <g id="canvas">
+    <g id="links"></g>
+    <g id="nodes"></g>
+  </g>
+</svg>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+const MOCK_TREE = {
+  id: 0, title: "Current Session", url: "", favicon: "",
+  children: [
+    {
+      id: 1, title: 'Google Search "D3 tree layout"', url: "https://google.com/search?q=D3+tree",
+      favicon: "https://www.google.com/favicon.ico",
+      children: [
+        {
+          id: 2, title: "D3 Documentation — d3-hierarchy", url: "https://d3js.org/d3-hierarchy",
+          favicon: "https://d3js.org/logo.png",
+          children: [
+            { id: 3, title: "d3-hierarchy API reference", url: "https://d3js.org/d3-hierarchy#tree", favicon: "https://d3js.org/logo.png", children: [] },
+            { id: 4, title: "d3-zoom API reference", url: "https://d3js.org/d3-zoom", favicon: "https://d3js.org/logo.png", children: [] },
+            { id: 5, title: "d3-drag API reference", url: "https://d3js.org/d3-drag", favicon: "https://d3js.org/logo.png", children: [] },
+          ]
+        },
+        {
+          id: 6, title: "Observable — Collapsible Tree", url: "https://observablehq.com/@d3/collapsible-tree",
+          favicon: "https://observablehq.com/favicon.ico",
+          children: [
+            { id: 7, title: "Observable — Tree of Life", url: "https://observablehq.com/@d3/tree-of-life", favicon: "https://observablehq.com/favicon.ico", children: [] },
+            { id: 8, title: "Observable — Radial Tree", url: "https://observablehq.com/@d3/radial-tree", favicon: "https://observablehq.com/favicon.ico", children: [] },
+          ]
+        },
+        { id: 9, title: "Stack Overflow — D3 tree collapse", url: "https://stackoverflow.com/questions/d3-tree", favicon: "https://stackoverflow.com/favicon.ico", children: [] },
+      ]
+    },
+    {
+      id: 10, title: "GitHub", url: "https://github.com",
+      favicon: "https://github.com/favicon.ico",
+      children: [
+        {
+          id: 11, title: "nonlinear-browser — GitHub repo", url: "https://github.com/user/nonlinear-browser",
+          favicon: "https://github.com/favicon.ico",
+          children: [
+            { id: 12, title: "Issue #12 — Tree layout overflow", url: "https://github.com/user/nonlinear-browser/issues/12", favicon: "https://github.com/favicon.ico", children: [] },
+            { id: 13, title: "Issue #15 — Favicon not loading", url: "https://github.com/user/nonlinear-browser/issues/15", favicon: "https://github.com/favicon.ico", children: [] },
+            { id: 14, title: "Pull Requests — open", url: "https://github.com/user/nonlinear-browser/pulls", favicon: "https://github.com/favicon.ico", children: [] },
+            { id: 15, title: "Actions — CI status", url: "https://github.com/user/nonlinear-browser/actions", favicon: "https://github.com/favicon.ico", children: [] },
+          ]
+        },
+        { id: 16, title: "d3/d3 — repository", url: "https://github.com/d3/d3", favicon: "https://github.com/favicon.ico", children: [] },
+        { id: 17, title: "microsoft/vscode", url: "https://github.com/microsoft/vscode", favicon: "https://github.com/favicon.ico", children: [] },
+        {
+          id: 18, title: "sindresorhus/awesome", url: "https://github.com/sindresorhus/awesome",
+          favicon: "https://github.com/favicon.ico",
+          children: [
+            { id: 19, title: "awesome-nodejs", url: "https://github.com/sindresorhus/awesome-nodejs", favicon: "https://github.com/favicon.ico", children: [] },
+            { id: 20, title: "awesome-chrome-extensions", url: "https://github.com/benschwarz/awesome-chrome-extensions", favicon: "https://github.com/favicon.ico", children: [] },
+          ]
+        },
+        { id: 21, title: "anthropics/claude-code", url: "https://github.com/anthropics/claude-code", favicon: "https://github.com/favicon.ico", children: [] },
+      ]
+    },
+    {
+      id: 22, title: "YouTube", url: "https://youtube.com",
+      favicon: "https://youtube.com/favicon.ico",
+      children: [
+        { id: 23, title: "D3.js Tutorial — Full Course (4 hours)", url: "https://youtube.com/watch?v=d3tut", favicon: "https://youtube.com/favicon.ico", children: [] },
+        { id: 24, title: "Lo-fi hip hop radio — beats to code to", url: "https://youtube.com/watch?v=lofi", favicon: "https://youtube.com/favicon.ico", children: [] },
+        { id: 25, title: "Chrome Extension Tutorial 2024", url: "https://youtube.com/watch?v=ext2024", favicon: "https://youtube.com/favicon.ico", children: [] },
+      ]
+    },
+    {
+      id: 26, title: "Reddit", url: "https://reddit.com",
+      favicon: "https://reddit.com/favicon.ico",
+      children: [
+        {
+          id: 27, title: "r/programming", url: "https://reddit.com/r/programming",
+          favicon: "https://reddit.com/favicon.ico",
+          children: [
+            { id: 28, title: "D3.js tips and tricks — 50 comments", url: "https://reddit.com/r/programming/comments/d3tips", favicon: "https://reddit.com/favicon.ico", children: [] },
+            { id: 29, title: "Chrome Extensions in 2024 — worth it?", url: "https://reddit.com/r/programming/comments/chromeext", favicon: "https://reddit.com/favicon.ico", children: [] },
+            { id: 30, title: "Ask HN: Best tab managers?", url: "https://reddit.com/r/programming/comments/tabmgr", favicon: "https://reddit.com/favicon.ico", children: [] },
+          ]
+        },
+        {
+          id: 31, title: "r/webdev", url: "https://reddit.com/r/webdev",
+          favicon: "https://reddit.com/favicon.ico",
+          children: [
+            { id: 32, title: "CSS Grid vs Flexbox — when to use each", url: "https://reddit.com/r/webdev/comments/gridvsflex", favicon: "https://reddit.com/favicon.ico", children: [] },
+            { id: 33, title: "Show r/webdev: My tab tree extension", url: "https://reddit.com/r/webdev/comments/showtabtree", favicon: "https://reddit.com/favicon.ico", children: [] },
+          ]
+        },
+        { id: 34, title: "r/MachineLearning", url: "https://reddit.com/r/MachineLearning", favicon: "https://reddit.com/favicon.ico", children: [] },
+      ]
+    },
+    {
+      id: 35, title: "MDN Web Docs", url: "https://developer.mozilla.org",
+      favicon: "https://developer.mozilla.org/favicon.ico",
+      children: [
+        { id: 36, title: "Chrome Extension API — MV3 overview", url: "https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions", favicon: "https://developer.mozilla.org/favicon.ico", children: [] },
+        { id: 37, title: "Web APIs — ResizeObserver", url: "https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver", favicon: "https://developer.mozilla.org/favicon.ico", children: [] },
+        { id: 38, title: "CSS — clip-path", url: "https://developer.mozilla.org/en-US/docs/Web/CSS/clip-path", favicon: "https://developer.mozilla.org/favicon.ico", children: [] },
+      ]
+    },
+    {
+      id: 39, title: "Hacker News", url: "https://news.ycombinator.com",
+      favicon: "https://news.ycombinator.com/favicon.ico",
+      children: [
+        { id: 40, title: "Ask HN: How do you manage 100+ tabs?", url: "https://news.ycombinator.com/item?id=tab100", favicon: "https://news.ycombinator.com/favicon.ico", children: [] },
+        { id: 41, title: "Show HN: Nonlinear browser tabs", url: "https://news.ycombinator.com/item?id=shownonlinear", favicon: "https://news.ycombinator.com/favicon.ico", children: [] },
+        { id: 42, title: "The unreasonable effectiveness of D3", url: "https://news.ycombinator.com/item?id=d3eff", favicon: "https://news.ycombinator.com/favicon.ico", children: [] },
+      ]
+    },
+    {
+      id: 43, title: "Figma — Design mockups", url: "https://figma.com",
+      favicon: "https://figma.com/favicon.ico",
+      children: [
+        { id: 44, title: "Nonlinear Browser — UI prototype", url: "https://figma.com/file/nonlinear-ui", favicon: "https://figma.com/favicon.ico", children: [] },
+        { id: 45, title: "Compact node design explorations", url: "https://figma.com/file/compact-nodes", favicon: "https://figma.com/favicon.ico", children: [] },
+      ]
+    },
+    {
+      id: 46, title: "Gmail", url: "https://mail.google.com",
+      favicon: "https://mail.google.com/favicon.ico",
+      children: [
+        { id: 47, title: "Re: D3 tree layout feedback", url: "https://mail.google.com/mail/u/0/#inbox/abc123", favicon: "https://mail.google.com/favicon.ico", children: [] },
+        { id: 48, title: "GitHub notification digest", url: "https://mail.google.com/mail/u/0/#inbox/def456", favicon: "https://mail.google.com/favicon.ico", children: [] },
+      ]
+    },
+    { id: 49, title: "ChatGPT — conversation about D3", url: "https://chat.openai.com", favicon: "https://chat.openai.com/favicon.ico", children: [] },
+    { id: 50, title: "Claude — code review session", url: "https://claude.ai", favicon: "https://claude.ai/favicon.ico", children: [] },
+  ]
+};
+
+// ─── Layout Constants ─────────────────────────────────────────────────────────
+const NODE_W = 160;
+const NODE_H = 52;
+const V_GAP  = 90;   // vertical gap between depth levels
+const SEP    = 1.05; // sibling separation factor
+
+// ─── Setup SVG ────────────────────────────────────────────────────────────────
+const svg    = d3.select("#tree-svg");
+const canvas = d3.select("#canvas");
+const linksG = d3.select("#links");
+const nodesG = d3.select("#nodes");
+
+const W = window.innerWidth;
+const H = window.innerHeight;
+
+// Zoom behavior
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 4])
+  .on("zoom", e => canvas.attr("transform", e.transform));
+svg.call(zoom);
+
+// ─── D3 tree layout ───────────────────────────────────────────────────────────
+const treeLayout = d3.tree()
+  .nodeSize([NODE_W * SEP, V_GAP])
+  .separation((a, b) => (a.parent === b.parent ? 1 : 1.2) * SEP);
+
+// Build hierarchy with collapse support
+function hierarchy(data) {
+  const root = d3.hierarchy(data, d => d._collapsed ? null : d.children);
+  return root;
+}
+
+let root = hierarchy(MOCK_TREE);
+
+function getDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function getFaviconUrl(node) {
+  // Use Google's favicon service as a reliable fallback
+  if (node.data.url) {
+    try {
+      const origin = new URL(node.data.url).origin;
+      return `https://www.google.com/s2/favicons?domain=${origin}&sz=16`;
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
+// ─── Link generator ───────────────────────────────────────────────────────────
+const linkGen = d3.linkVertical()
+  .x(d => d.x)
+  .y(d => d.y);
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  root = hierarchy(MOCK_TREE);
+  treeLayout(root);
+
+  // Center root at top
+  const rootX = W / 2;
+  const rootY = 60;
+  root.each(d => {
+    d.x += rootX;
+    d.y += rootY;
+  });
+
+  // Links
+  const linkSel = linksG.selectAll(".link").data(root.links(), d => d.target.data.id);
+  linkSel.enter().append("path").attr("class", "link")
+    .merge(linkSel)
+    .attr("d", d => linkGen({
+      source: { x: d.source.x, y: d.source.y + NODE_H / 2 },
+      target: { x: d.target.x, y: d.target.y - NODE_H / 2 }
+    }));
+  linkSel.exit().remove();
+
+  // Nodes
+  const nodeSel = nodesG.selectAll(".node").data(root.descendants(), d => d.data.id);
+
+  const nodeEnter = nodeSel.enter().append("g")
+    .attr("class", "node")
+    .attr("transform", d => `translate(${d.x - NODE_W / 2},${d.y - NODE_H / 2})`)
+    .style("cursor", d => d.children || (d.data.children && d.data.children.length) ? "pointer" : "default")
+    .on("click", (event, d) => {
+      if (d.data.children && d.data.children.length) {
+        d.data._collapsed = !d.data._collapsed;
+        render();
+      }
+    });
+
+  // Background rect
+  nodeEnter.append("rect")
+    .attr("class", "bg")
+    .attr("width", NODE_W)
+    .attr("height", NODE_H);
+
+  // Favicon
+  nodeEnter.append("image")
+    .attr("x", 8)
+    .attr("y", 10)
+    .attr("width", 14)
+    .attr("height", 14)
+    .attr("href", d => getFaviconUrl(d) || "");
+
+  // Title
+  nodeEnter.append("text")
+    .attr("class", "title")
+    .attr("x", d => d.data.url ? 28 : 8)
+    .attr("y", 21)
+    .attr("text-anchor", "start");
+
+  // Domain
+  nodeEnter.append("text")
+    .attr("class", "domain")
+    .attr("x", 8)
+    .attr("y", 40)
+    .attr("text-anchor", "start");
+
+  // Collapse indicator
+  nodeEnter.append("text")
+    .attr("class", "collapse-indicator")
+    .attr("x", NODE_W - 10)
+    .attr("y", 21)
+    .attr("text-anchor", "end")
+    .attr("fill", "#4a5568")
+    .attr("font-size", "10px")
+    .style("pointer-events", "none");
+
+  // Update (merge enter + existing)
+  const nodeMerge = nodeEnter.merge(nodeSel);
+
+  nodeMerge.attr("transform", d => `translate(${d.x - NODE_W / 2},${d.y - NODE_H / 2})`);
+
+  nodeMerge.select("text.title").text(d => {
+    const maxW = d.data.url ? NODE_W - 36 : NODE_W - 16;
+    // Truncate will be handled by SVG — approximate char limit
+    const chars = Math.floor(maxW / 6.5);
+    const t = d.data.title || '(no title)';
+    return t.length > chars ? t.slice(0, chars - 1) + '…' : t;
+  });
+
+  nodeMerge.select("text.domain").text(d => getDomain(d.data.url));
+
+  nodeMerge.select("text.collapse-indicator").text(d => {
+    if (!d.data.children || !d.data.children.length) return '';
+    return d.data._collapsed ? '▶' : '▼';
+  });
+
+  nodeSel.exit().remove();
+}
+
+render();
+
+// ─── Reset zoom ───────────────────────────────────────────────────────────────
+document.getElementById("btn-reset").addEventListener("click", () => {
+  svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1));
+});
+
+function setAllCollapsed(node, collapsed) {
+  if (node.children && node.children.length) node._collapsed = collapsed;
+  (node.children || []).forEach(c => setAllCollapsed(c, collapsed));
+}
+
+document.getElementById("btn-expand").addEventListener("click", () => {
+  setAllCollapsed(MOCK_TREE, false);
+  render();
+});
+
+document.getElementById("btn-collapse").addEventListener("click", () => {
+  // Collapse everything except root's direct children
+  MOCK_TREE.children.forEach(c => setAllCollapsed(c, true));
+  // Un-collapse root's direct children so they still show
+  MOCK_TREE.children.forEach(c => { c._collapsed = false; });
+  render();
+});
+
+// ─── Node count display ───────────────────────────────────────────────────────
+function countNodes(n) { return 1 + (n.children || []).reduce((s, c) => s + countNodes(c), 0); }
+document.getElementById("info").textContent =
+  `${countNodes(MOCK_TREE)} nodes · scroll to zoom · drag to pan · click branch to toggle`;
+</script>
+</body>
+</html>
