@@ -44,6 +44,28 @@ global.firebase = {
   database: jest.fn(),
 };
 
+// ─── AppStorage stub (overridden by eval(storage.js) in crudApi.test.js) ─────
+global.AppStorage = {
+  session: {
+    load:         jest.fn(() => null),
+    save:         jest.fn(),
+    getTimestamp: jest.fn(() => null),
+  },
+  savedTrees: {
+    load: jest.fn(() => []),
+    save: jest.fn(),
+  },
+};
+
+// ─── BrowserApi stub ─────────────────────────────────────────────────────────
+global.BrowserApi = {
+  getAllWindows: jest.fn(),
+  removeTab:    jest.fn(),
+  queryTabs:    jest.fn(),
+  focusTab:     jest.fn(),
+  createTab:    jest.fn(),
+};
+
 // ─── Visualisation functions (defined in visualize.js, mocked here) ──────────
 global.drawTree       = jest.fn();
 global.updateTree     = jest.fn();

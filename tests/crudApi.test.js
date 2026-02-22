@@ -19,6 +19,7 @@ const fs   = require('fs');
 const path = require('path');
 
 eval(fs.readFileSync(path.join(__dirname, '..', 'helperFunctions.js'), 'utf8')); // eslint-disable-line no-eval
+eval(fs.readFileSync(path.join(__dirname, '..', 'storage.js'),         'utf8')); // eslint-disable-line no-eval
 eval(fs.readFileSync(path.join(__dirname, '..', 'crudApi.js'),         'utf8')); // eslint-disable-line no-eval
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

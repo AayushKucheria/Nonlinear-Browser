@@ -208,9 +208,9 @@ function drawTree(source) {
       .attr('opacity', 0)
       .on('click', function(event, d) {
         event.stopPropagation();
-        chrome.tabs.remove(d.data.id);
+        BrowserApi.removeTab(d.data.id);
         var kids = d.data.children || d.data._children || null;
-        if (kids) chrome.tabs.remove(kids.map(c => c.id));
+        if (kids) BrowserApi.removeTab(kids.map(c => c.id));
         removeSubtree(d.data.id);
       });
 
@@ -300,12 +300,11 @@ function toggleChildren(d) {
 // ── Navigate to tab in browser ────────────────────────────────────────────────
 
 function openTab(tab) {
-  chrome.tabs.query({ url: tab.data.url }, function(tabs) {
+  BrowserApi.queryTabs(tab.data.url, function(tabs) {
     if (tabs.length > 0) {
-      chrome.tabs.update(tabs[0].id, { active: true });
-      chrome.windows.update(tabs[0].windowId, { focused: true });
+      BrowserApi.focusTab(tabs[0].id, tabs[0].windowId);
     } else {
-      chrome.tabs.create({ url: tab.data.url });
+      BrowserApi.createTab(tab.data.url);
     }
   });
 }

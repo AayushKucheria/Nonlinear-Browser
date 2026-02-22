@@ -2,10 +2,10 @@ function saveTree() {
   var title = prompt('Enter a name for this tree:');
   if (!title) return;
 
-  var saved = JSON.parse(localStorage.getItem('savedTrees') || '[]');
+  var saved = AppStorage.savedTrees.load();
   var snapshot = JSON.parse(JSON.stringify(window.localRoot));
   saved.push({ id: Date.now().toString(), title: title, snapshot: snapshot });
-  localStorage.setItem('savedTrees', JSON.stringify(saved));
+  AppStorage.savedTrees.save(saved);
   Fnon.Hint.Success(title + ' saved successfully.');
   getSavedTrees();
 }
@@ -19,7 +19,7 @@ function clearSavedTrees() {
 
 function getSavedTrees() {
   clearSavedTrees();
-  var saved = JSON.parse(localStorage.getItem('savedTrees') || '[]');
+  var saved = AppStorage.savedTrees.load();
   saved.forEach(function(tree) {
     var div = document.createElement('div');
     div.className = 'divElem';
@@ -42,11 +42,11 @@ function getSavedTrees() {
       var newTitle = prompt('Enter new name:');
       if (!newTitle) return;
       var previousTitle = tree.title;
-      var list = JSON.parse(localStorage.getItem('savedTrees') || '[]');
+      var list = AppStorage.savedTrees.load();
       var idx = list.findIndex(function(t) { return t.id === tree.id; });
       if (idx !== -1) {
         list[idx].title = newTitle;
-        localStorage.setItem('savedTrees', JSON.stringify(list));
+        AppStorage.savedTrees.save(list);
         Fnon.Hint.Success('Renamed ' + previousTitle + ' to ' + newTitle + ' successfully.');
         getSavedTrees();
       }
@@ -58,9 +58,9 @@ function getSavedTrees() {
       e.stopPropagation();
       var treeName = tree.title;
       Fnon.Ask.Danger('Are you sure you want to delete ' + treeName, 'Confirmation', 'Yes', 'No', function() {
-        var list = JSON.parse(localStorage.getItem('savedTrees') || '[]');
+        var list = AppStorage.savedTrees.load();
         list = list.filter(function(t) { return t.id !== tree.id; });
-        localStorage.setItem('savedTrees', JSON.stringify(list));
+        AppStorage.savedTrees.save(list);
         getSavedTrees();
       });
     };
@@ -73,7 +73,7 @@ function getSavedTrees() {
 }
 
 function fetchTree(tree_id) {
-  var saved = JSON.parse(localStorage.getItem('savedTrees') || '[]');
+  var saved = AppStorage.savedTrees.load();
   var tree = saved.find(function(t) { return t.id === tree_id; });
   if (!tree) return;
   console.log('Loading tree:', tree.title);

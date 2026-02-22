@@ -6,13 +6,13 @@ let isCurrent = true;
 function checkLastSession() {
 
   var isRefreshed = true;
-  var previousTime = window.sessionStorage.getItem('time');
+  var previousTime = AppStorage.session.getTimestamp();
   var currentTime = date.getTime();
   if(!previousTime || (previousTime && (currentTime - previousTime) > 3600000)) // if the time since the extension was loaded exceeds an hour
   {
     isRefreshed = false; // dont refresh
   }
-  lastSession = JSON.parse(window.localStorage.getItem('user'));
+  lastSession = AppStorage.session.load();
   if(lastSession) {
     if(!isRefreshed) {//not Refreshed
       Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
@@ -73,7 +73,7 @@ function localRootToData() {
 function loadWindowList(addCurrentSession) {
   // Get windows + tabs data from chrome api
   if(addCurrentSession) {
-    chrome.windows.getAll({ populate: true }, function(windowList) {
+    BrowserApi.getAllWindows(function(windowList) {
 
       for(var i=0; i < windowList.length; i++) {
         for (var j=0; j < windowList[i].tabs.length; j++) {
@@ -198,5 +198,5 @@ function removeSubtree(tabId) {
 }
 
 function localStore() {
-  window.localStorage.setItem('user', JSON.stringify(window.data)); //adds to localStorage
+  AppStorage.session.save(window.data); //adds to localStorage
 }
