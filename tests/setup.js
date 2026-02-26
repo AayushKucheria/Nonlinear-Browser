@@ -25,7 +25,11 @@ global.chrome = {
     getURL:       jest.fn(path => `chrome-extension://test/${path}`),
     onMessage:    { addListener: jest.fn() },
     onStartup:    { addListener: jest.fn() },
+    sendMessage:  jest.fn(),
     lastError:    null,
+  },
+  sidePanel: {
+    setPanelBehavior: jest.fn(),
   },
 };
 
@@ -53,6 +57,10 @@ global.AppStorage = {
   },
   savedTrees: {
     load: jest.fn(() => []),
+    save: jest.fn(),
+  },
+  windowNames: {
+    load: jest.fn(() => ({})),
     save: jest.fn(),
   },
 };

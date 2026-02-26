@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE 2: Rich Sidebar with Favicons & Search
+
+  Design direction: Familiar browser-extension feel with more visual richness.
+  Closer to what users expect from a polished Chrome extension.
+
+  Key choices:
+  - Favicon placeholder (letter avatars with brand colors) for recognisability
+  - Search bar to filter tabs by title
+  - Collapsible window groups with tab-count badges
+  - Open tabs show normally; closed tabs pushed to a "Closed" section at bottom
+  - Right-click hint (…menu) for extra actions
+  - Slightly warmer grey palette, 14px body text
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sidebar — Rich Favicons</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      background: #f8f8f8;
+      color: #1c1c1e;
+      width: 300px;
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #ffffff;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 10px 10px 8px;
+      flex-shrink: 0;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .header-logo {
+      width: 20px; height: 20px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-weight: 600;
+      font-size: 13px;
+      flex: 1;
+    }
+    .icon-btn {
+      width: 26px; height: 26px;
+      border: none; background: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px;
+      color: #666;
+      font-size: 15px;
+    }
+    .icon-btn:hover { background: #f0f0f0; color: #111; }
+
+    /* search */
+    .search-wrap {
+      position: relative;
+    }
+    .search-wrap svg {
+      position: absolute;
+      left: 8px; top: 50%;
+      transform: translateY(-50%);
+      color: #aaa;
+    }
+    .search {
+      width: 100%;
+      padding: 6px 8px 6px 30px;
+      border: 1px solid #e0e0e0;
+      border-radius: 7px;
+      font-size: 12px;
+      background: #f5f5f5;
+      color: #111;
+      outline: none;
+    }
+    .search:focus { border-color: #6366f1; background: #fff; }
+
+    /* ── Scroll ── */
+    .tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 6px 16px;
+    }
+
+    /* ── Window group ── */
+    .win-group { margin-bottom: 6px; }
+    .win-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 6px 4px;
+      cursor: pointer;
+      border-radius: 6px;
+      user-select: none;
+    }
+    .win-header:hover { background: #efefef; }
+    .win-chevron {
+      font-size: 9px; color: #aaa;
+      transition: transform 0.15s;
+      width: 12px;
+    }
+    .win-chevron.open { transform: rotate(0deg); }
+    .win-chevron.closed-c { transform: rotate(-90deg); }
+    .win-icon { font-size: 13px; }
+    .win-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #888;
+      flex: 1;
+    }
+    .win-badge {
+      font-size: 10px;
+      color: #fff;
+      background: #aaa;
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-weight: 600;
+    }
+    .win-body {}
+
+    /* ── Tab row ── */
+    .tab-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 3px 4px 3px 0;
+      border-radius: 7px;
+      cursor: pointer;
+      position: relative;
+    }
+    .tab-row:hover { background: #ececec; }
+    .tab-row.is-active { background: #eef0ff; }
+
+    .tab-indent { flex-shrink: 0; }
+
+    /* tree line guide */
+    .tab-guide {
+      width: 16px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-self: stretch;
+      position: relative;
+    }
+    .tab-guide::before {
+      content: '';
+      position: absolute;
+      left: 50%; top: 0; bottom: 0;
+      width: 1px;
+      background: #ddd;
+      transform: translateX(-50%);
+    }
+    .tab-guide.last::before { bottom: 50%; }
+
+    .toggle-arrow {
+      width: 16px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 9px;
+      color: #bbb;
+      cursor: default;
+    }
+    .toggle-arrow.clickable { cursor: pointer; color: #888; }
+    .toggle-arrow.clickable:hover { color: #333; }
+
+    /* favicon */
+    .favicon {
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      margin: 0 6px;
+      font-size: 9px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      user-select: none;
+    }
+
+    /* title */
+    .tab-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.35;
+      font-size: 12.5px;
+    }
+    .tab-row.is-active .tab-title { color: #4f46e5; font-weight: 500; }
+    .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; font-style: italic; }
+
+    /* active pill */
+    .active-pill {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #4f46e5;
+      flex-shrink: 0;
+      margin-right: 4px;
+    }
+
+    /* action buttons */
+    .tab-actions {
+      display: flex;
+      gap: 1px;
+      opacity: 0;
+      flex-shrink: 0;
+      margin-left: 2px;
+    }
+    .tab-row:hover .tab-actions { opacity: 1; }
+    .action-btn {
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #999;
+    }
+    .action-btn:hover { background: #ddd; color: #333; }
+    .action-btn.close:hover { background: #fee2e2; color: #dc2626; }
+
+    /* ── Closed section ── */
+    .closed-section {
+      margin-top: 8px;
+      border-top: 1px solid #e5e5e5;
+      padding-top: 6px;
+    }
+    .closed-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    .closed-header:hover { background: #efefef; }
+    .closed-header span { font-size: 11px; color: #aaa; font-weight: 500; flex: 1; }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid #e5e5e5;
+      padding: 8px 10px;
+      background: #fff;
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .footer-btn {
+      font-size: 11.5px;
+      color: #666;
+      cursor: pointer;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      background: #fff;
+      font-weight: 500;
+    }
+    .footer-btn:hover { background: #f5f5f5; border-color: #ccc; }
+    .footer-btn.primary {
+      background: #4f46e5;
+      color: #fff;
+      border-color: #4f46e5;
+    }
+    .footer-btn.primary:hover { background: #4338ca; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-logo"></div>
+    <span class="header-title">Tab Tree</span>
+    <button class="icon-btn" title="Settings">⚙</button>
+    <button class="icon-btn" title="New tab" onclick="alert('New tab')">＋</button>
+  </div>
+  <div class="search-wrap">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input class="search" id="search" placeholder="Search tabs…" oninput="render()">
+  </div>
+</div>
+
+<div class="tree" id="tree"></div>
+
+<div class="footer">
+  <button class="footer-btn">Save tree</button>
+  <span style="flex:1"></span>
+  <button class="footer-btn primary" onclick="alert('New tab opened')">New tab</button>
+</div>
+
+<script>
+const BRAND = {
+  'google': { bg: '#4285f4', letter: 'G' },
+  'gmail': { bg: '#ea4335', letter: 'M' },
+  'docs': { bg: '#4285f4', letter: 'D' },
+  'drive': { bg: '#0F9D58', letter: 'Dr' },
+  'slides': { bg: '#F4B400', letter: 'S' },
+  'github': { bg: '#24292e', letter: 'GH' },
+  'youtube': { bg: '#ff0000', letter: 'YT' },
+  'hacker': { bg: '#ff6600', letter: 'HN' },
+  'linear': { bg: '#5e6ad2', letter: 'L' },
+  'default': { bg: '#888', letter: '?' },
+};
+
+function favicon(title) {
+  const lower = title.toLowerCase();
+  for (const [key, val] of Object.entries(BRAND)) {
+    if (lower.includes(key)) return val;
+  }
+  return { bg: '#' + Math.floor(Math.abs(Math.sin(title.length * 999)) * 0xffffff).toString(16).padStart(6,'0'), letter: title[0]?.toUpperCase() || '?' };
+}
+
+const windows = [
+  {
+    id: 'w1', label: 'Window 1',
+    tabs: [
+      { id: 1, title: 'Google', active: true, closed: false, children: [
+        { id: 2, title: 'Gmail — Inbox (3)', active: false, closed: false, children: [] },
+        { id: 3, title: 'Google Docs — Q4 Planning', active: false, closed: false, children: [
+          { id: 4, title: 'Google Drive — Shared with me', active: false, closed: false, children: [] },
+          { id: 5, title: 'Google Slides — Team Deck', active: false, closed: true, children: [] },
+        ]},
+      ]},
+      { id: 6, title: 'GitHub — Dashboard', active: false, closed: false, children: [
+        { id: 7, title: 'anthropics / claude-code', active: false, closed: false, children: [
+          { id: 8, title: 'Issues · anthropics/claude-code', active: false, closed: false, children: [] },
+          { id: 9, title: 'PR #412 — Fix context window handling', active: false, closed: true, children: [] },
+        ]},
+      ]},
+      { id: 10, title: 'YouTube — Home', active: false, closed: false, children: [] },
+    ]
+  },
+  {
+    id: 'w2', label: 'Window 2',
+    tabs: [
+      { id: 11, title: 'Hacker News', active: false, closed: false, children: [
+        { id: 12, title: 'Ask HN: Best way to learn Rust in 2025?', active: false, closed: false, children: [] },
+        { id: 13, title: 'Show HN: I built a tab manager extension', active: false, closed: false, children: [] },
+      ]},
+      { id: 14, title: 'Linear — My Issues', active: false, closed: false, children: [] },
+    ]
+  }
+];
+
+const collapsedWins = new Set();
+const collapsedTabs = new Set();
+let closedVisible = false;
+
+function allFlatTabs(tabs, arr = []) {
+  for (const t of tabs) { arr.push(t); allFlatTabs(t.children, arr); }
+  return arr;
+}
+
+function setActive(id) {
+  for (const w of windows) {
+    allFlatTabs(w.tabs).forEach(t => t.active = false);
+  }
+  for (const w of windows) {
+    const t = allFlatTabs(w.tabs).find(t => t.id === id);
+    if (t) { t.active = true; break; }
+  }
+  render();
+}
+
+function toggleClose(id) {
+  for (const w of windows) {
+    const t = allFlatTabs(w.tabs).find(t => t.id === id);
+    if (t) { t.closed = !t.closed; break; }
+  }
+  render();
+}
+
+function countOpen(tabs) {
+  let n = 0;
+  for (const t of tabs) { if (!t.closed) n++; n += countOpen(t.children); }
+  return n;
+}
+
+function matchesSearch(tab, query) {
+  if (!query) return true;
+  if (tab.title.toLowerCase().includes(query)) return true;
+  for (const c of tab.children) if (matchesSearch(c, query)) return true;
+  return false;
+}
+
+function renderTabRow(tab, depth, container, isLast, query) {
+  const fav = favicon(tab.title);
+  const row = document.createElement('div');
+  row.className = 'tab-row' + (tab.active ? ' is-active' : '') + (tab.closed ? ' is-closed' : '');
+
+  // Indent
+  if (depth > 0) {
+    const ind = document.createElement('span');
+    ind.className = 'tab-indent';
+    ind.style.width = ((depth - 1) * 20) + 'px';
+    row.appendChild(ind);
+
+    const guide = document.createElement('span');
+    guide.className = 'tab-guide' + (isLast ? ' last' : '');
+    row.appendChild(guide);
+  }
+
+  // Toggle arrow
+  const arrow = document.createElement('span');
+  arrow.className = 'toggle-arrow' + (tab.children.length ? ' clickable' : '');
+  if (tab.children.length) {
+    arrow.textContent = collapsedTabs.has(tab.id) ? '▶' : '▾';
+    arrow.onclick = (e) => {
+      e.stopPropagation();
+      if (collapsedTabs.has(tab.id)) collapsedTabs.delete(tab.id);
+      else collapsedTabs.add(tab.id);
+      render();
+    };
+  } else {
+    arrow.textContent = '';
+  }
+  row.appendChild(arrow);
+
+  // Favicon
+  const ficon = document.createElement('span');
+  ficon.className = 'favicon';
+  ficon.style.background = fav.bg;
+  ficon.textContent = fav.letter;
+  row.appendChild(ficon);
+
+  // Title
+  const title = document.createElement('span');
+  title.className = 'tab-title';
+  title.textContent = tab.title;
+  row.appendChild(title);
+
+  // Active dot
+  if (tab.active) {
+    const dot = document.createElement('span');
+    dot.className = 'active-pill';
+    row.appendChild(dot);
+  }
+
+  // Actions
+  const actions = document.createElement('div');
+  actions.className = 'tab-actions';
+
+  const closeBtn = document.createElement('span');
+  closeBtn.className = 'action-btn close';
+  closeBtn.textContent = '✕';
+  closeBtn.title = tab.closed ? 'Reopen' : 'Close';
+  closeBtn.onclick = (e) => { e.stopPropagation(); toggleClose(tab.id); };
+  actions.appendChild(closeBtn);
+
+  row.appendChild(actions);
+
+  if (!tab.closed) row.onclick = () => setActive(tab.id);
+
+  container.appendChild(row);
+
+  if (!collapsedTabs.has(tab.id)) {
+    const visible = tab.children.filter(c => {
+      if (c.closed && !closedVisible) return false;
+      return matchesSearch(c, query);
+    });
+    visible.forEach((child, i) => {
+      renderTabRow(child, depth + 1, container, i === visible.length - 1, query);
+    });
+  }
+}
+
+function render() {
+  const tree = document.getElementById('tree');
+  tree.innerHTML = '';
+  const query = document.getElementById('search').value.toLowerCase().trim();
+
+  for (const w of windows) {
+    const open = countOpen(w.tabs);
+    const group = document.createElement('div');
+    group.className = 'win-group';
+
+    if (windows.length > 1) {
+      const header = document.createElement('div');
+      header.className = 'win-header';
+      const chev = document.createElement('span');
+      chev.className = 'win-chevron ' + (collapsedWins.has(w.id) ? 'closed-c' : 'open');
+      chev.textContent = '▾';
+      const ico = document.createElement('span');
+      ico.className = 'win-icon';
+      ico.textContent = '⬜';
+      const wtitle = document.createElement('span');
+      wtitle.className = 'win-title';
+      wtitle.textContent = w.label;
+      const badge = document.createElement('span');
+      badge.className = 'win-badge';
+      badge.textContent = open;
+      header.appendChild(chev); header.appendChild(ico);
+      header.appendChild(wtitle); header.appendChild(badge);
+      header.onclick = () => {
+        if (collapsedWins.has(w.id)) collapsedWins.delete(w.id);
+        else collapsedWins.add(w.id);
+        render();
+      };
+      group.appendChild(header);
+    }
+
+    if (!collapsedWins.has(w.id)) {
+      const body = document.createElement('div');
+      body.className = 'win-body';
+
+      const visible = w.tabs.filter(t => {
+        if (t.closed && !closedVisible) return false;
+        return matchesSearch(t, query);
+      });
+      visible.forEach((tab, i) => {
+        renderTabRow(tab, 0, body, i === visible.length - 1, query);
+      });
+
+      group.appendChild(body);
+    }
+
+    tree.appendChild(group);
+  }
+
+  // closed section toggle
+  const allClosed = [];
+  for (const w of windows) allFlatTabs(w.tabs).filter(t => t.closed).forEach(t => allClosed.push(t));
+  if (allClosed.length > 0) {
+    const cs = document.createElement('div');
+    cs.className = 'closed-section';
+    const ch = document.createElement('div');
+    ch.className = 'closed-header';
+    const chev = document.createElement('span');
+    chev.textContent = closedVisible ? '▾' : '▶';
+    chev.style.fontSize = '9px'; chev.style.color = '#aaa'; chev.style.marginRight = '4px';
+    const label = document.createElement('span');
+    label.textContent = `${allClosed.length} closed tab${allClosed.length > 1 ? 's' : ''}`;
+    ch.appendChild(chev); ch.appendChild(label);
+    ch.onclick = () => { closedVisible = !closedVisible; render(); };
+    cs.appendChild(ch);
+    tree.appendChild(cs);
+  }
+}
+
+render();
+</script>
+</body>
+</html>

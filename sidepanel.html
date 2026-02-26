@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Nonlinear Browser</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      background: #ffffff;
+      color: #1c1c1e;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #aaa;
+      flex: 1;
+    }
+    .header-stats { font-size: 10px; color: #ccc; }
+    .icon-btn {
+      width: 22px; height: 22px;
+      border: none; background: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; color: #bbb; font-size: 13px;
+    }
+    .icon-btn:hover { background: #eee; color: #444; }
+
+    /* ── Search ── */
+    .search-row {
+      padding: 6px 8px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      flex-shrink: 0;
+    }
+    .search {
+      width: 100%; padding: 5px 8px;
+      background: #fff; border: 1px solid #ddd; border-radius: 4px;
+      color: #111; font-family: inherit; font-size: 11px; outline: none;
+    }
+    .search::placeholder { color: #ccc; }
+    .search:focus { border-color: #6366f1; }
+
+    /* ── Scroll ── */
+    .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .tree::-webkit-scrollbar { width: 4px; }
+    .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+    /* ── Window label ── */
+    .win-label {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 8px 3px;
+      font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: #ccc; cursor: pointer; user-select: none;
+    }
+    .win-label:hover { color: #aaa; }
+    .win-chevron {
+      font-size: 8px; display: inline-block; transition: transform 0.12s;
+      flex-shrink: 0;
+    }
+    .win-label.collapsed .win-chevron { transform: rotate(-90deg); }
+    .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+    .win-count {
+      font-size: 9px; color: #ccc; background: #f3f3f3;
+      padding: 1px 5px; border-radius: 3px; order: 10;
+    }
+    .win-name {
+      outline: none;
+      cursor: pointer;
+    }
+    .win-name[contenteditable="true"] {
+      cursor: text;
+      color: #888;
+      border-bottom: 1px dashed #bbb;
+      padding-bottom: 1px;
+    }
+
+    /* ── Tab row ── */
+    .tab-row {
+      display: flex; align-items: stretch;
+      min-height: 26px; cursor: pointer;
+      position: relative;
+    }
+
+    /* URL tooltip */
+    .tab-row .url-tip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 28px; right: 6px;
+      background: #1c1c1e;
+      color: #e0e0e0;
+      font-size: 10px;
+      padding: 4px 7px;
+      border-radius: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 100;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+    .tab-row .url-tip::after {
+      content: '';
+      position: absolute;
+      top: 100%; left: 12px;
+      border: 4px solid transparent;
+      border-top-color: #1c1c1e;
+    }
+    .tab-row:hover .url-tip { display: block; }
+
+    .tab-row:hover .tab-inner { background: #f4f4f5; }
+    .tab-row.is-active .tab-inner { background: #eff6ff; }
+    .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+    .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; }
+    .tab-row.is-closed .favicon { opacity: 0.4; }
+
+    /* Active left bar */
+    .active-bar {
+      width: 2px; align-self: stretch;
+      background: #2563eb; border-radius: 1px;
+      flex-shrink: 0; margin: 4px 0;
+    }
+
+    /* Tree connector lines */
+    .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
+    .seg { width: 16px; flex-shrink: 0; position: relative; }
+    .seg.vert::before {
+      content: ''; position: absolute;
+      left: 8px; top: 0; bottom: 0;
+      width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::before {
+      content: ''; position: absolute;
+      left: 8px; top: 0; bottom: 50%;
+      width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::after {
+      content: ''; position: absolute;
+      left: 8px; top: 50%; width: 8px; height: 1px; background: #e0e0e0;
+    }
+
+    /* Inner row */
+    .tab-inner {
+      flex: 1; display: flex; align-items: center; gap: 5px;
+      padding: 0 6px 0 4px; border-radius: 4px;
+      margin-right: 4px; min-width: 0;
+    }
+
+    /* Toggle — always present for alignment */
+    .toggle {
+      width: 12px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 9px; color: #bbb;
+    }
+    .toggle.clickable { cursor: pointer; }
+    .toggle.clickable:hover { color: #555; }
+
+    .favicon {
+      width: 14px; height: 14px;
+      border-radius: 2px; flex-shrink: 0;
+      font-size: 7px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; user-select: none; letter-spacing: -0.5px;
+      overflow: hidden;
+    }
+
+    /* Title */
+    .tab-title {
+      flex: 1; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      font-size: 11.5px; color: #222; line-height: 26px;
+    }
+
+    /* Close button */
+    .tab-close {
+      opacity: 0; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+    }
+    .tab-row:hover .tab-close { opacity: 1; }
+    .tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid #e5e5e5; background: #f9f9f9;
+      padding: 6px 10px; display: flex; align-items: center;
+      gap: 6px; flex-shrink: 0;
+    }
+    .footer-hint { font-size: 9.5px; color: #ccc; }
+    .kbd {
+      display: inline-block; background: #fff;
+      border: 1px solid #ddd; border-radius: 3px;
+      padding: 0 3px; font-size: 9px; color: #aaa; font-family: inherit;
+    }
+    .footer-btn {
+      font-family: inherit; font-size: 10px; color: #888; cursor: pointer;
+      padding: 3px 8px; border-radius: 4px;
+      border: 1px solid #e0e0e0; background: #fff;
+    }
+    .footer-btn:hover { border-color: #6366f1; color: #6366f1; }
+  </style>
+</head>
+<body>
+
+<!-- Hidden ruler used by wrapText() in helperFunctions.js -->
+<span id="ruler" style="position:absolute;visibility:hidden;white-space:nowrap;"></span>
+
+<div class="header">
+  <span class="header-title">tabs</span>
+  <span class="header-stats" id="stats"></span>
+  <button class="icon-btn" id="collapseAll" title="Collapse all">⊟</button>
+</div>
+
+<div class="search-row">
+  <input class="search" id="search" placeholder="/ filter…">
+</div>
+
+<div class="tree" id="tree"></div>
+
+<div class="footer">
+  <span class="footer-hint"><kbd class="kbd">↑↓</kbd> nav</span>
+  <span class="footer-hint"><kbd class="kbd">⏎</kbd> focus</span>
+  <span class="footer-hint"><kbd class="kbd">⌫</kbd> close</span>
+  <span style="flex:1"></span>
+  <button class="footer-btn" id="saveTree">save</button>
+</div>
+
+<script src="lib/fnon.min.js"></script>
+<script src="helperFunctions.js"></script>
+<script src="storage.js"></script>
+<script src="browserApi.js"></script>
+<script src="crudApi.js"></script>
+<script src="renderer.js"></script>
+<script src="sidepanel.js"></script>
+</body>
+</html>

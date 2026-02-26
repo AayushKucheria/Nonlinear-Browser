@@ -7,5 +7,9 @@ window.AppStorage = {
   savedTrees: {
     load()          { return JSON.parse(localStorage.getItem('savedTrees') || '[]'); },
     save(trees)     { localStorage.setItem('savedTrees', JSON.stringify(trees)); }
+  },
+  windowNames: {
+    load()          { return JSON.parse(localStorage.getItem('windowNames') || '{}'); },
+    save(names)     { localStorage.setItem('windowNames', JSON.stringify(names)); }
   }
 };

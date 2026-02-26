@@ -1,43 +1,27 @@
 // MV3 Service Worker
 
-chrome.action.onClicked.addListener(function(tab) {
-  chrome.tabs.query({url: chrome.runtime.getURL("tabs_api.html")}, function(tabs) {
-    if (tabs.length > 0) {
-      chrome.tabs.update(tabs[0].id, {active: true});
-      chrome.windows.update(tabs[0].windowId, {focused: true});
-    } else {
-      chrome.tabs.create({url: chrome.runtime.getURL("tabs_api.html")});
-      chrome.action.setBadgeBackgroundColor({color: '#4688F1'});
-      chrome.action.setBadgeText({text: 'ON'});
-    }
-  });
+// Open the side panel when the user clicks the toolbar icon.
+// This replaces the old chrome.action.onClicked → chrome.tabs.create pattern.
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+
+// Forward tab events to the side panel via runtime messaging.
+// The side panel listens with chrome.runtime.onMessage.
+chrome.tabs.onCreated.addListener(function (tab) {
+  sendToUI({ type: 'tabCreated', tab: tab });
 });
 
-chrome.runtime.onStartup.addListener(function() {
-  chrome.tabs.create({url: chrome.runtime.getURL('tabs_api.html')});
+chrome.tabs.onRemoved.addListener(function (tabId) {
+  sendToUI({ type: 'tabRemoved', tabId: tabId });
 });
 
-// Forward tab events to the UI page
-chrome.tabs.onCreated.addListener(function(tab) {
-  sendToUI({type: 'tabCreated', tab: tab});
-});
-
-chrome.tabs.onRemoved.addListener(function(tabId, removeInfo) {
-  sendToUI({type: 'tabRemoved', tabId: tabId});
-});
-
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
-  sendToUI({type: 'tabUpdated', tabId: tabId, changeInfo: changeInfo});
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
+  sendToUI({ type: 'tabUpdated', tabId: tabId, changeInfo: changeInfo });
 });
 
 function sendToUI(message) {
-  chrome.tabs.query({url: chrome.runtime.getURL("tabs_api.html")}, function(tabs) {
-    for (var i = 0; i < tabs.length; i++) {
-      chrome.tabs.sendMessage(tabs[i].id, message, function() {
-        if (chrome.runtime.lastError) {
-          // UI tab not ready yet — ignore
-        }
-      });
+  chrome.runtime.sendMessage(message, function () {
+    if (chrome.runtime.lastError) {
+      // Side panel is not open — ignore.
     }
   });
 }

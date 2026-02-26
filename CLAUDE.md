@@ -1,8 +1,8 @@
 # Nonlinear-Browser — Claude Code guide
 
-Chrome Extension (Manifest V3) that visualises browser tabs as an interactive D3 tree.
+Chrome Extension (Manifest V3) that shows browser tabs as a compact indented list in a Chrome Side Panel.
 No build system. No bundler. No module format. Plain script tags loaded by the browser.
-Third-party JS (D3, fnon) is vendored into `lib/` — MV3 prohibits remote scripts.
+Third-party JS (fnon) is vendored into `lib/` — MV3 prohibits remote scripts.
 
 ---
 
@@ -13,7 +13,7 @@ npm install        # first time only
 npm test           # Jest 29
 ```
 
-23 tests across 2 suites, runtime ~1 s.
+52 tests across 3 suites, runtime ~2 s.
 
 ---
 
@@ -21,29 +21,28 @@ npm test           # Jest 29
 
 | File | Role |
 |---|---|
-| `manifest.json` | MV3 manifest; service worker = `background.js`, UI page = `tabs_api.html` |
-| `background.js` | **MV3 service worker** — handles `chrome.action.onClicked`, startup, and forwards tab events to the UI page via `chrome.tabs.sendMessage` |
-| `tabs_api.js` | Bootstraps the UI; receives tab events from the service worker via `chrome.runtime.onMessage` and drives the tree |
-| `close.js` | UI page unload handler — clears badge via `chrome.action`, saves session timestamp |
+| `manifest.json` | MV3 manifest; service worker = `background.js`, side panel = `sidepanel.html` |
+| `background.js` | **MV3 service worker** — calls `chrome.sidePanel.setPanelBehavior` on load; forwards tab events to the side panel via `chrome.runtime.sendMessage` |
+| `sidepanel.html` | Side panel HTML shell — header, search bar, tree div, footer; all CSS inlined |
+| `sidepanel.js` | Bootstraps the panel; wires `initializeTree`/`updateTree` → `renderAll`; handles tab events from the service worker via `chrome.runtime.onMessage` |
+| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch`, `renderTabRow`, `buildSidebarTree`; no Chrome API calls; fully unit-tested |
 | `storage.js` | Storage layer — `window.AppStorage`; all localStorage/sessionStorage access and key names live here |
 | `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` calls live here |
 | `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD functions |
 | `helperFunctions.js` | `traverse`, `wrapText`, `visualLength` |
-| `visualize.js` | D3 rendering — `drawTree`, `updateTree`, `initializeTree`; single `d3.zoom()` for pan/zoom |
-| `context_menu.js` | Right-click context menu |
 | `savedTrees.js` | localStorage-based tree snapshots — `saveTree`, `getSavedTrees`, `fetchTree` |
-| `lib/` | Vendored JS: `d3.v6.min.js`, `fnon.min.js` |
+| `lib/` | Vendored JS: `fnon.min.js` |
 
 **Global state (set on `window`):**
 - `window.localRoot` — root node of the tab tree (`{id, title, children, …}`)
 - `window.data` — flat `{[tabId]: tabObj}` map, kept in sync with localRoot
-- `window.tabWidth` (200), `window.fontSize` (16), `window.currentRoot` — layout constants
+- `window.tabWidth` (200) — used by `wrapText` for line-break limits
 
 ---
 
 ## Testing approach
 
-The source files execute D3/Chrome code on load and export nothing, so `require()` doesn't work.
+The source files execute Chrome code on load and export nothing, so `require()` doesn't work.
 
 **Pattern:** `eval(fs.readFileSync('src.js', 'utf8'))` at the **top level** of each test file (not
 inside `beforeAll`). In Node.js sloppy mode, `function` declarations inside `eval` hoist into the
@@ -53,6 +52,12 @@ enclosing module-wrapper scope and become callable from every test.
 1. `helperFunctions.js` — provides `wrapText` / `traverse` used by crudApi
 2. `storage.js` — defines `window.AppStorage` (real implementation, not the setup.js stub)
 3. `crudApi.js` — provides `updateTab`, `addNewTab`, `removeSubtree`, `localRootToData`
+
+**Eval order matters in `renderer.test.js`:**
+1. `helperFunctions.js` — provides `traverse` / `wrapText`
+2. `storage.js` — defines `window.AppStorage`
+3. `crudApi.js` — defines `window.localRoot`, `window.data`
+4. `renderer.js` — provides `countOpen`, `matchesSearch`, `renderTabRow`, `buildSidebarTree`
 
 **`let`-declared top-level vars** (e.g. `let isCurrent = true` in crudApi.js) are scoped to the
 eval block and cannot be overridden from tests. Tests run with the defaults (`isCurrent = true`).
@@ -67,10 +72,10 @@ functions resolve them via the global scope so they pick up the new objects.
 valid 4-element array — all text lands on line 0.
 
 ### Mocks (tests/setup.js)
-- `global.chrome` — MV3 stubs for tabs, windows, action, runtime (replaces old browserAction/extension stubs)
+- `global.chrome` — MV3 stubs for tabs, windows, action, runtime, sidePanel
 - `global.d3` — empty object (prevents ReferenceError)
 - `global.Fnon` — stub for toast/dialog library
-- `global.AppStorage` — stub with `jest.fn()` methods; overridden by `eval(storage.js)` in `crudApi.test.js`
+- `global.AppStorage` — stub with `jest.fn()` methods (session, savedTrees, windowNames); overridden by `eval(storage.js)` in crudApi/renderer tests
 - `global.BrowserApi` — stub with `jest.fn()` methods for all Chrome tab/window calls
 - `global.updateTree`, `global.initializeTree`, `global.drawTree` — `jest.fn()`
 - `global.tabWidth = 200`, `global.innerWidth = 1280`, `global.innerHeight = 720`
@@ -79,6 +84,8 @@ valid 4-element array — all text lands on line 0.
 ---
 
 ## What the tests cover
+
+### crudApi.test.js (9 tests)
 
 | Test | Bug fix verified |
 |---|---|
@@ -92,11 +99,23 @@ valid 4-element array — all text lands on line 0.
 | `traverse` null/leaf/tree | Core utility |
 | `wrapText` empty / short input | Core utility |
 
+### renderer.test.js (29 tests)
+
+| Group | What's tested |
+|---|---|
+| `countOpen` | Empty list; flat list with deleted tabs; recursive children |
+| `matchesSearch` | Empty query; title match; descendant match bubbles up; no match |
+| `renderTabRow` — structure | `.tab-row` appended; title text; `.toggle` present; `.clickable` for parents; `.favicon` with letter or `<img>` |
+| `renderTabRow` — state classes | `.is-active` / `.is-closed` from `tab.active` / `tab.deleted` |
+| `renderTabRow` — tree lines | depth=0 no lines; depth=1 has `.seg.branch`; depth=2 has ancestor + branch |
+| `renderTabRow` — children | Renders into same container; respects `collapsedTabs`; respects `showClosed`; filters by search query |
+| `buildSidebarTree` | `.win-label` per window; tab count; `windowNames` map used for label text |
+
 ## What cannot be unit tested (requires live browser)
 
-- `.interrupt()` calls stopping in-flight D3 transitions
-- Service worker ↔ UI message passing (`sendToUI` / `chrome.runtime.onMessage`)
-- `removeEventListener` for `click.contextMenu`
+- Service worker ↔ side panel message passing (`sendToUI` / `chrome.runtime.onMessage`)
+- Tab focus / close via `BrowserApi.focusTab` / `BrowserApi.removeTab`
+- Window-name rename persistence (double-click interaction)
 
 ---
 
@@ -107,6 +126,9 @@ valid 4-element array — all text lands on line 0.
   `window.localRoot` explicitly so tests can assert the correct reference.
 - Tab nodes: `{id, title, parentId, children[], lines[], url, pendingUrl, favIconUrl, windowId,
   toggle, deleted, read, x0, y0}`
+- `deleted: true` = closed/removed tab (soft-delete kept in tree for "N closed tabs" display)
+- `active: true` = currently active tab (set by sidepanel.js, not persisted in crudApi schema)
 - `wrapText` splits on `/(?=[\s\\/%,\.])/` and fills up to 4 lines; line 0-1 use 50% of tabWidth,
   lines 2-3 use 70%.
 - `traverse(parent, traverseFn, childrenFn)` — `childrenFn` returning `null`/falsy stops that branch.
+- `AppStorage.windowNames` — key `'windowNames'`; `{[windowId]: string}` map for custom window labels

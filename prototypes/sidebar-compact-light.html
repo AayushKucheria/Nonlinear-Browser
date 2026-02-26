@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE 4 (v3): Compact Light
+  - Light theme, monospace font, connector lines, favicons
+  - Toggle arrow overlaid ON the favicon (no wasted horizontal space)
+  - Window labels are renameable (double-click)
+  - URL tooltip on tab hover
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sidebar — Compact Light</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      background: #ffffff;
+      color: #1c1c1e;
+      width: 300px;
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #aaa;
+      flex: 1;
+    }
+    .header-stats { font-size: 10px; color: #ccc; }
+    .icon-btn {
+      width: 22px; height: 22px;
+      border: none; background: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; color: #bbb; font-size: 13px;
+    }
+    .icon-btn:hover { background: #eee; color: #444; }
+
+    /* ── Search ── */
+    .search-row {
+      padding: 6px 8px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      flex-shrink: 0;
+    }
+    .search {
+      width: 100%; padding: 5px 8px;
+      background: #fff; border: 1px solid #ddd; border-radius: 4px;
+      color: #111; font-family: inherit; font-size: 11px; outline: none;
+    }
+    .search::placeholder { color: #ccc; }
+    .search:focus { border-color: #6366f1; }
+
+    /* ── Scroll ── */
+    .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .tree::-webkit-scrollbar { width: 4px; }
+    .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+    /* ── Window label ── */
+    .win-label {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 8px 3px;
+      font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: #ccc; cursor: pointer; user-select: none;
+    }
+    .win-label:hover { color: #aaa; }
+    .win-chevron {
+      font-size: 8px; display: inline-block; transition: transform 0.12s;
+      flex-shrink: 0;
+    }
+    .win-label.collapsed .win-chevron { transform: rotate(-90deg); }
+    .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+    .win-count {
+      font-size: 9px; color: #ccc; background: #f3f3f3;
+      padding: 1px 5px; border-radius: 3px; order: 10;
+    }
+
+    /* editable window name */
+    .win-name {
+      outline: none;
+      cursor: pointer;
+    }
+    .win-name[contenteditable="true"] {
+      cursor: text;
+      color: #888;
+      border-bottom: 1px dashed #bbb;
+      padding-bottom: 1px;
+    }
+
+    /* ── Tab row ── */
+    .tab-row {
+      display: flex; align-items: stretch;
+      min-height: 26px; cursor: pointer;
+      position: relative;
+    }
+
+    /* URL tooltip */
+    .tab-row .url-tip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 28px; right: 6px;
+      background: #1c1c1e;
+      color: #e0e0e0;
+      font-size: 10px;
+      padding: 4px 7px;
+      border-radius: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 100;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+    .tab-row .url-tip::after {
+      content: '';
+      position: absolute;
+      top: 100%; left: 12px;
+      border: 4px solid transparent;
+      border-top-color: #1c1c1e;
+    }
+    .tab-row:hover .url-tip { display: block; }
+
+    .tab-row:hover .tab-inner { background: #f4f4f5; }
+    .tab-row.is-active .tab-inner { background: #eff6ff; }
+    .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+    .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; }
+    .tab-row.is-closed .favicon { opacity: 0.4; }
+
+    /* Active left bar */
+    .active-bar {
+      width: 2px; align-self: stretch;
+      background: #2563eb; border-radius: 1px;
+      flex-shrink: 0; margin: 4px 0;
+    }
+
+    /* tree connector lines */
+    .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
+    .seg { width: 16px; flex-shrink: 0; position: relative; }
+    .seg.vert::before {
+      content: ''; position: absolute;
+      left: 8px; top: 0; bottom: 0;
+      width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::before {
+      content: ''; position: absolute;
+      left: 8px; top: 0; bottom: 50%;
+      width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::after {
+      content: ''; position: absolute;
+      left: 8px; top: 50%; width: 8px; height: 1px; background: #e0e0e0;
+    }
+
+    /* inner row */
+    .tab-inner {
+      flex: 1; display: flex; align-items: center; gap: 5px;
+      padding: 0 6px 0 4px; border-radius: 4px;
+      margin-right: 4px; min-width: 0;
+    }
+
+    /* Toggle — present on every row for consistent alignment */
+    .toggle {
+      width: 12px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 9px; color: #bbb;
+    }
+    .toggle.clickable { cursor: pointer; }
+    .toggle.clickable:hover { color: #555; }
+
+    .favicon {
+      width: 14px; height: 14px;
+      border-radius: 2px; flex-shrink: 0;
+      font-size: 7px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; user-select: none; letter-spacing: -0.5px;
+    }
+
+    /* title */
+    .tab-title {
+      flex: 1; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      font-size: 11.5px; color: #222; line-height: 26px;
+    }
+
+    /* close button */
+    .tab-close {
+      opacity: 0; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+    }
+    .tab-row:hover .tab-close { opacity: 1; }
+    .tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+    /* ── Closed section ── */
+    .closed-toggle {
+      display: flex; align-items: center; gap: 5px;
+      padding: 7px 10px; font-size: 10px; color: #bbb;
+      cursor: pointer; border-top: 1px solid #ececec;
+      margin-top: 4px; font-family: inherit;
+    }
+    .closed-toggle:hover { color: #888; }
+    .closed-toggle .chev { font-size: 8px; transition: transform 0.1s; }
+    .closed-toggle.open .chev { transform: rotate(90deg); }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid #e5e5e5; background: #f9f9f9;
+      padding: 6px 10px; display: flex; align-items: center;
+      gap: 6px; flex-shrink: 0;
+    }
+    .footer-hint { font-size: 9.5px; color: #ccc; }
+    .kbd {
+      display: inline-block; background: #fff;
+      border: 1px solid #ddd; border-radius: 3px;
+      padding: 0 3px; font-size: 9px; color: #aaa; font-family: inherit;
+    }
+    .footer-btn {
+      font-family: inherit; font-size: 10px; color: #888; cursor: pointer;
+      padding: 3px 8px; border-radius: 4px;
+      border: 1px solid #e0e0e0; background: #fff;
+    }
+    .footer-btn:hover { border-color: #6366f1; color: #6366f1; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">tabs</span>
+  <span class="header-stats" id="stats"></span>
+  <button class="icon-btn" title="Collapse all">⊟</button>
+</div>
+
+<div class="search-row">
+  <input class="search" id="search" placeholder="/ filter…" oninput="render()">
+</div>
+
+<div class="tree" id="tree"></div>
+
+<div class="footer">
+  <span class="footer-hint"><kbd class="kbd">↑↓</kbd> nav</span>
+  <span class="footer-hint"><kbd class="kbd">⏎</kbd> focus</span>
+  <span class="footer-hint"><kbd class="kbd">⌫</kbd> close</span>
+  <span style="flex:1"></span>
+  <button class="footer-btn" onclick="alert('Tree saved!')">save</button>
+</div>
+
+<script>
+const BRANDS = {
+  'Google Docs':   { bg: '#4285f4', label: 'D' },
+  'Google Drive':  { bg: '#0f9d58', label: 'Dr' },
+  'Google Slides': { bg: '#f4b400', label: 'S' },
+  'Gmail':         { bg: '#ea4335', label: 'M' },
+  'Google':        { bg: '#4285f4', label: 'G' },
+  'anthropics':    { bg: '#24292e', label: 'GH' },
+  'Issues':        { bg: '#24292e', label: 'GH' },
+  'PR #':          { bg: '#24292e', label: 'GH' },
+  'GitHub':        { bg: '#24292e', label: 'GH' },
+  'YouTube':       { bg: '#ff0000', label: 'YT' },
+  'Ask HN':        { bg: '#ff6600', label: 'HN' },
+  'Show HN':       { bg: '#ff6600', label: 'HN' },
+  'Hacker News':   { bg: '#ff6600', label: 'HN' },
+  'Linear':        { bg: '#5e6ad2', label: 'Li' },
+};
+const FALLBACK_COLORS = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f59e0b','#10b981'];
+
+function getFavicon(title) {
+  for (const [key, val] of Object.entries(BRANDS)) {
+    if (title.includes(key)) return val;
+  }
+  const color = FALLBACK_COLORS[title.charCodeAt(0) % FALLBACK_COLORS.length];
+  return { bg: color, label: title[0]?.toUpperCase() || '?' };
+}
+
+function fakeUrl(title) {
+  const map = {
+    'Google Docs': 'docs.google.com/document/d/1aBcD…',
+    'Google Drive': 'drive.google.com/drive/my-drive',
+    'Google Slides': 'docs.google.com/presentation/d/…',
+    'Gmail': 'mail.google.com/mail/u/0/#inbox',
+    'Google': 'google.com',
+    'GitHub': 'github.com',
+    'anthropics': 'github.com/anthropics/claude-code',
+    'Issues': 'github.com/anthropics/claude-code/issues',
+    'PR #412': 'github.com/anthropics/claude-code/pull/412',
+    'YouTube': 'youtube.com',
+    'Hacker News': 'news.ycombinator.com',
+    'Ask HN': 'news.ycombinator.com/item?id=42817263',
+    'Show HN': 'news.ycombinator.com/item?id=42819104',
+    'Linear': 'linear.app/team/my-issues',
+  };
+  for (const [k, v] of Object.entries(map)) if (title.includes(k)) return v;
+  return title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '.com';
+}
+
+const windows = [
+  {
+    id: 'w1', label: 'Window 1', collapsed: false,
+    tabs: [
+      { id: 1, title: 'Google', active: true, closed: false, children: [
+        { id: 2, title: 'Gmail — Inbox (3)', active: false, closed: false, children: [] },
+        { id: 3, title: 'Google Docs — Q4 Planning', active: false, closed: false, children: [
+          { id: 4, title: 'Google Drive — Shared', active: false, closed: false, children: [] },
+          { id: 5, title: 'Google Slides — Team Deck', active: false, closed: true, children: [] },
+        ]},
+      ]},
+      { id: 6, title: 'GitHub', active: false, closed: false, children: [
+        { id: 7, title: 'anthropics/claude-code', active: false, closed: false, children: [
+          { id: 8, title: 'Issues · anthropics/claude-code', active: false, closed: false, children: [] },
+          { id: 9, title: 'PR #412 — Fix context window', active: false, closed: true, children: [] },
+        ]},
+      ]},
+      { id: 10, title: 'YouTube', active: false, closed: false, children: [] },
+    ]
+  },
+  {
+    id: 'w2', label: 'Window 2', collapsed: false,
+    tabs: [
+      { id: 11, title: 'Hacker News', active: false, closed: false, children: [
+        { id: 12, title: 'Ask HN: Learn Rust in 2025?', active: false, closed: false, children: [] },
+        { id: 13, title: 'Show HN: I built a tab manager', active: false, closed: false, children: [] },
+      ]},
+      { id: 14, title: 'Linear — My Issues', active: false, closed: false, children: [] },
+    ]
+  }
+];
+
+const collapsedTabs = new Set();
+let showClosed = false;
+
+function allFlat(tabs, arr = []) {
+  for (const t of tabs) { arr.push(t); allFlat(t.children, arr); }
+  return arr;
+}
+function countOpen(tabs) {
+  let n = 0;
+  for (const t of tabs) { if (!t.closed) n++; n += countOpen(t.children); }
+  return n;
+}
+function setActive(id) {
+  for (const w of windows) allFlat(w.tabs).forEach(t => t.active = false);
+  for (const w of windows) {
+    const t = allFlat(w.tabs).find(t => t.id === id);
+    if (t && !t.closed) { t.active = true; break; }
+  }
+  render();
+}
+function toggleClose(id) {
+  for (const w of windows) {
+    const t = allFlat(w.tabs).find(t => t.id === id);
+    if (t) { t.closed = !t.closed; if (t.closed) t.active = false; break; }
+  }
+  render();
+}
+function matchSearch(tab, q) {
+  if (!q) return true;
+  if (tab.title.toLowerCase().includes(q)) return true;
+  for (const c of tab.children) if (matchSearch(c, q)) return true;
+  return false;
+}
+
+function renderNode(tab, depth, container, ancestors, isLast, q) {
+  if (tab.closed && !showClosed) return;
+  if (!matchSearch(tab, q)) return;
+
+  const fav = getFavicon(tab.title);
+  const url = fakeUrl(tab.title);
+  const hasChildren = tab.children.length > 0;
+
+  const row = document.createElement('div');
+  row.className = 'tab-row' +
+    (tab.active ? ' is-active' : '') +
+    (tab.closed ? ' is-closed' : '');
+
+  // URL tooltip (shown on row hover via CSS)
+  const tip = document.createElement('div');
+  tip.className = 'url-tip';
+  tip.textContent = url;
+  row.appendChild(tip);
+
+  // Active left bar
+  if (tab.active) {
+    const bar = document.createElement('div');
+    bar.className = 'active-bar';
+    row.appendChild(bar);
+  }
+
+  // Tree connector lines
+  if (depth > 0) {
+    const lines = document.createElement('div');
+    lines.className = 'tree-lines';
+    for (let i = 0; i < depth - 1; i++) {
+      const seg = document.createElement('span');
+      seg.className = 'seg ' + (ancestors[i] ? 'vert' : '');
+      lines.appendChild(seg);
+    }
+    const branch = document.createElement('span');
+    branch.className = 'seg branch';
+    lines.appendChild(branch);
+    row.appendChild(lines);
+  }
+
+  // Inner
+  const inner = document.createElement('div');
+  inner.className = 'tab-inner';
+
+  // Toggle — always present for alignment; only interactive for parents
+  const tog = document.createElement('span');
+  tog.className = 'toggle' + (hasChildren ? ' clickable' : '');
+  tog.textContent = hasChildren ? (collapsedTabs.has(tab.id) ? '▶' : '▾') : '';
+  if (hasChildren) {
+    tog.onclick = (e) => {
+      e.stopPropagation();
+      if (collapsedTabs.has(tab.id)) collapsedTabs.delete(tab.id);
+      else collapsedTabs.add(tab.id);
+      render();
+    };
+  }
+  inner.appendChild(tog);
+
+  // Favicon
+  const icon = document.createElement('span');
+  icon.className = 'favicon';
+  icon.style.background = fav.bg;
+  icon.textContent = fav.label;
+  inner.appendChild(icon);
+
+  // Title
+  const title = document.createElement('span');
+  title.className = 'tab-title';
+  title.textContent = tab.title;
+  inner.appendChild(title);
+
+  // Close
+  const cls = document.createElement('span');
+  cls.className = 'tab-close';
+  cls.textContent = '✕';
+  cls.title = tab.closed ? 'Reopen tab' : 'Close tab';
+  cls.onclick = (e) => { e.stopPropagation(); toggleClose(tab.id); };
+  inner.appendChild(cls);
+
+  row.appendChild(inner);
+
+  if (!tab.closed) row.onclick = () => setActive(tab.id);
+  container.appendChild(row);
+
+  // Children
+  if (!collapsedTabs.has(tab.id)) {
+    const visible = tab.children.filter(c => {
+      if (c.closed && !showClosed) return false;
+      return matchSearch(c, q);
+    });
+    visible.forEach((child, i) => {
+      renderNode(child, depth + 1, container,
+        [...ancestors, !isLast],
+        i === visible.length - 1, q);
+    });
+  }
+}
+
+function makeWinLabel(w) {
+  const label = document.createElement('div');
+  label.className = 'win-label' + (w.collapsed ? ' collapsed' : '');
+
+  const chev = document.createElement('span');
+  chev.className = 'win-chevron';
+  chev.textContent = '▾';
+
+  const name = document.createElement('span');
+  name.className = 'win-name';
+  name.textContent = w.label;
+  name.title = 'Double-click to rename';
+
+  // Toggle collapse on single click (but not when editing)
+  label.onclick = (e) => {
+    if (name.getAttribute('contenteditable') === 'true') return;
+    w.collapsed = !w.collapsed;
+    render();
+  };
+
+  // Rename on double-click
+  name.ondblclick = (e) => {
+    e.stopPropagation();
+    name.contentEditable = 'true';
+    name.focus();
+    // select all
+    const range = document.createRange();
+    range.selectNodeContents(name);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  };
+  name.onblur = () => {
+    name.contentEditable = 'false';
+    w.label = name.textContent.trim() || w.label;
+    name.textContent = w.label;
+  };
+  name.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); name.blur(); }
+    if (e.key === 'Escape') {
+      name.textContent = w.label;
+      name.blur();
+    }
+    e.stopPropagation();
+  };
+
+  const count = document.createElement('span');
+  count.className = 'win-count';
+  count.textContent = countOpen(w.tabs);
+
+  label.appendChild(chev);
+  label.appendChild(name);
+  label.appendChild(count);
+  return label;
+}
+
+function render() {
+  const tree = document.getElementById('tree');
+  tree.innerHTML = '';
+  const q = document.getElementById('search').value.toLowerCase().trim();
+
+  let totalOpen = 0, totalAll = 0;
+  for (const w of windows) {
+    totalAll += allFlat(w.tabs).length;
+    totalOpen += countOpen(w.tabs);
+  }
+  document.getElementById('stats').textContent = `${totalOpen} / ${totalAll}`;
+
+  let anyClosed = false;
+
+  for (const w of windows) {
+    tree.appendChild(makeWinLabel(w));
+
+    if (!w.collapsed) {
+      const visible = w.tabs.filter(t => {
+        if (t.closed && !showClosed) return false;
+        return matchSearch(t, q);
+      });
+      visible.forEach((tab, i) => {
+        renderNode(tab, 0, tree, [], i === visible.length - 1, q);
+      });
+    }
+
+    if (allFlat(w.tabs).some(t => t.closed)) anyClosed = true;
+  }
+
+  // Closed tabs section
+  if (anyClosed) {
+    const tog = document.createElement('div');
+    tog.className = 'closed-toggle' + (showClosed ? ' open' : '');
+    const chev = document.createElement('span');
+    chev.className = 'chev';
+    chev.textContent = '▶';
+    const allClosed = windows.flatMap(w => allFlat(w.tabs).filter(t => t.closed));
+    tog.appendChild(chev);
+    tog.appendChild(document.createTextNode(
+      `  ${allClosed.length} closed tab${allClosed.length !== 1 ? 's' : ''}`
+    ));
+    tog.onclick = () => { showClosed = !showClosed; render(); };
+    tree.appendChild(tog);
+
+    if (showClosed) {
+      allClosed.forEach(tab => {
+        const fav = getFavicon(tab.title);
+        const row = document.createElement('div');
+        row.className = 'tab-row is-closed';
+        const inner = document.createElement('div');
+        inner.className = 'tab-inner';
+        inner.style.paddingLeft = '18px';
+        const icon = document.createElement('span');
+        icon.className = 'favicon';
+        icon.style.background = fav.bg;
+        icon.textContent = fav.label;
+        const title = document.createElement('span');
+        title.className = 'tab-title';
+        title.textContent = tab.title;
+        const cls = document.createElement('span');
+        cls.className = 'tab-close';
+        cls.textContent = '↩';
+        cls.title = 'Reopen';
+        cls.onclick = (e) => { e.stopPropagation(); toggleClose(tab.id); };
+        inner.appendChild(icon);
+        inner.appendChild(title);
+        inner.appendChild(cls);
+        row.appendChild(inner);
+        tree.appendChild(row);
+      });
+    }
+  }
+}
+
+render();
+</script>
+</body>
+</html>
