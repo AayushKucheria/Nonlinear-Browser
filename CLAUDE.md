@@ -23,9 +23,9 @@ npm test           # Jest 29
 |---|---|
 | `manifest.json` | MV3 manifest; service worker = `background.js`, side panel = `sidepanel.html`; `_execute_action` command for `Ctrl+Shift+Y`; permissions include `bookmarks` |
 | `background.js` | **MV3 service worker** — `setPanelBehavior`; forwards tab events + `tabActivated`; handles `closePanel` message via `setOptions` toggle |
-| `sidepanel.html` | Side panel HTML shell — header, pinned strip (`#pinSlots`), search bar, tree div, footer (URL bar); drag CSS; `#ctxMenu`, `#winCtxMenu`, `#pinCtxMenu` context menus |
-| `sidepanel.js` | Bootstraps the panel; `sidebarState` with drag/audio/window-drop callbacks; `renderPins`; undo-close stack + Ctrl+Z; collapse/expand toggle; `showUrlInFooter` |
-| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch`, `renderTabRow`, `buildSidebarTree`; rows draggable; audio 🔊/🔇 button; window-label drag targets for cross-window drop |
+| `sidepanel.html` | Side panel HTML shell — header, pinned strip (`#pinSlots`), search bar, tree div, footer (URL bar); drag CSS; `#ctxMenu`, `#winCtxMenu`, `#pinCtxMenu` context menus; suspended-row CSS |
+| `sidepanel.js` | Bootstraps the panel; `sidebarState` with drag/audio/window-drop/suspend/resume callbacks; `renderPins` (with hash-based bail-out to prevent favicon flicker); undo-close stack + Ctrl+Z; collapse/expand toggle; `showUrlInFooter`; `pendingResume` map for tab-node reuse on resume |
+| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch`, `renderTabRow`, `buildSidebarTree`; rows draggable; audio 🔊/🔇 button; window-label drag targets for cross-window drop; `.is-suspended` ghost-row rendering (faded favicon, URL second line, 💤 icon) |
 | `storage.js` | Storage layer — `window.AppStorage`; all localStorage/sessionStorage access and key names live here |
 | `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` / `chrome.bookmarks.*` calls live here |
 | `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `moveTabToWindow` + `updateTabWindowId` + `deleteWindowTabs` |
@@ -132,6 +132,7 @@ valid 4-element array — all text lands on line 0.
 - Pinned tabs strip (drag-to-pin, click-to-focus, right-click → Unpin)
 - Bookmark tab (`BrowserApi.bookmarkTab` → Chrome bookmarks bar)
 - Undo close (Ctrl+Z restores soft-deleted tabs; clicking re-opens via `createTab`)
+- Suspend / resume (`BrowserApi.removeTab` + `pendingResume` reuse; `tabRemoved` guard for suspended tabs)
 
 ---
 
@@ -141,10 +142,11 @@ valid 4-element array — all text lands on line 0.
   intentional — they rely on the global scope. `updateTab` is the exception: it was fixed to use
   `window.localRoot` explicitly so tests can assert the correct reference.
 - Tab nodes: `{id, title, customTitle?, parentId, children[], lines[], url, pendingUrl, favIconUrl, windowId,
-  toggle, deleted, active, audible, muted, read, x0, y0}`
+  toggle, deleted, active, audible, muted, suspended, read, x0, y0}`
 - `deleted: true` = closed/removed tab (soft-delete kept in tree for "N closed tabs" display)
 - `active: true` = currently active tab; set by `loadWindowList` from Chrome and updated on `tabActivated` messages
 - `audible: true` = tab is producing sound; `muted: true` = tab is muted; toggled via audio button (🔊/🔇)
+- `suspended: true` = tab removed from Chrome to free RAM; ghost row stays in tree. Suspending a parent cascades to all children. Resuming is always per-tab (click the ghost row or right-click → Resume Tab).
 - `customTitle` = optional user-set display name (right-click → Rename Tab); renderer prefers it over `title`
 - `wrapText` splits on `/(?=[\s\\/%,\.])/` and fills up to 4 lines; line 0-1 use 50% of tabWidth,
   lines 2-3 use 70%.
@@ -153,4 +155,8 @@ valid 4-element array — all text lands on line 0.
 - `AppStorage.pinnedTabs` — key `'pinnedTabs'`; array of 6 `{url, title, favIconUrl, tabId} | null` entries
 - `sidebarState._draggingWindowId` — tracks the source windowId during a drag; used by window-label `dragover` to allow cross-window drops
 - `closedGroupStack` (sidepanel.js) — undo stack; each entry is `{ids: [tabId, ...]}` for a closed subtree; Ctrl+Z pops and un-deletes
+- `pendingResume` (sidepanel.js) — `{[url]: tabNode}` map; populated by `onResume` before calling `createTab(url)`; consumed by `tabCreated` handler to reuse the existing tree node (preserving position) instead of inserting a duplicate. URL-keyed, so two suspended tabs at identical URLs would collide (known limitation).
+- `_lastPinsState` (sidepanel.js) — serialized snapshot of pin slot state; `renderPins()` bails out early when unchanged to prevent favicon `<img>` elements from being recreated on every `renderAll()` call (fixes flicker on tabs that have slow/no-cache favicons).
+- `showCtxMenu` (sidepanel.js) — updates context menu item visibility before showing: hides/shows Suspend vs Resume based on `tab.suspended`; changes label to "Suspend Branch" when tab has children.
 - Context menu helpers: `showCtxMenu`, `hideCtxMenu`, `showWinCtxMenu`, `hideWinCtxMenu`, `hidePinCtxMenu` — all module-level in sidepanel.js
+- **Rename bug:** `hideCtxMenu()` nulls `ctxTab`. Always capture `var tab = ctxTab` before calling `hideCtxMenu()` in any context menu handler that needs the tab reference afterward.
