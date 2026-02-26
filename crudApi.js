@@ -88,7 +88,8 @@ function loadWindowList(addCurrentSession) {
             tabInData.deleted = currentTab.deleted;
             tabInData.read = currentTab.read;
             tabInData.favIconUrl = currentTab.favIconUrl || '';
-            tabInData.parentId = currentTab.openerTabId ? currentTab.openerTabId : data[currentTab.id].parentId
+            tabInData.parentId = currentTab.openerTabId ? currentTab.openerTabId : data[currentTab.id].parentId;
+            tabInData.active = currentTab.active || false;
           }
           else {
             data[currentTab.id] = { "id": currentTab.id,
@@ -100,6 +101,7 @@ function loadWindowList(addCurrentSession) {
                                     "url": currentTab.url || '',
                                     "toggle": false,
                                     "deleted": false,
+                                    "active": currentTab.active || false,
                                     "pendingUrl":currentTab.pendingUrl || '',
                                     "read" : false,
                                     "favIconUrl": currentTab.favIconUrl || '',
@@ -198,3 +200,57 @@ function removeSubtree(tabId) {
 function localStore() {
   AppStorage.session.save(window.data); //adds to localStorage
 }
+
+function moveTab(draggedId, targetId, position) {
+  var dragged = window.data[draggedId];
+  var target  = window.data[targetId];
+  if (!dragged || !target) return;
+
+  // Guard: don't drop onto own descendant
+  var isDescendant = false;
+  traverse(dragged, function(t) { if (t.id === targetId) isDescendant = true; }, function(t) { return t.children; });
+  if (isDescendant) return;
+
+  // Remove from current parent
+  var draggedParent = dragged.parentId ? window.data[dragged.parentId] : window.localRoot;
+  if (!draggedParent) return;
+  var idx = draggedParent.children.indexOf(dragged);
+  if (idx !== -1) draggedParent.children.splice(idx, 1);
+
+  if (position === 'into') {
+    dragged.parentId = String(targetId);
+    target.children.push(dragged);
+  } else {
+    var targetParent = target.parentId ? window.data[target.parentId] : window.localRoot;
+    if (!targetParent) return;
+    var ti = targetParent.children.indexOf(target);
+    var insertAt = position === 'before' ? ti : ti + 1;
+    targetParent.children.splice(Math.max(0, insertAt), 0, dragged);
+    dragged.parentId = target.parentId || '';
+  }
+  localStore();
+}
+window.moveTab = moveTab;
+
+function deleteWindowTabs(windowId) {
+  // Close live tabs in Chrome
+  var toClose = [];
+  traverse(window.localRoot,
+    function (t) { if (t.id !== 'Root' && t.windowId === windowId && !t.deleted) toClose.push(t.id); },
+    function (t) { return t.children; }
+  );
+  toClose.forEach(function (id) { BrowserApi.removeTab(id); });
+
+  // Remove from localRoot.children (top-level tabs for this window + their subtrees)
+  window.localRoot.children = window.localRoot.children.filter(function (t) {
+    return t.windowId !== windowId;
+  });
+
+  // Clean up data map
+  Object.keys(window.data).forEach(function (id) {
+    if (window.data[id].windowId === windowId) delete window.data[id];
+  });
+
+  localStore();
+}
+window.deleteWindowTabs = deleteWindowTabs;

@@ -21,14 +21,14 @@ npm test           # Jest 29
 
 | File | Role |
 |---|---|
-| `manifest.json` | MV3 manifest; service worker = `background.js`, side panel = `sidepanel.html` |
-| `background.js` | **MV3 service worker** — calls `chrome.sidePanel.setPanelBehavior` on load; forwards tab events to the side panel via `chrome.runtime.sendMessage` |
-| `sidepanel.html` | Side panel HTML shell — header, search bar, tree div, footer; all CSS inlined |
-| `sidepanel.js` | Bootstraps the panel; wires `initializeTree`/`updateTree` → `renderAll`; handles tab events from the service worker via `chrome.runtime.onMessage` |
-| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch`, `renderTabRow`, `buildSidebarTree`; no Chrome API calls; fully unit-tested |
+| `manifest.json` | MV3 manifest; service worker = `background.js`, side panel = `sidepanel.html`; `_execute_action` command for `Ctrl+Shift+Y` |
+| `background.js` | **MV3 service worker** — `setPanelBehavior`; forwards tab events + `tabActivated`; handles `closePanel` message via `setOptions` toggle |
+| `sidepanel.html` | Side panel HTML shell — header (with ✕ close btn), search bar, tree div, footer (URL bar); drag CSS; two context menu divs |
+| `sidepanel.js` | Bootstraps the panel; `sidebarState` with drag + context menu callbacks; `showUrlInFooter`; handles `tabActivated` from background |
+| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch`, `renderTabRow`, `buildSidebarTree`; rows are draggable; contextmenu + mouseenter/leave listeners |
 | `storage.js` | Storage layer — `window.AppStorage`; all localStorage/sessionStorage access and key names live here |
 | `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` calls live here |
-| `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD functions |
+| `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `deleteWindowTabs` |
 | `helperFunctions.js` | `traverse`, `wrapText`, `visualLength` |
 | `savedTrees.js` | localStorage-based tree snapshots — `saveTree`, `getSavedTrees`, `fetchTree` |
 | `lib/` | Vendored JS: `fnon.min.js` |
@@ -115,7 +115,10 @@ valid 4-element array — all text lands on line 0.
 
 - Service worker ↔ side panel message passing (`sendToUI` / `chrome.runtime.onMessage`)
 - Tab focus / close via `BrowserApi.focusTab` / `BrowserApi.removeTab`
-- Window-name rename persistence (double-click interaction)
+- Window-name rename persistence (double-click / right-click → Rename Window)
+- Drag-and-drop reordering (DOM drag events)
+- Close panel button / keyboard shortcut (`chrome.sidePanel.setOptions`)
+- Active tab highlighting updating in real time on tab switch
 
 ---
 
@@ -124,10 +127,11 @@ valid 4-element array — all text lands on line 0.
 - **No `window.` prefix** in most crudApi functions (uses bare `localRoot`, `data`). This is
   intentional — they rely on the global scope. `updateTab` is the exception: it was fixed to use
   `window.localRoot` explicitly so tests can assert the correct reference.
-- Tab nodes: `{id, title, parentId, children[], lines[], url, pendingUrl, favIconUrl, windowId,
-  toggle, deleted, read, x0, y0}`
+- Tab nodes: `{id, title, customTitle?, parentId, children[], lines[], url, pendingUrl, favIconUrl, windowId,
+  toggle, deleted, active, read, x0, y0}`
 - `deleted: true` = closed/removed tab (soft-delete kept in tree for "N closed tabs" display)
-- `active: true` = currently active tab (set by sidepanel.js, not persisted in crudApi schema)
+- `active: true` = currently active tab; set by `loadWindowList` from Chrome and updated on `tabActivated` messages
+- `customTitle` = optional user-set display name (right-click → Rename Tab); renderer prefers it over `title`
 - `wrapText` splits on `/(?=[\s\\/%,\.])/` and fills up to 4 lines; line 0-1 use 50% of tabWidth,
   lines 2-3 use 70%.
 - `traverse(parent, traverseFn, childrenFn)` — `childrenFn` returning `null`/falsy stops that branch.

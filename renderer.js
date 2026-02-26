@@ -69,11 +69,32 @@
       (tab.active  ? ' is-active' : '') +
       (tab.deleted ? ' is-closed' : '');
 
-    // URL tooltip (shown on row hover via CSS)
-    var tip = document.createElement('div');
-    tip.className = 'url-tip';
-    tip.textContent = tab.url || tab.pendingUrl || '';
-    row.appendChild(tip);
+    // Drag-and-drop
+    row.draggable = true;
+    row.dataset.tabId = tab.id;
+    row.addEventListener('dragstart', function (e) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(tab.id));
+      state.onDragStart(tab.id);
+    });
+    row.addEventListener('dragend', function () { state.onDragEnd(); });
+    row.addEventListener('dragover', function (e) {
+      if (!tab.deleted) { e.preventDefault(); state.onDragOver(tab.id, row, e.clientY); }
+    });
+    row.addEventListener('drop', function (e) {
+      e.preventDefault(); state.onDrop(tab.id, e.clientY, row);
+    });
+
+    // URL in footer on hover
+    row.addEventListener('mouseenter', function () {
+      if (window.showUrlInFooter) window.showUrlInFooter(tab.url || tab.pendingUrl || '');
+    });
+    row.addEventListener('mouseleave', function () {
+      if (window.showUrlInFooter) window.showUrlInFooter('');
+    });
+
+    // Right-click context menu
+    row.addEventListener('contextmenu', function (e) { state.onContextMenu(tab, e); });
 
     // Active left bar
     if (tab.active) {
@@ -137,7 +158,7 @@
     // Title
     var titleEl = document.createElement('span');
     titleEl.className = 'tab-title';
-    titleEl.textContent = tab.title || '';
+    titleEl.textContent = tab.customTitle || tab.title || '';
     inner.appendChild(titleEl);
 
     // Close button (✕)
@@ -223,6 +244,7 @@
       var label = document.createElement('div');
       label.className = 'win-label';
       label.dataset.windowId = windowId;
+      label.addEventListener('contextmenu', function (e) { state.onWindowContextMenu(windowId, e); });
 
       var chev = document.createElement('span');
       chev.className = 'win-chevron';

@@ -98,36 +98,14 @@
     /* ── Tab row ── */
     .tab-row {
       display: flex; align-items: stretch;
-      min-height: 26px; cursor: pointer;
+      min-height: 26px; cursor: default;
       position: relative;
+      border-top: 2px solid transparent; border-bottom: 2px solid transparent;
     }
-
-    /* URL tooltip */
-    .tab-row .url-tip {
-      display: none;
-      position: absolute;
-      bottom: calc(100% + 4px);
-      left: 28px; right: 6px;
-      background: #1c1c1e;
-      color: #e0e0e0;
-      font-size: 10px;
-      padding: 4px 7px;
-      border-radius: 5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      z-index: 100;
-      pointer-events: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-    }
-    .tab-row .url-tip::after {
-      content: '';
-      position: absolute;
-      top: 100%; left: 12px;
-      border: 4px solid transparent;
-      border-top-color: #1c1c1e;
-    }
-    .tab-row:hover .url-tip { display: block; }
+    .tab-row.dragging { opacity: 0.3; }
+    .tab-row.dz-before { border-top: 2px solid #6366f1; }
+    .tab-row.dz-after  { border-bottom: 2px solid #6366f1; }
+    .tab-row.dz-into .tab-inner { outline: 1.5px solid #6366f1; background: #eef2ff !important; }
 
     .tab-row:hover .tab-inner { background: #f4f4f5; }
     .tab-row.is-active .tab-inner { background: #eff6ff; }
@@ -219,6 +197,18 @@
       border: 1px solid #e0e0e0; background: #fff;
     }
     .footer-btn:hover { border-color: #6366f1; color: #6366f1; }
+
+    /* ── Footer URL bar ── */
+    .footer-url {
+      flex: 1; font-size: 9.5px; color: #aaa;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    /* ── Context menus ── */
+    .ctx-item { padding: 7px 14px; cursor: pointer; color: #1c1c1e; }
+    .ctx-item:hover { background: #f4f4f5; }
+    .ctx-danger:hover { background: #fef2f2; color: #dc2626; }
   </style>
 </head>
 <body>
@@ -230,6 +220,7 @@
   <span class="header-title">tabs</span>
   <span class="header-stats" id="stats"></span>
   <button class="icon-btn" id="collapseAll" title="Collapse all">⊟</button>
+  <button class="icon-btn" id="closePanel" title="Close sidebar">✕</button>
 </div>
 
 <div class="search-row">
@@ -242,8 +233,21 @@
   <span class="footer-hint"><kbd class="kbd">↑↓</kbd> nav</span>
   <span class="footer-hint"><kbd class="kbd">⏎</kbd> focus</span>
   <span class="footer-hint"><kbd class="kbd">⌫</kbd> close</span>
-  <span style="flex:1"></span>
+  <span class="footer-url" id="footerUrl"></span>
   <button class="footer-btn" id="saveTree">save</button>
+</div>
+
+<div id="ctxMenu" style="display:none; position:fixed; z-index:999; background:#fff; border:1px solid #e0e0e0; border-radius:7px; box-shadow:0 6px 20px rgba(0,0,0,.13); min-width:164px; padding:4px 0; font-size:11.5px; font-family:inherit;">
+  <div class="ctx-item" id="ctxRename">✎ &nbsp;Rename Tab</div>
+  <div class="ctx-item" id="ctxCopy">⎘ &nbsp;Copy URL</div>
+  <div style="height:1px;background:#e5e7eb;margin:3px 0"></div>
+  <div class="ctx-item ctx-danger" id="ctxClose">✕ &nbsp;Close Tab</div>
+</div>
+
+<div id="winCtxMenu" style="display:none; position:fixed; z-index:999; background:#fff; border:1px solid #e0e0e0; border-radius:7px; box-shadow:0 6px 20px rgba(0,0,0,.13); min-width:164px; padding:4px 0; font-size:11.5px; font-family:inherit;">
+  <div class="ctx-item" id="winCtxRename">✎ &nbsp;Rename Window</div>
+  <div style="height:1px;background:#e5e7eb;margin:3px 0"></div>
+  <div class="ctx-item ctx-danger" id="winCtxDelete">🗑 &nbsp;Delete Window &amp; All Tabs</div>
 </div>
 
 <script src="lib/fnon.min.js"></script>

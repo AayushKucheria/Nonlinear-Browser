@@ -18,6 +18,28 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
   sendToUI({ type: 'tabUpdated', tabId: tabId, changeInfo: changeInfo });
 });
 
+chrome.tabs.onActivated.addListener(function (activeInfo) {
+  sendToUI({ type: 'tabActivated', tabId: activeInfo.tabId, windowId: activeInfo.windowId });
+});
+
+chrome.windows.onFocusChanged.addListener(function (windowId) {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  chrome.tabs.query({ active: true, windowId: windowId }, function (tabs) {
+    if (tabs[0]) {
+      sendToUI({ type: 'tabActivated', tabId: tabs[0].id, windowId: windowId });
+    }
+  });
+});
+
+chrome.runtime.onMessage.addListener(function (message) {
+  if (message && message.type === 'closePanel') {
+    chrome.sidePanel.setOptions({ enabled: false });
+    setTimeout(function () {
+      chrome.sidePanel.setOptions({ enabled: true, path: 'sidepanel.html' });
+    }, 100);
+  }
+});
+
 function sendToUI(message) {
   chrome.runtime.sendMessage(message, function () {
     if (chrome.runtime.lastError) {
