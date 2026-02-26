@@ -89,6 +89,16 @@ describe('updateTab', () => {
     expect(updateTree).toHaveBeenCalledWith(window.localRoot);
   });
 
+  test('audible change — triggers updateTree call', () => {
+    const tab = makeTab(1, { audible: false, muted: false });
+    window.data[1] = tab;
+
+    updateTab(1, { audible: true });
+
+    expect(window.data[1].audible).toBe(true);
+    expect(updateTree).toHaveBeenCalledWith(window.localRoot);
+  });
+
   test('non-display field change (url) — updates field but does NOT call updateTree', () => {
     const tab = makeTab(1, { url: 'http://old.example' });
     window.data[1] = tab;
@@ -135,6 +145,14 @@ describe('addNewTab', () => {
 
     expect(window.localRoot.children).toHaveLength(1);
     expect(window.data[11]).toBeDefined();
+  });
+
+  test('new tab has audible and muted initialised to false', () => {
+    const tab = { id: 15, title: 'Audio Tab', url: 'https://example.com',
+                  pendingUrl: '', favIconUrl: '', windowId: 1 };
+    addNewTab(tab);
+    expect(window.data[15].audible).toBe(false);
+    expect(window.data[15].muted).toBe(false);
   });
 
   test('tab with valid openerTabId is pushed to parent children, not localRoot', () => {
@@ -225,6 +243,85 @@ describe('removeSubtree', () => {
 
     expect(setItem).toHaveBeenCalledWith('user', expect.any(String));
     setItem.mockRestore();
+  });
+});
+
+// ─── moveTabToWindow ──────────────────────────────────────────────────────────
+
+describe('moveTabToWindow', () => {
+  test('moves tab to end of target window and updates windowId', () => {
+    const tabA = makeTab(1, { windowId: 1, parentId: '' });
+    const tabB = makeTab(2, { windowId: 2, parentId: '' });
+    window.data[1] = tabA;
+    window.data[2] = tabB;
+    window.localRoot.children = [tabA, tabB];
+
+    moveTabToWindow(1, 2);
+
+    // tabA should now have windowId 2
+    expect(window.data[1].windowId).toBe(2);
+    // tabA should appear after tabB in localRoot.children
+    const children = window.localRoot.children;
+    expect(children.length).toBe(2);
+    expect(children[0].id).toBe(2);
+    expect(children[1].id).toBe(1);
+  });
+
+  test('recursively updates windowId on descendants', () => {
+    const child  = makeTab(11, { windowId: 1, parentId: 10 });
+    const parent = makeTab(10, { windowId: 1, parentId: '', children: [child] });
+    const other  = makeTab(20, { windowId: 2, parentId: '' });
+    window.data[10] = parent;
+    window.data[11] = child;
+    window.data[20] = other;
+    window.localRoot.children = [parent, other];
+
+    moveTabToWindow(10, 2);
+
+    expect(window.data[10].windowId).toBe(2);
+    expect(window.data[11].windowId).toBe(2);
+  });
+
+  test('does nothing if tab is already in the target window', () => {
+    const tab = makeTab(5, { windowId: 3, parentId: '' });
+    window.data[5] = tab;
+    window.localRoot.children = [tab];
+
+    moveTabToWindow(5, 3);
+
+    expect(window.localRoot.children.length).toBe(1);
+    expect(window.data[5].windowId).toBe(3);
+  });
+});
+
+// ─── moveTab cross-window ─────────────────────────────────────────────────────
+
+describe('moveTab — cross-window', () => {
+  test('updates windowId on dragged tab when dropped onto a tab in a different window', () => {
+    const src = makeTab(1, { windowId: 1, parentId: '' });
+    const dst = makeTab(2, { windowId: 2, parentId: '' });
+    window.data[1] = src;
+    window.data[2] = dst;
+    window.localRoot.children = [src, dst];
+
+    moveTab(1, 2, 'before');
+
+    expect(window.data[1].windowId).toBe(2);
+  });
+
+  test('updates windowId on children when dragged tab has descendants', () => {
+    const child = makeTab(3, { windowId: 1, parentId: 1 });
+    const src   = makeTab(1, { windowId: 1, parentId: '', children: [child] });
+    const dst   = makeTab(2, { windowId: 2, parentId: '' });
+    window.data[1] = src;
+    window.data[2] = dst;
+    window.data[3] = child;
+    window.localRoot.children = [src, dst];
+
+    moveTab(1, 2, 'after');
+
+    expect(window.data[1].windowId).toBe(2);
+    expect(window.data[3].windowId).toBe(2);
   });
 });
 

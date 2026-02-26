@@ -31,6 +31,9 @@ global.chrome = {
   sidePanel: {
     setPanelBehavior: jest.fn(),
   },
+  bookmarks: {
+    create: jest.fn(),
+  },
 };
 
 // ─── D3 stub (prevents ReferenceError if any file touches d3 on load) ───────
@@ -63,15 +66,21 @@ global.AppStorage = {
     load: jest.fn(() => ({})),
     save: jest.fn(),
   },
+  pinnedTabs: {
+    load: jest.fn(() => null),
+    save: jest.fn(),
+  },
 };
 
 // ─── BrowserApi stub ─────────────────────────────────────────────────────────
 global.BrowserApi = {
-  getAllWindows: jest.fn(),
-  removeTab:    jest.fn(),
-  queryTabs:    jest.fn(),
-  focusTab:     jest.fn(),
-  createTab:    jest.fn(),
+  getAllWindows:  jest.fn(),
+  removeTab:     jest.fn(),
+  queryTabs:     jest.fn(),
+  focusTab:      jest.fn(),
+  createTab:     jest.fn(),
+  muteTab:       jest.fn(),
+  bookmarkTab:   jest.fn(),
 };
 
 // ─── Visualisation functions (defined in visualize.js, mocked here) ──────────

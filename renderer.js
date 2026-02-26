@@ -66,8 +66,10 @@
     // ── Row wrapper ──────────────────────────────────────────────────────────
     var row = document.createElement('div');
     row.className = 'tab-row' +
-      (tab.active  ? ' is-active' : '') +
-      (tab.deleted ? ' is-closed' : '');
+      (tab.active              ? ' is-active'  : '') +
+      (tab.deleted             ? ' is-closed'  : '') +
+      (tab.audible && !tab.muted ? ' is-audible' : '') +
+      (tab.muted               ? ' is-muted'   : '');
 
     // Drag-and-drop
     row.draggable = true;
@@ -75,7 +77,7 @@
     row.addEventListener('dragstart', function (e) {
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', String(tab.id));
-      state.onDragStart(tab.id);
+      state.onDragStart(tab.id, tab.windowId);
     });
     row.addEventListener('dragend', function () { state.onDragEnd(); });
     row.addEventListener('dragover', function (e) {
@@ -160,6 +162,16 @@
     titleEl.className = 'tab-title';
     titleEl.textContent = tab.customTitle || tab.title || '';
     inner.appendChild(titleEl);
+
+    // Audio indicator (🔊/🔇) — only visible when tab is audible or muted
+    var audio = document.createElement('span');
+    audio.className = 'tab-audio';
+    audio.title = tab.muted ? 'Unmute tab' : 'Mute tab';
+    audio.textContent = tab.muted ? '🔇' : '🔊';
+    audio.addEventListener('click', (function (id) {
+      return function (e) { e.stopPropagation(); state.onMute(id); };
+    }(tab.id)));
+    inner.appendChild(audio);
 
     // Close button (✕)
     var cls = document.createElement('span');
@@ -262,6 +274,27 @@
       label.appendChild(chev);
       label.appendChild(nameEl);
       label.appendChild(count);
+
+      // Cross-window drag: highlight label when dragging from a different window
+      label.addEventListener('dragover', (function (wid, lbl) {
+        return function (e) {
+          if (state._draggingWindowId !== null && state._draggingWindowId !== wid) {
+            e.preventDefault();
+            lbl.classList.add('dz-append');
+          }
+        };
+      }(windowId, label)));
+      label.addEventListener('dragleave', (function (lbl) {
+        return function () { lbl.classList.remove('dz-append'); };
+      }(label)));
+      label.addEventListener('drop', (function (wid, lbl) {
+        return function (e) {
+          e.preventDefault();
+          lbl.classList.remove('dz-append');
+          var draggedId = parseInt(e.dataTransfer.getData('text/plain'));
+          state.onWindowDrop(wid, draggedId);
+        };
+      }(windowId, label)));
 
       // Double-click to rename (persisted via AppStorage.windowNames)
       nameEl.addEventListener('dblclick', function (e) {

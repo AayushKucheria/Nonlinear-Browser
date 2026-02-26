@@ -133,7 +133,9 @@ function addNewTab(tab) {
                   "read": false,
                   "x0": 0,
                   "y0": 0,
-                  "favIconUrl": tab.favIconUrl || ''
+                  "favIconUrl": tab.favIconUrl || '',
+                  "audible": false,
+                  "muted": false
                 };
   data[tabObj.id] = tabObj;
 
@@ -158,7 +160,7 @@ function updateTab(tabId, changeInfo) {
   for(var i in changeInfo) {
     if(updatedTab && updatedTab.hasOwnProperty(i)) {
       updatedTab[i] = changeInfo[i];
-      if(i === 'title' || i === 'favIconUrl')
+      if(i === 'title' || i === 'favIconUrl' || i === 'audible' || i === 'muted')
         displayChanged = true
       if(i === 'title') {
         updatedTab['lines'] = wrapText(changeInfo[i]);
@@ -228,9 +230,51 @@ function moveTab(draggedId, targetId, position) {
     targetParent.children.splice(Math.max(0, insertAt), 0, dragged);
     dragged.parentId = target.parentId || '';
   }
+  // If the target is in a different window, update windowId on dragged tab and its subtree.
+  var targetTab = data[targetId];
+  if (targetTab && dragged.windowId !== targetTab.windowId) {
+    updateTabWindowId(dragged, targetTab.windowId);
+  }
   localStore();
 }
 window.moveTab = moveTab;
+
+// Recursively update windowId on a tab and all its descendants in window.data.
+function updateTabWindowId(tab, newWindowId) {
+  tab.windowId = newWindowId;
+  if (data[tab.id]) data[tab.id].windowId = newWindowId;
+  if (tab.children) tab.children.forEach(function(c) { updateTabWindowId(c, newWindowId); });
+}
+
+// Move a tab (and its subtree) to the end of a different window's top-level children.
+function moveTabToWindow(draggedId, targetWindowId) {
+  if (!data[draggedId]) return;
+  var dragged = data[draggedId];
+  if (dragged.windowId === targetWindowId) return;
+
+  // Remove from current parent
+  var srcParent = data[dragged.parentId] || localRoot;
+  var idx = srcParent.children.indexOf(dragged);
+  if (idx === -1) { srcParent = localRoot; idx = localRoot.children.indexOf(dragged); }
+  if (idx !== -1) srcParent.children.splice(idx, 1);
+
+  // Reset parentId (now a top-level tab in the target window)
+  dragged.parentId = '';
+
+  // Update windowId recursively
+  updateTabWindowId(dragged, targetWindowId);
+
+  // Insert after the last existing tab that belongs to targetWindowId
+  var lastIdx = -1;
+  for (var i = 0; i < localRoot.children.length; i++) {
+    if (localRoot.children[i].windowId === targetWindowId) lastIdx = i;
+  }
+  if (lastIdx === -1) localRoot.children.push(dragged);
+  else localRoot.children.splice(lastIdx + 1, 0, dragged);
+
+  localStore();
+}
+window.moveTabToWindow = moveTabToWindow;
 
 function deleteWindowTabs(windowId) {
   // Close live tabs in Chrome

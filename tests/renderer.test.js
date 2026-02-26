@@ -40,6 +40,7 @@ function makeState(overrides) {
       onToggle:      jest.fn(),
       onClose:       jest.fn(),
       onActivate:    jest.fn(),
+      onMute:        jest.fn(),
     },
     overrides
   );
@@ -268,6 +269,44 @@ describe('renderTabRow — children', () => {
     renderTabRow(parent, 0, c, [], true, makeState({ query: 'parent' }));
     // Only the parent row rendered, not the child
     expect(c.querySelectorAll('.tab-row').length).toBe(1);
+  });
+});
+
+// ── renderTabRow — audio indicator ────────────────────────────────────────────
+
+describe('renderTabRow — audio indicator', () => {
+  test('always renders a .tab-audio element', () => {
+    const c = makeContainer();
+    renderTabRow(makeTab(), 0, c, [], true, makeState());
+    expect(c.querySelector('.tab-audio')).not.toBeNull();
+  });
+
+  test('shows 🔊 and adds is-audible class when tab.audible is true and not muted', () => {
+    const c = makeContainer();
+    renderTabRow(makeTab({ audible: true, muted: false }), 0, c, [], true, makeState());
+    const row   = c.querySelector('.tab-row');
+    const audio = c.querySelector('.tab-audio');
+    expect(row.classList).toContain('is-audible');
+    expect(row.classList).not.toContain('is-muted');
+    expect(audio.textContent).toBe('🔊');
+  });
+
+  test('shows 🔇 and adds is-muted class when tab.muted is true', () => {
+    const c = makeContainer();
+    renderTabRow(makeTab({ audible: false, muted: true }), 0, c, [], true, makeState());
+    const row   = c.querySelector('.tab-row');
+    const audio = c.querySelector('.tab-audio');
+    expect(row.classList).toContain('is-muted');
+    expect(row.classList).not.toContain('is-audible');
+    expect(audio.textContent).toBe('🔇');
+  });
+
+  test('calls state.onMute with tab id when audio button is clicked', () => {
+    const c     = makeContainer();
+    const state = makeState();
+    renderTabRow(makeTab({ id: 7, audible: true, muted: false }), 0, c, [], true, state);
+    c.querySelector('.tab-audio').click();
+    expect(state.onMute).toHaveBeenCalledWith(7);
   });
 });
 
