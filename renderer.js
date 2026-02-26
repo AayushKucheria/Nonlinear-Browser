@@ -68,6 +68,7 @@
     row.className = 'tab-row' +
       (tab.active              ? ' is-active'  : '') +
       (tab.deleted             ? ' is-closed'  : '') +
+      (tab.suspended           ? ' is-suspended' : '') +
       (tab.audible && !tab.muted ? ' is-audible' : '') +
       (tab.muted               ? ' is-muted'   : '');
 
@@ -157,11 +158,27 @@
     }
     inner.appendChild(icon);
 
-    // Title
+    // Title + URL (URL visible only on suspended rows via CSS)
+    var titleWrap = document.createElement('span');
+    titleWrap.className = 'tab-title-wrap';
+
     var titleEl = document.createElement('span');
     titleEl.className = 'tab-title';
     titleEl.textContent = tab.customTitle || tab.title || '';
-    inner.appendChild(titleEl);
+    titleWrap.appendChild(titleEl);
+
+    var urlEl = document.createElement('span');
+    urlEl.className = 'tab-url';
+    urlEl.textContent = tab.url || tab.pendingUrl || '';
+    titleWrap.appendChild(urlEl);
+
+    inner.appendChild(titleWrap);
+
+    // Sleep icon — only visible on suspended rows via CSS
+    var sleepEl = document.createElement('span');
+    sleepEl.className = 'tab-sleep';
+    sleepEl.textContent = '💤';
+    inner.appendChild(sleepEl);
 
     // Audio indicator (🔊/🔇) — only visible when tab is audible or muted
     var audio = document.createElement('span');
@@ -187,10 +204,16 @@
 
     row.appendChild(inner);
 
-    // Click body → activate tab in browser
+    // Click body → activate (or resume if suspended)
     if (!tab.deleted) {
       row.addEventListener('click', (function (id) {
-        return function () { state.onActivate(id); };
+        return function () {
+          if (tab.suspended) {
+            if (state.onResume) state.onResume(id);
+          } else {
+            state.onActivate(id);
+          }
+        };
       }(tab.id)));
     }
 

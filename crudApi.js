@@ -135,7 +135,8 @@ function addNewTab(tab) {
                   "y0": 0,
                   "favIconUrl": tab.favIconUrl || '',
                   "audible": false,
-                  "muted": false
+                  "muted": false,
+                  "suspended": false
                 };
   data[tabObj.id] = tabObj;
 

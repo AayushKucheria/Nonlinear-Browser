@@ -10,10 +10,18 @@
 // ── Drag state ────────────────────────────────────────────────────────────────
 var dragState = { draggedId: null };
 
+
 // ── Pinned tabs state ─────────────────────────────────────────────────────────
-var PIN_COUNT    = 6;
-var pinnedTabs   = [];   // array of {url, title, favIconUrl, tabId} | null
-var ctxPinIndex  = null;
+var PIN_COUNT       = 6;
+var pinnedTabs      = [];   // array of {url, title, favIconUrl, tabId} | null
+var ctxPinIndex     = null;
+var _lastPinsState  = '';   // serialized snapshot; renderPins() bails if unchanged
+
+// ── Suspend: pending resume tracking ─────────────────────────────────────────
+// When resuming, createTab(url) fires tabCreated. pendingResume maps url →
+// suspended tab node so tabCreated can reuse the existing node (preserving tree
+// position) instead of inserting a duplicate.
+var pendingResume = {}; // { [url]: tabNode }
 
 // ── Undo-close stack ──────────────────────────────────────────────────────────
 var closedGroupStack = [];   // [{ids: [tabId, ...]}]
@@ -137,6 +145,39 @@ var sidebarState = {
     event.preventDefault();
     showWinCtxMenu(windowId, event.clientX, event.clientY);
   },
+
+  onSuspend: function (id) {
+    var tab = window.data && window.data[id];
+    if (!tab || tab.deleted) return;
+
+    // Collect the tab and all its non-deleted descendants
+    var toSuspend = [];
+    function collect(t) {
+      toSuspend.push(t);
+      (t.children || []).forEach(function (c) { if (!c.deleted) collect(c); });
+    }
+    collect(tab);
+
+    // Mark all as suspended before removing from Chrome so the tabRemoved
+    // handler knows to skip soft-deletion.
+    toSuspend.forEach(function (t) { t.suspended = true; });
+
+    // Remove from Chrome deepest-first (mirrors how onClose works).
+    toSuspend.slice().reverse().forEach(function (t) { BrowserApi.removeTab(t.id); });
+
+    renderAll();
+  },
+
+  onResume: function (id) {
+    var tab = window.data && window.data[id];
+    if (!tab || !tab.suspended) return;
+
+    // Register before createTab so tabCreated can reuse this tree node
+    var url = tab.url || tab.pendingUrl || '';
+    if (url) pendingResume[url] = tab;
+
+    BrowserApi.createTab(url);
+  },
 };
 
 // ── Context menu state (module-level so sidebarState callbacks can use them) ──
@@ -147,8 +188,26 @@ function showCtxMenu(tab, x, y) {
   ctxTab = tab;
   var m = document.getElementById('ctxMenu');
   if (!m) return;
+
+  var isSuspended = !!tab.suspended;
+  var hasBranch   = !!(tab.children && tab.children.length > 0);
+
+  // Suspend item: hidden when already suspended; label changes for parent tabs
+  var suspendEl = document.getElementById('ctxSuspend');
+  var resumeEl  = document.getElementById('ctxResume');
+  var sepEl     = document.getElementById('ctxSuspendSep');
+  var closeEl   = document.getElementById('ctxClose');
+
+  if (suspendEl) {
+    suspendEl.style.display = isSuspended ? 'none' : '';
+    suspendEl.textContent   = hasBranch ? '💤 \u00a0Suspend Branch' : '💤 \u00a0Suspend Tab';
+  }
+  if (resumeEl)  resumeEl.style.display  = isSuspended ? '' : 'none';
+  if (sepEl)     sepEl.style.display     = isSuspended ? 'none' : '';
+  if (closeEl)   closeEl.style.display   = isSuspended ? 'none' : '';
+
   m.style.left = Math.min(x, window.innerWidth - 180) + 'px';
-  m.style.top  = Math.min(y, window.innerHeight - 130) + 'px';
+  m.style.top  = Math.min(y, window.innerHeight - 160) + 'px';
   m.style.display = 'block';
 }
 function hideCtxMenu() {
@@ -184,6 +243,17 @@ var windowNames = {};
 function renderPins() {
   var slotsEl = document.getElementById('pinSlots');
   if (!slotsEl) return;
+
+  // Bail out early if nothing that affects pin rendering has changed.
+  // This prevents img elements from being recreated on every tab click,
+  // which causes favicons to flicker (re-fetch or re-paint).
+  var nextState = JSON.stringify(pinnedTabs.map(function (p) {
+    if (!p) return null;
+    var isOpen = !!(window.data && window.data[p.tabId] && !window.data[p.tabId].deleted);
+    return { tabId: p.tabId, url: p.url, isOpen: isOpen };
+  }));
+  if (nextState === _lastPinsState) return;
+  _lastPinsState = nextState;
   slotsEl.innerHTML = '';
 
   var FALLBACK_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981'];
@@ -387,17 +457,20 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   document.getElementById('ctxRename').addEventListener('click', function () {
-    if (!ctxTab) return; hideCtxMenu();
-    var row = document.querySelector('[data-tab-id="' + ctxTab.id + '"]');
+    if (!ctxTab) return;
+    var tab = ctxTab;  // capture before hideCtxMenu nulls ctxTab
+    hideCtxMenu();
+    var row = document.querySelector('[data-tab-id="' + tab.id + '"]');
     if (!row) return;
     var titleEl = row.querySelector('.tab-title');
-    var saved = ctxTab.customTitle || ctxTab.title;
+    if (!titleEl) return;
+    var saved = tab.customTitle || tab.title;
     titleEl.contentEditable = 'true'; titleEl.focus();
     var range = document.createRange(); range.selectNodeContents(titleEl);
     window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
     titleEl.addEventListener('blur', function () {
       titleEl.contentEditable = 'false';
-      ctxTab.customTitle = titleEl.textContent.trim() || saved;
+      tab.customTitle = titleEl.textContent.trim() || saved;
       renderAll();
     }, { once: true });
     titleEl.addEventListener('keydown', function (e) {
@@ -413,6 +486,18 @@ document.addEventListener('DOMContentLoaded', function () {
     hideCtxMenu();
     window.showUrlInFooter('Copied!');
     setTimeout(function () { window.showUrlInFooter(''); }, 1500);
+  });
+
+  document.getElementById('ctxSuspend').addEventListener('click', function () {
+    if (!ctxTab) return;
+    sidebarState.onSuspend(ctxTab.id);
+    hideCtxMenu();
+  });
+
+  document.getElementById('ctxResume').addEventListener('click', function () {
+    if (!ctxTab) return;
+    sidebarState.onResume(ctxTab.id);
+    hideCtxMenu();
   });
 
   document.getElementById('ctxClose').addEventListener('click', function () {
@@ -482,12 +567,27 @@ chrome.runtime.onMessage.addListener(function (message) {
   if (!message || !message.type) return;
 
   if (message.type === 'tabCreated') {
-    addNewTab(message.tab);
-    // addNewTab calls updateTree → renderAll internally
+    // Check if this is a resume — reuse the suspended node to preserve tree position
+    var newUrl = message.tab.url || message.tab.pendingUrl || '';
+    var suspendedNode = newUrl && pendingResume[newUrl];
+    if (suspendedNode) {
+      delete pendingResume[newUrl];
+      delete window.data[suspendedNode.id];
+      suspendedNode.id        = message.tab.id;
+      suspendedNode.suspended = false;
+      suspendedNode.active    = message.tab.active || false;
+      window.data[suspendedNode.id] = suspendedNode;
+      renderAll();
+    } else {
+      addNewTab(message.tab);
+      // addNewTab calls updateTree → renderAll internally
+    }
 
   } else if (message.type === 'tabRemoved') {
     var tab = window.data && window.data[message.tabId];
     if (tab) {
+      // Skip soft-deletion for intentionally suspended tabs
+      if (tab.suspended) return;
       // Soft-delete: keep in tree so "N closed tabs" disclosure works
       tab.deleted = true;
       if (typeof localStore === 'function') localStore();

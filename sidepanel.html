@@ -163,12 +163,44 @@
       overflow: hidden;
     }
 
+    /* Title wrap — takes flex space; stacks title + url for suspended rows */
+    .tab-title-wrap {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+
     /* Title */
     .tab-title {
-      flex: 1; white-space: nowrap;
+      white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
-      font-size: 11.5px; color: #222; line-height: 26px;
+      font-size: 11.5px; color: #222; line-height: 20px;
     }
+
+    /* URL line — hidden by default, shown for suspended rows */
+    .tab-url {
+      display: none;
+      font-size: 9px; color: #bbb; line-height: 13px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* Sleep icon — hidden by default, shown for suspended rows */
+    .tab-sleep {
+      flex-shrink: 0; font-size: 10px; width: 16px; text-align: center;
+      opacity: 0; transition: opacity 0.12s;
+    }
+
+    /* ── Suspended (ghost) row ── */
+    .tab-row.is-suspended { min-height: 34px; }
+    .tab-row.is-suspended .tab-inner {
+      align-items: flex-start; padding-top: 4px; padding-bottom: 3px;
+    }
+    .tab-row.is-suspended .toggle { height: auto; padding-top: 3px; }
+    .tab-row.is-suspended .favicon { margin-top: 3px; opacity: 0.35; filter: grayscale(1); }
+    .tab-row.is-suspended .tab-title { color: #aaa; }
+    .tab-row.is-suspended .tab-url { display: block; }
+    .tab-row.is-suspended .tab-sleep { opacity: 1; margin-top: 3px; }
+    .tab-row.is-suspended .tab-audio { display: none; }
+    .tab-row.is-suspended .tab-close { display: none; }
 
     /* Close button */
     .tab-close {
@@ -294,6 +326,9 @@
   <div class="ctx-item" id="ctxRename">✎ &nbsp;Rename Tab</div>
   <div class="ctx-item" id="ctxCopy">⎘ &nbsp;Copy URL</div>
   <div style="height:1px;background:#e5e7eb;margin:3px 0"></div>
+  <div class="ctx-item" id="ctxSuspend">💤 &nbsp;Suspend Tab</div>
+  <div class="ctx-item" id="ctxResume">▶ &nbsp;Resume Tab</div>
+  <div style="height:1px;background:#e5e7eb;margin:3px 0" id="ctxSuspendSep"></div>
   <div class="ctx-item ctx-danger" id="ctxClose">✕ &nbsp;Close Tab</div>
 </div>
 
