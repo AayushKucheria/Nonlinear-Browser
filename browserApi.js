@@ -4,7 +4,8 @@ window.BrowserApi = {
   queryTabs(url, cb)         { chrome.tabs.query({ url }, cb); },
   focusTab(tabId, winId)     { chrome.tabs.update(tabId, { active: true });
                                chrome.windows.update(winId, { focused: true }); },
-  createTab(url, windowId)   { var opts = { url: url || '' };
+  createTab(url, windowId)   { var opts = {};
+                               if (url) opts.url = url;
                                if (windowId) opts.windowId = windowId;
                                chrome.tabs.create(opts); },
   muteTab(tabId, muted)      { chrome.tabs.update(tabId, { muted: muted }); },

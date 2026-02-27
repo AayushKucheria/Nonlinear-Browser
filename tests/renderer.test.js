@@ -109,6 +109,21 @@ describe('matchesSearch', () => {
     });
     expect(matchesSearch(tab, 'youtube')).toBe(false);
   });
+
+  test('returns true when tab.url matches query', () => {
+    const tab = makeTab({ title: 'Some Page', url: 'https://docs.example.com/api/v2' });
+    expect(matchesSearch(tab, 'docs.example')).toBe(true);
+  });
+
+  test('url match does not fire on title-only tab', () => {
+    const tab = makeTab({ title: 'Example', url: 'https://example.com' });
+    expect(matchesSearch(tab, 'nothere')).toBe(false);
+  });
+
+  test('returns true when tab.customTitle matches query', () => {
+    const tab = makeTab({ title: 'Original Title', customTitle: 'My Custom Name' });
+    expect(matchesSearch(tab, 'custom name')).toBe(true);
+  });
 });
 
 // ── renderTabRow — structure ──────────────────────────────────────────────────
@@ -189,29 +204,36 @@ describe('renderTabRow — state classes', () => {
   });
 });
 
-// ── renderTabRow — tree lines ─────────────────────────────────────────────────
+// ── renderTabRow — indent-wrap hierarchy ──────────────────────────────────────
 
-describe('renderTabRow — tree lines', () => {
-  test('depth=0 → no .tree-lines element', () => {
+describe('renderTabRow — indent-wrap hierarchy', () => {
+  test('depth=0 → .indent-wrap has no inline padding or border', () => {
     const c = makeContainer();
     renderTabRow(makeTab(), 0, c, [], true, makeState());
-    expect(c.querySelector('.tree-lines')).toBeNull();
+    const wrap = c.querySelector('.indent-wrap');
+    expect(wrap).not.toBeNull();
+    expect(wrap.style.paddingLeft).toBe('');
+    expect(wrap.style.borderLeft).toBe('');
   });
 
-  test('depth=1 → .tree-lines with a .seg.branch element', () => {
+  test('depth=1 → .indent-wrap has paddingLeft and borderLeft set', () => {
     const c = makeContainer();
     renderTabRow(makeTab(), 1, c, [], true, makeState());
-    expect(c.querySelector('.tree-lines')).not.toBeNull();
-    expect(c.querySelector('.seg.branch')).not.toBeNull();
+    const wrap = c.querySelector('.indent-wrap');
+    expect(wrap).not.toBeNull();
+    expect(wrap.style.paddingLeft).toBe('10px');
+    expect(wrap.style.borderLeft).toBe('1px solid #e8e8e8');
+    expect(wrap.style.marginLeft).toBe('2px');
   });
 
-  test('depth=2 → .tree-lines with one ancestor .seg and one .seg.branch', () => {
+  test('depth=2 → .indent-wrap has double padding and shifted margin', () => {
     const c = makeContainer();
     renderTabRow(makeTab(), 2, c, [true], true, makeState());
-    const lines = c.querySelector('.tree-lines');
-    expect(lines).not.toBeNull();
-    expect(lines.querySelectorAll('.seg').length).toBe(2);
-    expect(c.querySelector('.seg.branch')).not.toBeNull();
+    const wrap = c.querySelector('.indent-wrap');
+    expect(wrap).not.toBeNull();
+    expect(wrap.style.paddingLeft).toBe('20px');
+    expect(wrap.style.borderLeft).toBe('1px solid #e8e8e8');
+    expect(wrap.style.marginLeft).toBe('12px');
   });
 });
 

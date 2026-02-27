@@ -98,7 +98,7 @@
     /* ── Tab row ── */
     .tab-row {
       display: flex; align-items: stretch;
-      min-height: 26px; cursor: default;
+      min-height: 24px; cursor: default;
       position: relative;
       border-top: 2px solid transparent; border-bottom: 2px solid transparent;
     }
@@ -120,34 +120,21 @@
       flex-shrink: 0; margin: 4px 0;
     }
 
-    /* Tree connector lines */
-    .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
-    .seg { width: 16px; flex-shrink: 0; position: relative; }
-    .seg.vert::before {
-      content: ''; position: absolute;
-      left: 8px; top: 0; bottom: 0;
-      width: 1px; background: #e0e0e0;
-    }
-    .seg.branch::before {
-      content: ''; position: absolute;
-      left: 8px; top: 0; bottom: 50%;
-      width: 1px; background: #e0e0e0;
-    }
-    .seg.branch::after {
-      content: ''; position: absolute;
-      left: 8px; top: 50%; width: 8px; height: 1px; background: #e0e0e0;
-    }
+    /* Guide-rail indent wrapper — replaces per-segment tree-lines.
+       Depth is conveyed by paddingLeft + a 1px border-left spine,
+       both set inline by renderer.js. */
+    .indent-wrap { flex: 1; display: flex; align-items: stretch; min-width: 0; }
 
     /* Inner row */
     .tab-inner {
-      flex: 1; display: flex; align-items: center; gap: 5px;
+      flex: 1; display: flex; align-items: center; gap: 4px;
       padding: 0 6px 0 4px; border-radius: 4px;
       margin-right: 4px; min-width: 0;
     }
 
     /* Toggle — always present for alignment */
     .toggle {
-      width: 12px; height: 26px;
+      width: 10px; height: 24px;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; font-size: 9px; color: #bbb;
     }
@@ -155,25 +142,37 @@
     .toggle.clickable:hover { color: #555; }
 
     .favicon {
-      width: 14px; height: 14px;
+      width: 13px; height: 13px;
       border-radius: 2px; flex-shrink: 0;
-      font-size: 7px; font-weight: 800;
+      font-size: 6.5px; font-weight: 800;
       display: flex; align-items: center; justify-content: center;
       color: #fff; user-select: none; letter-spacing: -0.5px;
       overflow: hidden;
     }
 
-    /* Title wrap — takes flex space; stacks title + url for suspended rows */
+    /* Title wrap — clips overflow so the scrolling animation is masked */
     .tab-title-wrap {
-      flex: 1; min-width: 0;
+      flex: 1; min-width: 0; overflow: hidden;
       display: flex; flex-direction: column; justify-content: center;
     }
 
-    /* Title */
+    /* Title — no own overflow clipping; parent clips instead.
+       On hover, JS adds .scrolling which animates translateX. */
     .tab-title {
       white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis;
       font-size: 11.5px; color: #222; line-height: 20px;
+      will-change: transform;
+    }
+
+    @keyframes title-scroll {
+      0%   { transform: translateX(0); }
+      15%  { transform: translateX(0); }
+      75%  { transform: translateX(var(--scroll-px, 0px)); }
+      90%  { transform: translateX(var(--scroll-px, 0px)); }
+      100% { transform: translateX(0); }
+    }
+    .tab-title.scrolling {
+      animation: title-scroll var(--scroll-dur, 3s) ease-in-out infinite;
     }
 
     /* URL line — hidden by default, shown for suspended rows */
@@ -190,9 +189,9 @@
     }
 
     /* ── Suspended (ghost) row ── */
-    .tab-row.is-suspended { min-height: 34px; }
+    .tab-row.is-suspended { min-height: 32px; }
     .tab-row.is-suspended .tab-inner {
-      align-items: flex-start; padding-top: 4px; padding-bottom: 3px;
+      align-items: flex-start; padding-top: 3px; padding-bottom: 3px;
     }
     .tab-row.is-suspended .toggle { height: auto; padding-top: 3px; }
     .tab-row.is-suspended .favicon { margin-top: 3px; opacity: 0.35; filter: grayscale(1); }
@@ -292,18 +291,7 @@
     /* RAM badge */
     .tab-ram-badge { font-size: 9px; font-weight: 600; color: #d97706; flex-shrink: 0; white-space: nowrap; }
 
-    /* Title overlay (floats below hovered row) */
-    .title-overlay {
-      position: fixed; z-index: 500;
-      background: #fff; border: 1px solid #e0e0e0; border-radius: 5px;
-      box-shadow: 0 4px 16px rgba(0,0,0,.10);
-      padding: 5px 8px; font-size: 11.5px; color: #222; line-height: 1.55;
-      word-break: break-word; pointer-events: none;
-      animation: title-overlay-in .07s ease;
-    }
-    @keyframes title-overlay-in { from { opacity:0; transform:translateY(-2px); } to { opacity:1; transform:translateY(0); } }
-
-    /* New-tab ghost row */
+/* New-tab ghost row */
     .new-tab-row { display: flex; align-items: center; min-height: 22px; cursor: pointer; }
     .new-tab-row:hover .new-tab-inner { background: #f4f4f5; }
     .new-tab-inner { flex: 1; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 22px; border-radius: 4px; margin-right: 4px; }

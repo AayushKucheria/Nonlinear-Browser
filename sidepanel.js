@@ -27,6 +27,12 @@ var pendingResume = {}; // { [url]: tabNode }
 // ── Undo-close stack ──────────────────────────────────────────────────────────
 var closedGroupStack = [];   // [{ids: [tabId, ...]}]
 
+// ── Extension-initiated close tracking ───────────────────────────────────────
+// Tab IDs that the extension is intentionally closing via onClose.
+// Used in tabRemoved to distinguish extension closes (don't re-parent children)
+// from external closes via the Chrome tab bar (do re-parent children).
+var _closingByExtension = new Set();
+
 function collectSubtree(tab, result) {
   result = result || [];
   if (!tab.deleted) result.push(tab.id);
@@ -47,6 +53,7 @@ var sidebarState = {
   showClosed:         false,
   query:              '',
   _draggingWindowId:  null,
+  pinnedTabIds:       new Set(),
 
   onToggle: function (id) {
     if (sidebarState.collapsedTabs.has(id)) {
@@ -62,8 +69,13 @@ var sidebarState = {
     if (!tab) return;
     var ids = collectSubtree(tab);   // parent + all non-deleted descendants
     closedGroupStack.push({ ids: ids });
+    // Mark as extension-initiated so tabRemoved won't re-parent children
+    ids.forEach(function (tabId) { _closingByExtension.add(tabId); });
     // Close from deepest children first to avoid Chrome re-parenting them
     ids.slice().reverse().forEach(function (tabId) { BrowserApi.removeTab(tabId); });
+    if (ids.length > 1) {
+      Fnon.Hint.Warning('Closed ' + ids.length + ' tabs — Ctrl+Z to undo');
+    }
   },
 
   onActivate: function (id) {
@@ -435,6 +447,13 @@ function renderAll() {
     treeEl.style.display = '';
   }
 
+  // Update set of open pinned tab IDs so renderer can hide them from the tree
+  sidebarState.pinnedTabIds = new Set(
+    pinnedTabs
+      .filter(function (p) { return p && p.tabId && window.data && window.data[p.tabId] && !window.data[p.tabId].deleted; })
+      .map(function (p) { return p.tabId; })
+  );
+
   buildSidebarTree(treeEl, window.localRoot, windowNames, sidebarState);
   renderPins();
 }
@@ -678,6 +697,33 @@ chrome.runtime.onMessage.addListener(function (message) {
     if (tab) {
       // Skip soft-deletion for intentionally suspended tabs
       if (tab.suspended) return;
+
+      var closedByExtension = _closingByExtension.has(message.tabId);
+      _closingByExtension.delete(message.tabId);
+
+      if (!closedByExtension) {
+        // Tab was closed externally (Chrome tab bar / another extension).
+        // Re-parent any live children so they stay visible in the sidebar
+        // instead of becoming invisible orphans under a deleted parent.
+        var liveChildren = (tab.children || []).filter(function (c) { return !c.deleted && !c.suspended; });
+        if (liveChildren.length > 0) {
+          var gp = tab.parentId ? (window.data[tab.parentId] || window.localRoot) : window.localRoot;
+          if (!gp || gp.deleted) gp = window.localRoot;
+          var newParentId = (gp === window.localRoot) ? '' : String(gp.id);
+          var tabIdx = gp.children.indexOf(tab);
+          liveChildren.forEach(function (c, ci) {
+            c.parentId = newParentId;
+            if (tabIdx !== -1) {
+              gp.children.splice(tabIdx + 1 + ci, 0, c);
+            } else {
+              gp.children.push(c);
+            }
+          });
+          // Detach live children from the closing tab's children list
+          tab.children = tab.children.filter(function (c) { return c.deleted || c.suspended; });
+        }
+      }
+
       // Soft-delete: keep in tree so "N closed tabs" disclosure works
       tab.deleted = true;
       if (typeof localStore === 'function') localStore();

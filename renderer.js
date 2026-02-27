@@ -13,32 +13,6 @@
   // ---------------------------------------------------------------------------
   var _faviconImgCache = {};  // { tabId: { src: string, el: HTMLElement } }
 
-  // ---------------------------------------------------------------------------
-  // Title overlay — shows full tab title below the hovered row when the title
-  // is truncated (scrollWidth > clientWidth).
-  // ---------------------------------------------------------------------------
-  var _titleOverlay = null;
-
-  function _removeOverlay() {
-    if (_titleOverlay) { _titleOverlay.remove(); _titleOverlay = null; }
-  }
-
-  function _showOverlay(titleEl, rowEl, text) {
-    _removeOverlay();
-    if (titleEl.scrollWidth <= titleEl.clientWidth + 1) return;
-    var rr = rowEl.getBoundingClientRect();
-    var tr = titleEl.getBoundingClientRect();
-    var ov = document.createElement('div');
-    ov.className = 'title-overlay';
-    ov.textContent = text;
-    ov.style.left  = tr.left + 'px';
-    ov.style.width = (rr.right - tr.left - 4) + 'px';
-    var spaceBelow = window.innerHeight - rr.bottom;
-    if (spaceBelow >= 48) ov.style.top = (rr.bottom + 2) + 'px';
-    else ov.style.bottom = (window.innerHeight - rr.top + 2) + 'px';
-    document.body.appendChild(ov);
-    _titleOverlay = ov;
-  }
 
   // ---------------------------------------------------------------------------
   // _makeNewTabRow(windowId, state) — "+ New tab" ghost row at top of each window
@@ -81,7 +55,8 @@
   function matchesSearch(tab, query) {
     if (!query) return true;
     var q = query.toLowerCase();
-    if ((tab.title || '').toLowerCase().indexOf(q) !== -1) return true;
+    if ((tab.customTitle || tab.title || '').toLowerCase().indexOf(q) !== -1) return true;
+    if ((tab.url || '').toLowerCase().indexOf(q) !== -1) return true;
     var children = tab.children || [];
     for (var i = 0; i < children.length; i++) {
       if (matchesSearch(children[i], q)) return true;
@@ -110,6 +85,21 @@
     var showClosed    = state.showClosed;
     var query         = state.query;
 
+    // Skip tabs that are currently shown in the pin strip — render their
+    // children at the same depth so they don't disappear from the tree.
+    if (!tab.deleted && state.pinnedTabIds && state.pinnedTabIds.has(tab.id)) {
+      if (!collapsedTabs.has(tab.id)) {
+        var pinnedChildren = (tab.children || []).filter(function (c) {
+          if (c.deleted && !showClosed) return false;
+          return matchesSearch(c, query);
+        });
+        for (var pc = 0; pc < pinnedChildren.length; pc++) {
+          renderTabRow(pinnedChildren[pc], depth, container, ancestors, pc === pinnedChildren.length - 1, state);
+        }
+      }
+      return;
+    }
+
     // ── Row wrapper ──────────────────────────────────────────────────────────
     var row = document.createElement('div');
     row.className = 'tab-row' +
@@ -135,14 +125,22 @@
       e.preventDefault(); state.onDrop(tab.id, e.clientY, row);
     });
 
-    // URL in footer on hover + title overlay
+    // URL in footer on hover; scroll title if truncated
     row.addEventListener('mouseenter', function () {
       if (window.showUrlInFooter) window.showUrlInFooter(tab.url || tab.pendingUrl || '');
-      _showOverlay(titleEl, row, tab.customTitle || tab.title || '');
+      requestAnimationFrame(function () {
+        var overflow = titleEl.scrollWidth - titleWrap.clientWidth;
+        if (overflow > 2) {
+          var dur = Math.max(2.5, 1.5 + overflow / 60);
+          titleEl.style.setProperty('--scroll-px', '-' + Math.ceil(overflow) + 'px');
+          titleEl.style.setProperty('--scroll-dur', dur + 's');
+          titleEl.classList.add('scrolling');
+        }
+      });
     });
     row.addEventListener('mouseleave', function () {
       if (window.showUrlInFooter) window.showUrlInFooter('');
-      _removeOverlay();
+      titleEl.classList.remove('scrolling');
     });
 
     // Right-click context menu
@@ -155,21 +153,15 @@
       row.appendChild(bar);
     }
 
-    // ── Tree connector lines (depth > 0 only) ────────────────────────────────
+    // ── Guide-rail indent wrapper ─────────────────────────────────────────────
+    // Replaces per-segment tree-lines. Each depth level is 10px of padding +
+    // a 1px left border that acts as the hierarchy spine. Saves ~6px per level.
+    var indentWrap = document.createElement('div');
+    indentWrap.className = 'indent-wrap';
     if (depth > 0) {
-      var lines = document.createElement('div');
-      lines.className = 'tree-lines';
-      // One segment per ancestor level (vertical line or blank gap)
-      for (var i = 0; i < depth - 1; i++) {
-        var seg = document.createElement('span');
-        seg.className = 'seg' + (ancestors[i] ? ' vert' : '');
-        lines.appendChild(seg);
-      }
-      // Branch connector for this node
-      var branch = document.createElement('span');
-      branch.className = 'seg branch';
-      lines.appendChild(branch);
-      row.appendChild(lines);
+      indentWrap.style.paddingLeft = (depth * 10) + 'px';
+      indentWrap.style.borderLeft  = '1px solid #e8e8e8';
+      indentWrap.style.marginLeft  = ((depth - 1) * 10 + 2) + 'px';
     }
 
     // ── Inner content ────────────────────────────────────────────────────────
@@ -202,7 +194,7 @@
       } else {
         var img = document.createElement('img');
         img.src = tab.favIconUrl;
-        img.width = 14; img.height = 14; img.style.borderRadius = '2px';
+        img.width = 13; img.height = 13; img.style.borderRadius = '2px';
         _faviconImgCache[tab.id] = { src: tab.favIconUrl, el: img };
         icon.appendChild(img);
       }
@@ -265,7 +257,8 @@
     }(tab.id)));
     inner.appendChild(cls);
 
-    row.appendChild(inner);
+    indentWrap.appendChild(inner);
+    row.appendChild(indentWrap);
 
     // Click body → activate (or resume if suspended)
     if (!tab.deleted) {
