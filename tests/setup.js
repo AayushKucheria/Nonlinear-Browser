@@ -34,6 +34,9 @@ global.chrome = {
   bookmarks: {
     create: jest.fn(),
   },
+  processes: {
+    getProcessInfo: jest.fn(),
+  },
 };
 
 // ─── D3 stub (prevents ReferenceError if any file touches d3 on load) ───────
@@ -74,13 +77,14 @@ global.AppStorage = {
 
 // ─── BrowserApi stub ─────────────────────────────────────────────────────────
 global.BrowserApi = {
-  getAllWindows:  jest.fn(),
-  removeTab:     jest.fn(),
-  queryTabs:     jest.fn(),
-  focusTab:      jest.fn(),
-  createTab:     jest.fn(),
-  muteTab:       jest.fn(),
-  bookmarkTab:   jest.fn(),
+  getAllWindows:   jest.fn(),
+  removeTab:      jest.fn(),
+  queryTabs:      jest.fn(),
+  focusTab:       jest.fn(),
+  createTab:      jest.fn(),
+  muteTab:        jest.fn(),
+  bookmarkTab:    jest.fn(),
+  getProcessInfo: jest.fn(),
 };
 
 // ─── Visualisation functions (defined in visualize.js, mocked here) ──────────

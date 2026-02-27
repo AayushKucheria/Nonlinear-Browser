@@ -41,6 +41,8 @@ function makeState(overrides) {
       onClose:       jest.fn(),
       onActivate:    jest.fn(),
       onMute:        jest.fn(),
+      onNewTab:      jest.fn(),
+      tabMemory:     null,
     },
     overrides
   );
@@ -345,5 +347,39 @@ describe('buildSidebarTree', () => {
     const windowNames = { 42: 'My Research Window' };
     buildSidebarTree(c, localRoot, windowNames, makeState());
     expect(c.querySelector('.win-label').textContent).toContain('My Research Window');
+  });
+
+  test('renders a .new-tab-row per window group', () => {
+    const c         = makeContainer();
+    const localRoot = makeLocalRoot([
+      makeTab({ id: 1, windowId: 1 }),
+      makeTab({ id: 2, windowId: 2 }),
+    ]);
+    buildSidebarTree(c, localRoot, {}, makeState());
+    expect(c.querySelectorAll('.new-tab-row').length).toBe(2);
+  });
+});
+
+// ── renderTabRow — RAM badge ──────────────────────────────────────────────────
+
+describe('renderTabRow — RAM badge', () => {
+  test('shows .tab-ram-badge when tabMemory[id] >= 150', () => {
+    const c = makeContainer();
+    renderTabRow(makeTab({ id: 5 }), 0, c, [], true, makeState({ tabMemory: { 5: 200 } }));
+    const badge = c.querySelector('.tab-ram-badge');
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toContain('200MB');
+  });
+
+  test('omits .tab-ram-badge when tabMemory[id] < 150', () => {
+    const c = makeContainer();
+    renderTabRow(makeTab({ id: 5 }), 0, c, [], true, makeState({ tabMemory: { 5: 100 } }));
+    expect(c.querySelector('.tab-ram-badge')).toBeNull();
+  });
+
+  test('omits .tab-ram-badge when tabMemory is null', () => {
+    const c = makeContainer();
+    renderTabRow(makeTab({ id: 5 }), 0, c, [], true, makeState({ tabMemory: null }));
+    expect(c.querySelector('.tab-ram-badge')).toBeNull();
   });
 });

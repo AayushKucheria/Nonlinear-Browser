@@ -55,6 +55,12 @@ function dataToLocalRoot() {
     };
   };
 
+  function _sortNewestFirst(arr) {
+    arr.sort(function(a, b) { return b.id - a.id; });
+    arr.forEach(function(t) { if (t.children && t.children.length > 1) _sortNewestFirst(t.children); });
+  }
+  _sortNewestFirst(window.localRoot.children);
+
   localStore();
   initializeTree(window.localRoot)
 }
@@ -142,12 +148,12 @@ function addNewTab(tab) {
 
   if(tabObj.parentId === '' || tabObj.pendingUrl === "chrome://newtab/") {
     tabObj.parentId = '';
-    window.localRoot.children.push(tabObj);
+    window.localRoot.children.unshift(tabObj);
     updateTree(window.localRoot)
   }
   else {
     const parentElement = data[tabObj.parentId];
-    parentElement.children.push(tabObj);
+    parentElement.children.unshift(tabObj);
     updateTree(window.localRoot);
   }
   localStore();

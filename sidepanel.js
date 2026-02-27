@@ -16,6 +16,7 @@ var PIN_COUNT       = 6;
 var pinnedTabs      = [];   // array of {url, title, favIconUrl, tabId} | null
 var ctxPinIndex     = null;
 var _lastPinsState  = '';   // serialized snapshot; renderPins() bails if unchanged
+var _pinDragSrc     = null; // index of the pin slot being dragged (null = tab drag)
 
 // ── Suspend: pending resume tracking ─────────────────────────────────────────
 // When resuming, createTab(url) fires tabCreated. pendingResume maps url →
@@ -74,13 +75,8 @@ var sidebarState = {
       return;
     }
     BrowserApi.focusTab(id, tab.windowId);
-    // Optimistically update active indicator
-    traverse(window.localRoot,
-      function (t) { t.active = false; },
-      function (t) { return t.children; }
-    );
-    tab.active = true;
-    renderAll();
+    // Optimistically update active indicator (targeted DOM, no full rebuild)
+    _applyActiveTab(id);
   },
 
   onDragStart: function (id, windowId) {
@@ -178,7 +174,30 @@ var sidebarState = {
 
     BrowserApi.createTab(url);
   },
+
+  onNewTab: function (windowId) {
+    BrowserApi.createTab('', windowId);
+  },
 };
+
+// ── RAM memory tracking ───────────────────────────────────────────────────────
+var tabMemory = {};
+sidebarState.tabMemory = tabMemory;
+
+function _pollMemory() {
+  if (!chrome.processes || !chrome.processes.getProcessInfo) return;
+  chrome.processes.getProcessInfo([], true, function (procs) {
+    if (chrome.runtime.lastError) return;
+    Object.values(procs).forEach(function (proc) {
+      var mb = Math.round((proc.privateMemory || 0) / 1048576);
+      (proc.tabs || []).forEach(function (tid) { tabMemory[tid] = mb; });
+    });
+    renderAll();
+  });
+}
+// Poll every 8 seconds; first poll 2s after load
+setTimeout(_pollMemory, 2000);
+setInterval(_pollMemory, 8000);
 
 // ── Context menu state (module-level so sidebarState callbacks can use them) ──
 var ctxTab = null;
@@ -311,19 +330,56 @@ function renderPins() {
         };
       }(i)));
 
-      // Drag-over/drop (allow replacing a slot by dragging a tab onto it)
-      slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('drop-active'); });
-      slot.addEventListener('dragleave', function () { slot.classList.remove('drop-active'); });
+      // Pin drag-to-reorder
+      slot.draggable = true;
+      slot.addEventListener('dragstart', (function (idx2) {
+        return function () {
+          _pinDragSrc = idx2;
+          slot.classList.add('pin-dragging');
+        };
+      }(i)));
+      slot.addEventListener('dragend', function () {
+        _pinDragSrc = null;
+        document.querySelectorAll('.pin-dragging, .pin-drag-over').forEach(function (el) {
+          el.classList.remove('pin-dragging', 'pin-drag-over');
+        });
+      });
+
+      // Drag-over/drop: pin-to-pin swap OR tab-to-pin replace
+      slot.addEventListener('dragover', (function (idx2) {
+        return function (e) {
+          if (_pinDragSrc !== null) {
+            if (_pinDragSrc !== idx2) { e.preventDefault(); slot.classList.add('pin-drag-over'); }
+          } else {
+            e.preventDefault(); slot.classList.add('drop-active');
+          }
+        };
+      }(i)));
+      slot.addEventListener('dragleave', function () {
+        slot.classList.remove('drop-active', 'pin-drag-over');
+      });
       slot.addEventListener('drop', (function (idx2) {
         return function (e) {
           e.preventDefault();
-          slot.classList.remove('drop-active');
-          var tabId = parseInt(e.dataTransfer.getData('text/plain'));
-          var t = window.data && window.data[tabId];
-          if (!t) return;
-          pinnedTabs[idx2] = { url: t.url || '', title: t.title || '', favIconUrl: t.favIconUrl || '', tabId: t.id };
-          AppStorage.pinnedTabs.save(pinnedTabs);
-          renderPins();
+          slot.classList.remove('drop-active', 'pin-drag-over');
+          if (_pinDragSrc !== null) {
+            // Pin-to-pin swap
+            var tmp = pinnedTabs[_pinDragSrc];
+            pinnedTabs[_pinDragSrc] = pinnedTabs[idx2];
+            pinnedTabs[idx2] = tmp;
+            _pinDragSrc = null;
+            AppStorage.pinnedTabs.save(pinnedTabs);
+            _lastPinsState = '';  // force re-render
+            renderPins();
+          } else {
+            // Tab-to-pin replace
+            var tabId = parseInt(e.dataTransfer.getData('text/plain'));
+            var t = window.data && window.data[tabId];
+            if (!t) return;
+            pinnedTabs[idx2] = { url: t.url || '', title: t.title || '', favIconUrl: t.favIconUrl || '', tabId: t.id };
+            AppStorage.pinnedTabs.save(pinnedTabs);
+            renderPins();
+          }
         };
       }(i)));
 
@@ -334,19 +390,29 @@ function renderPins() {
       plus.textContent = '+';
       slot.appendChild(plus);
 
-      // Drop onto empty slot
+      // Drop onto empty slot (pin move or tab-to-pin)
       slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('drop-active'); });
       slot.addEventListener('dragleave', function () { slot.classList.remove('drop-active'); });
       slot.addEventListener('drop', (function (idx2) {
         return function (e) {
           e.preventDefault();
           slot.classList.remove('drop-active');
-          var tabId = parseInt(e.dataTransfer.getData('text/plain'));
-          var t = window.data && window.data[tabId];
-          if (!t) return;
-          pinnedTabs[idx2] = { url: t.url || '', title: t.title || '', favIconUrl: t.favIconUrl || '', tabId: t.id };
-          AppStorage.pinnedTabs.save(pinnedTabs);
-          renderPins();
+          if (_pinDragSrc !== null) {
+            // Move pin to empty slot
+            pinnedTabs[idx2] = pinnedTabs[_pinDragSrc];
+            pinnedTabs[_pinDragSrc] = null;
+            _pinDragSrc = null;
+            AppStorage.pinnedTabs.save(pinnedTabs);
+            _lastPinsState = '';  // force re-render
+            renderPins();
+          } else {
+            var tabId = parseInt(e.dataTransfer.getData('text/plain'));
+            var t = window.data && window.data[tabId];
+            if (!t) return;
+            pinnedTabs[idx2] = { url: t.url || '', title: t.title || '', favIconUrl: t.favIconUrl || '', tabId: t.id };
+            AppStorage.pinnedTabs.save(pinnedTabs);
+            renderPins();
+          }
         };
       }(i)));
     }
@@ -356,12 +422,21 @@ function renderPins() {
 }
 
 // ── renderAll ─────────────────────────────────────────────────────────────────
+var _firstRender = true;
+
 function renderAll() {
   var treeEl = document.getElementById('tree');
   if (!treeEl || !window.localRoot) return;
+
+  if (_firstRender) {
+    _firstRender = false;
+    var skel = document.getElementById('skeleton');
+    if (skel) skel.style.display = 'none';
+    treeEl.style.display = '';
+  }
+
   buildSidebarTree(treeEl, window.localRoot, windowNames, sidebarState);
   renderPins();
-  updateStats();
 }
 
 window.showUrlInFooter = function (url) {
@@ -369,17 +444,32 @@ window.showUrlInFooter = function (url) {
   if (el) el.textContent = url;
 };
 
-function updateStats() {
-  var statsEl = document.getElementById('stats');
-  if (!statsEl || !window.localRoot) return;
-  var open  = countOpen(window.localRoot.children || []);
-  var total = 0;
-  traverse(
-    window.localRoot,
-    function (t) { if (t.id !== 'Root') total++; },
-    function (t) { return t.children; }
-  );
-  statsEl.textContent = open + ' / ' + total;
+// ── _applyActiveTab ───────────────────────────────────────────────────────────
+// Targeted DOM update for tab-activation: only touches the two affected rows
+// instead of rebuilding the entire tree (eliminates favicon flicker on clicks).
+function _applyActiveTab(tabId) {
+  // Update data model
+  if (window.localRoot) {
+    traverse(window.localRoot, function (t) { t.active = false; }, function (t) { return t.children; });
+  }
+  var tab = window.data && window.data[tabId];
+  if (tab && !tab.deleted) tab.active = true;
+
+  // Targeted DOM — only touch the two affected rows
+  document.querySelectorAll('.tab-row.is-active').forEach(function (el) {
+    el.classList.remove('is-active');
+    var bar = el.querySelector('.active-bar');
+    if (bar) bar.remove();
+  });
+  var newRow = document.querySelector('[data-tab-id="' + tabId + '"]');
+  if (newRow) {
+    newRow.classList.add('is-active');
+    if (!newRow.querySelector('.active-bar')) {
+      var bar = document.createElement('div');
+      bar.className = 'active-bar';
+      newRow.insertBefore(bar, newRow.firstChild);
+    }
+  }
 }
 
 // ── DOMContentLoaded ──────────────────────────────────────────────────────────
@@ -600,13 +690,6 @@ chrome.runtime.onMessage.addListener(function (message) {
     renderAll();
 
   } else if (message.type === 'tabActivated') {
-    // Clear all active flags, then mark the newly active tab
-    traverse(window.localRoot,
-      function (t) { t.active = false; },
-      function (t) { return t.children; }
-    );
-    var activeTab = window.data && window.data[message.tabId];
-    if (activeTab && !activeTab.deleted) activeTab.active = true;
-    renderAll();
+    _applyActiveTab(message.tabId);
   }
 });

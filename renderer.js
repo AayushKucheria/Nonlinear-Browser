@@ -6,6 +6,53 @@
 
   var FALLBACK_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981'];
 
+  // ---------------------------------------------------------------------------
+  // Favicon img element cache — keyed by tab.id.
+  // Reusing existing <img> elements avoids re-fetching / re-painting favicons on
+  // every full tree rebuild, eliminating the flicker visible on tab-switch.
+  // ---------------------------------------------------------------------------
+  var _faviconImgCache = {};  // { tabId: { src: string, el: HTMLElement } }
+
+  // ---------------------------------------------------------------------------
+  // Title overlay — shows full tab title below the hovered row when the title
+  // is truncated (scrollWidth > clientWidth).
+  // ---------------------------------------------------------------------------
+  var _titleOverlay = null;
+
+  function _removeOverlay() {
+    if (_titleOverlay) { _titleOverlay.remove(); _titleOverlay = null; }
+  }
+
+  function _showOverlay(titleEl, rowEl, text) {
+    _removeOverlay();
+    if (titleEl.scrollWidth <= titleEl.clientWidth + 1) return;
+    var rr = rowEl.getBoundingClientRect();
+    var tr = titleEl.getBoundingClientRect();
+    var ov = document.createElement('div');
+    ov.className = 'title-overlay';
+    ov.textContent = text;
+    ov.style.left  = tr.left + 'px';
+    ov.style.width = (rr.right - tr.left - 4) + 'px';
+    var spaceBelow = window.innerHeight - rr.bottom;
+    if (spaceBelow >= 48) ov.style.top = (rr.bottom + 2) + 'px';
+    else ov.style.bottom = (window.innerHeight - rr.top + 2) + 'px';
+    document.body.appendChild(ov);
+    _titleOverlay = ov;
+  }
+
+  // ---------------------------------------------------------------------------
+  // _makeNewTabRow(windowId, state) — "+ New tab" ghost row at top of each window
+  // ---------------------------------------------------------------------------
+  function _makeNewTabRow(windowId, state) {
+    var row   = document.createElement('div'); row.className = 'new-tab-row';
+    var inner = document.createElement('div'); inner.className = 'new-tab-inner';
+    var plus  = document.createElement('span'); plus.className = 'new-tab-plus'; plus.textContent = '+';
+    var lbl   = document.createElement('span'); lbl.className = 'new-tab-label'; lbl.textContent = 'New tab';
+    inner.appendChild(plus); inner.appendChild(lbl); row.appendChild(inner);
+    row.addEventListener('click', function () { if (state.onNewTab) state.onNewTab(windowId); });
+    return row;
+  }
+
   function hashColor(str) {
     return FALLBACK_COLORS[(str || '').charCodeAt(0) % FALLBACK_COLORS.length];
   }
@@ -88,12 +135,14 @@
       e.preventDefault(); state.onDrop(tab.id, e.clientY, row);
     });
 
-    // URL in footer on hover
+    // URL in footer on hover + title overlay
     row.addEventListener('mouseenter', function () {
       if (window.showUrlInFooter) window.showUrlInFooter(tab.url || tab.pendingUrl || '');
+      _showOverlay(titleEl, row, tab.customTitle || tab.title || '');
     });
     row.addEventListener('mouseleave', function () {
       if (window.showUrlInFooter) window.showUrlInFooter('');
+      _removeOverlay();
     });
 
     // Right-click context menu
@@ -142,16 +191,21 @@
     }
     inner.appendChild(tog);
 
-    // Favicon: <img> if favIconUrl present, else letter avatar
+    // Favicon: <img> if favIconUrl present (reuse cached element to avoid flicker),
+    // else letter avatar.
     var icon = document.createElement('span');
     icon.className = 'favicon';
     if (tab.favIconUrl) {
-      var img = document.createElement('img');
-      img.src = tab.favIconUrl;
-      img.width  = 14;
-      img.height = 14;
-      img.style.borderRadius = '2px';
-      icon.appendChild(img);
+      var cached = _faviconImgCache[tab.id];
+      if (cached && cached.src === tab.favIconUrl) {
+        icon.appendChild(cached.el);  // reuse same element — no re-fetch, no flicker
+      } else {
+        var img = document.createElement('img');
+        img.src = tab.favIconUrl;
+        img.width = 14; img.height = 14; img.style.borderRadius = '2px';
+        _faviconImgCache[tab.id] = { src: tab.favIconUrl, el: img };
+        icon.appendChild(img);
+      }
     } else {
       icon.style.background = hashColor(tab.title || '');
       icon.textContent = ((tab.title || '?')[0] || '?').toUpperCase();
@@ -174,6 +228,15 @@
 
     inner.appendChild(titleWrap);
 
+    // RAM badge — shown for non-suspended tabs consuming >= 150 MB
+    var memMB = (state.tabMemory && state.tabMemory[tab.id]) || 0;
+    if (!tab.suspended && memMB >= 150) {
+      var badge = document.createElement('span');
+      badge.className = 'tab-ram-badge';
+      badge.textContent = '\u2191 ' + memMB + 'MB';
+      inner.appendChild(badge);
+    }
+
     // Sleep icon — only visible on suspended rows via CSS
     var sleepEl = document.createElement('span');
     sleepEl.className = 'tab-sleep';
@@ -190,10 +253,10 @@
     }(tab.id)));
     inner.appendChild(audio);
 
-    // Close button (✕)
+    // Close button (🗑)
     var cls = document.createElement('span');
     cls.className = 'tab-close';
-    cls.textContent = '✕';
+    cls.textContent = '🗑';
     cls.addEventListener('click', (function (id) {
       return function (e) {
         e.stopPropagation();
@@ -251,6 +314,12 @@
   //   - Calls renderTabRow for each top-level tab in the window
   // ---------------------------------------------------------------------------
   function buildSidebarTree(container, localRoot, windowNames, state) {
+    // Save existing favicon img elements before clearing so they can be reused,
+    // avoiding re-fetches and the flicker that comes with full DOM rebuilds.
+    container.querySelectorAll('[data-tab-id]').forEach(function (row) {
+      var img = row.querySelector('.favicon img');
+      if (img) _faviconImgCache[row.dataset.tabId] = { src: img.getAttribute('src'), el: img };
+    });
     container.innerHTML = '';
     var showClosed = state.showClosed;
     var query      = state.query;
@@ -355,6 +424,7 @@
       });
 
       container.appendChild(label);
+      container.appendChild(_makeNewTabRow(windowId, state));
 
       // ── Tabs for this window ──────────────────────────────────────────────
       var visible = tabs.filter(function (t) {

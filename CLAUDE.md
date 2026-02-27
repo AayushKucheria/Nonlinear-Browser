@@ -13,7 +13,7 @@ npm install        # first time only
 npm test           # Jest 29
 ```
 
-63 tests across 3 suites, runtime ~2 s.
+67 tests across 3 suites, runtime ~2 s.
 
 ---
 
@@ -21,14 +21,14 @@ npm test           # Jest 29
 
 | File | Role |
 |---|---|
-| `manifest.json` | MV3 manifest; service worker = `background.js`, side panel = `sidepanel.html`; `_execute_action` command for `Ctrl+Shift+Y`; permissions include `bookmarks` |
+| `manifest.json` | MV3 manifest; service worker = `background.js`, side panel = `sidepanel.html`; `_execute_action` command for `Ctrl+Shift+Y`; permissions include `bookmarks`, `processes` |
 | `background.js` | **MV3 service worker** — `setPanelBehavior`; forwards tab events + `tabActivated`; handles `closePanel` message via `setOptions` toggle |
-| `sidepanel.html` | Side panel HTML shell — header, pinned strip (`#pinSlots`), search bar, tree div, footer (URL bar); drag CSS; `#ctxMenu`, `#winCtxMenu`, `#pinCtxMenu` context menus; suspended-row CSS |
-| `sidepanel.js` | Bootstraps the panel; `sidebarState` with drag/audio/window-drop/suspend/resume callbacks; `renderPins` (with hash-based bail-out to prevent favicon flicker); undo-close stack + Ctrl+Z; collapse/expand toggle; `showUrlInFooter`; `pendingResume` map for tab-node reuse on resume |
-| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch`, `renderTabRow`, `buildSidebarTree`; rows draggable; audio 🔊/🔇 button; window-label drag targets for cross-window drop; `.is-suspended` ghost-row rendering (faded favicon, URL second line, 💤 icon) |
+| `sidepanel.html` | Side panel HTML shell — header (`nonlinear browser` title, `—` close btn), pinned strip (`#pinSlots`), search bar, skeleton loader (`#skeleton`), tree div (`#tree`, initially hidden), footer (URL bar only); all feature CSS; `#ctxMenu`, `#winCtxMenu`, `#pinCtxMenu` context menus |
+| `sidepanel.js` | Bootstraps the panel; `sidebarState` with drag/audio/window-drop/suspend/resume/newTab callbacks; `renderPins` (hash bail-out + pin drag-to-reorder); `_firstRender` skeleton swap; `_applyActiveTab` targeted DOM update; RAM polling via `_pollMemory`; `tabMemory` map on sidebarState; undo-close + Ctrl+Z; collapse/expand; `showUrlInFooter`; `pendingResume` |
+| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch`, `renderTabRow`, `buildSidebarTree`; `_faviconImgCache` (reuses `<img>` elements across rebuilds, eliminates flicker); `_makeNewTabRow` (+ New tab ghost row); title hover overlay (`_showOverlay`); RAM badge (`.tab-ram-badge`); audio 🔊/🔇 button; 🗑 close icon; window-label drag targets |
 | `storage.js` | Storage layer — `window.AppStorage`; all localStorage/sessionStorage access and key names live here |
-| `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` / `chrome.bookmarks.*` calls live here |
-| `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `moveTabToWindow` + `updateTabWindowId` + `deleteWindowTabs` |
+| `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` / `chrome.bookmarks.*` / `chrome.processes.*` calls; `createTab(url, windowId?)` accepts optional windowId |
+| `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `moveTabToWindow` + `updateTabWindowId` + `deleteWindowTabs`; new tabs inserted with `unshift` (newest-first); `dataToLocalRoot` sorts children by descending ID |
 | `helperFunctions.js` | `traverse`, `wrapText`, `visualLength` |
 | `savedTrees.js` | localStorage-based tree snapshots — `saveTree`, `getSavedTrees`, `fetchTree` |
 | `lib/` | Vendored JS: `fnon.min.js` |
@@ -72,11 +72,11 @@ functions resolve them via the global scope so they pick up the new objects.
 valid 4-element array — all text lands on line 0.
 
 ### Mocks (tests/setup.js)
-- `global.chrome` — MV3 stubs for tabs, windows, action, runtime, sidePanel, **bookmarks**
+- `global.chrome` — MV3 stubs for tabs, windows, action, runtime, sidePanel, bookmarks, **processes**
 - `global.d3` — empty object (prevents ReferenceError)
 - `global.Fnon` — stub for toast/dialog library
-- `global.AppStorage` — stub with `jest.fn()` methods (session, savedTrees, windowNames, **pinnedTabs**); overridden by `eval(storage.js)` in crudApi/renderer tests
-- `global.BrowserApi` — stub with `jest.fn()` methods for all Chrome tab/window calls + **muteTab, bookmarkTab**
+- `global.AppStorage` — stub with `jest.fn()` methods (session, savedTrees, windowNames, pinnedTabs); overridden by `eval(storage.js)` in crudApi/renderer tests
+- `global.BrowserApi` — stub with `jest.fn()` methods for all Chrome tab/window calls + muteTab, bookmarkTab, **getProcessInfo**
 - `global.updateTree`, `global.initializeTree`, `global.drawTree` — `jest.fn()`
 - `global.tabWidth = 200`, `global.innerWidth = 1280`, `global.innerHeight = 720`
 - `<span id="ruler">` injected into jsdom body
@@ -106,7 +106,7 @@ valid 4-element array — all text lands on line 0.
 | `moveTabToWindow` → noop if same window | Cross-window move |
 | `moveTab` cross-window → updates windowId on tab + children | Cross-window drag |
 
-### renderer.test.js (33 tests)
+### renderer.test.js (37 tests)
 
 | Group | What's tested |
 |---|---|
@@ -117,7 +117,8 @@ valid 4-element array — all text lands on line 0.
 | `renderTabRow` — tree lines | depth=0 no lines; depth=1 has `.seg.branch`; depth=2 has ancestor + branch |
 | `renderTabRow` — children | Renders into same container; respects `collapsedTabs`; respects `showClosed`; filters by search query |
 | `renderTabRow` — audio indicator | `.tab-audio` always present; `🔊`/`is-audible` when audible; `🔇`/`is-muted` when muted; click fires `state.onMute` |
-| `buildSidebarTree` | `.win-label` per window; tab count; `windowNames` map used for label text |
+| `renderTabRow` — RAM badge | Badge shown when `tabMemory[id] >= 150`; omitted when `< 150` or `null` |
+| `buildSidebarTree` | `.win-label` per window; tab count; `windowNames` map; `.new-tab-row` per window |
 
 ## What cannot be unit tested (requires live browser)
 
@@ -127,12 +128,16 @@ valid 4-element array — all text lands on line 0.
 - Drag-and-drop reordering (DOM drag events)
 - Cross-window drag (drag tab onto window label → `moveTabToWindow`)
 - Close panel button / keyboard shortcut (`chrome.sidePanel.setOptions`)
-- Active tab highlighting updating in real time on tab switch
+- Active tab highlighting updating in real time on tab switch (`_applyActiveTab` DOM mutations)
 - Audio mute/unmute (`BrowserApi.muteTab` round-trip)
-- Pinned tabs strip (drag-to-pin, click-to-focus, right-click → Unpin)
+- Pinned tabs strip (drag-to-pin, pin drag-to-reorder, click-to-focus, right-click → Unpin)
 - Bookmark tab (`BrowserApi.bookmarkTab` → Chrome bookmarks bar)
 - Undo close (Ctrl+Z restores soft-deleted tabs; clicking re-opens via `createTab`)
 - Suspend / resume (`BrowserApi.removeTab` + `pendingResume` reuse; `tabRemoved` guard for suspended tabs)
+- RAM polling (`_pollMemory` → `chrome.processes.getProcessInfo`; live badge updates)
+- Skeleton loader swap (requires real DOMContentLoaded + first `renderAll` call)
+- Title overlay (requires real `scrollWidth` / `clientWidth` — jsdom returns 0 for both)
+- New-tab row click (requires `BrowserApi.createTab` round-trip to produce a `tabCreated` event)
 
 ---
 
@@ -157,6 +162,12 @@ valid 4-element array — all text lands on line 0.
 - `closedGroupStack` (sidepanel.js) — undo stack; each entry is `{ids: [tabId, ...]}` for a closed subtree; Ctrl+Z pops and un-deletes
 - `pendingResume` (sidepanel.js) — `{[url]: tabNode}` map; populated by `onResume` before calling `createTab(url)`; consumed by `tabCreated` handler to reuse the existing tree node (preserving position) instead of inserting a duplicate. URL-keyed, so two suspended tabs at identical URLs would collide (known limitation).
 - `_lastPinsState` (sidepanel.js) — serialized snapshot of pin slot state; `renderPins()` bails out early when unchanged to prevent favicon `<img>` elements from being recreated on every `renderAll()` call (fixes flicker on tabs that have slow/no-cache favicons).
+- `_pinDragSrc` (sidepanel.js) — index of the pin slot currently being dragged (`null` = it's a tab drag, not a pin drag). Used to distinguish pin-to-pin reorder from tab-to-pin drop in the same drag/drop handlers.
+- `_firstRender` (sidepanel.js) — boolean; `renderAll()` hides `#skeleton` and shows `#tree` on the first call, then clears the flag. `#tree` starts hidden via inline `style="display:none"`.
+- `_applyActiveTab(tabId)` (sidepanel.js) — targeted DOM update: traverses data model to clear/set `.active`, then queries the live DOM to move `.is-active`/`.active-bar` without a full tree rebuild. Called from `onActivate` and the `tabActivated` message handler.
+- `tabMemory` (sidepanel.js) — `{[tabId]: number}` map of MB usage; set on `sidebarState.tabMemory`; populated by `_pollMemory()` every 8s via `chrome.processes.getProcessInfo`; read by `renderer.js` to render RAM badges.
+- `_faviconImgCache` (renderer.js IIFE scope) — `{[tabId]: {src, el}}` map; `buildSidebarTree` saves existing `<img>` elements before clearing the container; `renderTabRow` reuses them when the src matches, preventing re-fetch/flicker on full rebuilds.
+- `_makeNewTabRow(windowId, state)` (renderer.js) — builds the `+  New tab` ghost row; calls `state.onNewTab(windowId)` on click (guarded with `if (state.onNewTab)`).
 - `showCtxMenu` (sidepanel.js) — updates context menu item visibility before showing: hides/shows Suspend vs Resume based on `tab.suspended`; changes label to "Suspend Branch" when tab has children.
 - Context menu helpers: `showCtxMenu`, `hideCtxMenu`, `showWinCtxMenu`, `hideWinCtxMenu`, `hidePinCtxMenu` — all module-level in sidepanel.js
 - **Rename bug:** `hideCtxMenu()` nulls `ctxTab`. Always capture `var tab = ctxTab` before calling `hideCtxMenu()` in any context menu handler that needs the tab reference afterward.

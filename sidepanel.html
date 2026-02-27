@@ -288,6 +288,43 @@
     /* ── Window label drop zone (cross-window drag) ── */
     .win-label.dz-append { border-left: 2px solid #6366f1; background: #f5f5ff; }
     .win-label.dz-append::after { background: #c7d2fe; }
+
+    /* RAM badge */
+    .tab-ram-badge { font-size: 9px; font-weight: 600; color: #d97706; flex-shrink: 0; white-space: nowrap; }
+
+    /* Title overlay (floats below hovered row) */
+    .title-overlay {
+      position: fixed; z-index: 500;
+      background: #fff; border: 1px solid #e0e0e0; border-radius: 5px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.10);
+      padding: 5px 8px; font-size: 11.5px; color: #222; line-height: 1.55;
+      word-break: break-word; pointer-events: none;
+      animation: title-overlay-in .07s ease;
+    }
+    @keyframes title-overlay-in { from { opacity:0; transform:translateY(-2px); } to { opacity:1; transform:translateY(0); } }
+
+    /* New-tab ghost row */
+    .new-tab-row { display: flex; align-items: center; min-height: 22px; cursor: pointer; }
+    .new-tab-row:hover .new-tab-inner { background: #f4f4f5; }
+    .new-tab-inner { flex: 1; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 22px; border-radius: 4px; margin-right: 4px; }
+    .new-tab-plus  { font-size: 13px; color: #d0d0d0; width: 14px; text-align: center; flex-shrink: 0; }
+    .new-tab-label { font-size: 11px; color: #d0d0d0; }
+    .new-tab-row:hover .new-tab-plus,
+    .new-tab-row:hover .new-tab-label { color: #aaa; }
+
+    /* Pin drag states */
+    .pinned-strip, .pin-slot { user-select: none; }
+    .pin-slot.pin-dragging  { opacity: 0.3; transform: scale(0.9); }
+    .pin-slot.pin-drag-over { box-shadow: 0 0 0 2px #6366f1 !important; background: #eef2ff !important; }
+
+    /* Skeleton shimmer */
+    .skeleton-panel { flex: 1; overflow: hidden; padding: 4px 0; }
+    .skel-win-row   { display: flex; align-items: center; gap: 6px; padding: 8px 10px 3px; }
+    .skel-tab-row   { display: flex; align-items: center; gap: 6px; padding: 5px 10px; min-height: 26px; }
+    .skel-block     { background: linear-gradient(90deg,#f0f0f0 25%,#e6e6e6 50%,#f0f0f0 75%); background-size: 400% 100%; animation: skel-shimmer 1.4s infinite ease-in-out; border-radius: 3px; }
+    @keyframes skel-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+    .skel-circle    { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+    .skel-line      { height: 9px; }
   </style>
 </head>
 <body>
@@ -296,10 +333,9 @@
 <span id="ruler" style="position:absolute;visibility:hidden;white-space:nowrap;"></span>
 
 <div class="header">
-  <span class="header-title">tabs</span>
-  <span class="header-stats" id="stats"></span>
+  <span class="header-title">nonlinear browser</span>
   <button class="icon-btn" id="collapseAll" title="Collapse all">⊟</button>
-  <button class="icon-btn" id="closePanel" title="Close sidebar">✕</button>
+  <button class="icon-btn" id="closePanel" title="Close sidebar" style="font-weight:300">—</button>
 </div>
 
 <div class="pinned-strip">
@@ -310,12 +346,29 @@
   <input class="search" id="search" placeholder="/ filter…">
 </div>
 
-<div class="tree" id="tree"></div>
+<div id="skeleton" class="skeleton-panel">
+  <div class="skel-win-row">
+    <span class="skel-block skel-circle"></span>
+    <span class="skel-block skel-line" style="width:70px"></span>
+    <span class="skel-block skel-line" style="width:20px;margin-left:auto"></span>
+  </div>
+  <div class="skel-tab-row"><span class="skel-block skel-circle"></span><span class="skel-block skel-line" style="width:110px"></span></div>
+  <div class="skel-tab-row" style="padding-left:26px"><span class="skel-block skel-circle"></span><span class="skel-block skel-line" style="width:90px"></span></div>
+  <div class="skel-tab-row" style="padding-left:26px"><span class="skel-block skel-circle"></span><span class="skel-block skel-line" style="width:130px"></span></div>
+  <div class="skel-tab-row"><span class="skel-block skel-circle"></span><span class="skel-block skel-line" style="width:95px"></span></div>
+  <div class="skel-win-row" style="margin-top:6px">
+    <span class="skel-block skel-circle"></span>
+    <span class="skel-block skel-line" style="width:60px"></span>
+    <span class="skel-block skel-line" style="width:20px;margin-left:auto"></span>
+  </div>
+  <div class="skel-tab-row"><span class="skel-block skel-circle"></span><span class="skel-block skel-line" style="width:120px"></span></div>
+  <div class="skel-tab-row"><span class="skel-block skel-circle"></span><span class="skel-block skel-line" style="width:80px"></span></div>
+  <div class="skel-tab-row" style="padding-left:26px"><span class="skel-block skel-circle"></span><span class="skel-block skel-line" style="width:105px"></span></div>
+</div>
+
+<div class="tree" id="tree" style="display:none"></div>
 
 <div class="footer">
-  <span class="footer-hint"><kbd class="kbd">↑↓</kbd> nav</span>
-  <span class="footer-hint"><kbd class="kbd">⏎</kbd> focus</span>
-  <span class="footer-hint"><kbd class="kbd">⌫</kbd> close</span>
   <span class="footer-url" id="footerUrl"></span>
   <button class="footer-btn" id="saveTree">save</button>
 </div>

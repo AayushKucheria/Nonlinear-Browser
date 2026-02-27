@@ -15,16 +15,20 @@ A Chrome extension (Manifest V3) that shows your browser tabs as a compact inden
 
 | Feature | How |
 |---|---|
-| **Tab tree** | Tabs are children of the tab that opened them; indented tree with connector lines |
+| **Tab tree** | Tabs are children of the tab that opened them; indented tree with connector lines; newest tabs appear at the top |
 | **Suspend tab / branch** | Right-click → Suspend Tab (leaf) or Suspend Branch (parent). Tab is removed from Chrome to free RAM; ghost row stays in the tree. Click it to reopen. |
 | **Resume** | Click any ghost row — tab reopens in Chrome and reattaches to its original position in the tree |
-| **Pinned strip** | 6 quick-access slots at the top; drag a tab row onto a slot to pin it |
+| **Pinned strip** | 6 quick-access slots at the top; drag a tab row onto a slot to pin it; drag pins between slots to reorder |
 | **Audio indicators** | 🔊 / 🔇 button on tabs playing or muted audio |
 | **Cross-window drag** | Drag a tab onto another window's label to move it |
 | **Undo close** | Ctrl+Z restores the last closed tab or branch |
 | **Collapse / expand** | Click the ⊟ header button to collapse all branches at once |
 | **Rename** | Right-click → Rename Tab or double-click a window label |
 | **Bookmark** | Right-click → Bookmark Tab |
+| **+ New tab** | Ghost row at the top of each window opens a new tab in that window |
+| **RAM badges** | Tabs consuming ≥ 150 MB show a live `↑ NMB` badge (requires `chrome.processes`) |
+| **Title overlay** | Hovering a row with a truncated title shows the full title in a floating tooltip |
+| **Skeleton loader** | Shimmer placeholder replaces the blank state while tabs load on first open |
 | **Search / filter** | Type in the search bar to filter the tree in real time |
 | **Save tree** | Snapshot the current tree to localStorage; restore later |
 | **Keyboard shortcut** | Ctrl+Shift+Y (Cmd+Shift+Y on Mac) to toggle the panel |
@@ -38,7 +42,7 @@ A Chrome extension (Manifest V3) that shows your browser tabs as a compact inden
 
 ```bash
 npm install   # install Jest (tests only — no build step needed)
-npm test      # run the 63-test suite
+npm test      # run the 67-test suite
 ```
 
 No build system, no bundler. Plain script tags. All third-party JS is vendored into `lib/`.
