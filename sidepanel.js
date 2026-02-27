@@ -24,6 +24,11 @@ var _pinDragSrc     = null; // index of the pin slot being dragged (null = tab d
 // position) instead of inserting a duplicate.
 var pendingResume = {}; // { [url]: tabNode }
 
+// ── Pin: pending open tracking ────────────────────────────────────────────────
+// When clicking a dead pin, createTab(url) fires tabCreated. pendingPinOpen
+// maps url → pin index so tabCreated can reconnect the slot with the new tabId.
+var pendingPinOpen = {}; // { [url]: pinIndex }
+
 // ── Undo-close stack ──────────────────────────────────────────────────────────
 var closedGroupStack = [];   // [{ids: [tabId, ...]}]
 
@@ -74,7 +79,7 @@ var sidebarState = {
     // Close from deepest children first to avoid Chrome re-parenting them
     ids.slice().reverse().forEach(function (tabId) { BrowserApi.removeTab(tabId); });
     if (ids.length > 1) {
-      Fnon.Hint.Warning('Closed ' + ids.length + ' tabs — Ctrl+Z to undo');
+      showCloseToast(ids.length);
     }
   },
 
@@ -318,16 +323,17 @@ function renderPins() {
         slot.appendChild(letter);
       }
 
-      // Click: focus tab if open, else create new tab
-      slot.addEventListener('click', (function (p) {
+      // Click: focus tab if open, else create new tab and track pin slot for reconnect
+      slot.addEventListener('click', (function (p, idx) {
         return function () {
           if (window.data && window.data[p.tabId] && !window.data[p.tabId].deleted) {
             BrowserApi.focusTab(p.tabId, window.data[p.tabId].windowId);
           } else {
+            pendingPinOpen[p.url] = idx;
             BrowserApi.createTab(p.url || '');
           }
         };
-      }(pin)));
+      }(pin, i)));
 
       // Right-click: pin context menu
       slot.addEventListener('contextmenu', (function (idx) {
@@ -456,6 +462,43 @@ function renderAll() {
 
   buildSidebarTree(treeEl, window.localRoot, windowNames, sidebarState);
   renderPins();
+}
+
+// ── Close toast ───────────────────────────────────────────────────────────────
+var _toastTimer = null;
+var _toastBarTimer = null;
+var TOAST_DURATION = 4000;
+
+function showCloseToast(count) {
+  var wrap   = document.getElementById('toastWrap');
+  var textEl = document.getElementById('toastText');
+  var barEl  = document.getElementById('toastBar');
+  if (!wrap || !textEl || !barEl) return;
+
+  if (_toastTimer)    { clearTimeout(_toastTimer);    _toastTimer    = null; }
+  if (_toastBarTimer) { clearTimeout(_toastBarTimer); _toastBarTimer = null; }
+
+  textEl.textContent = count === 1 ? 'closed 1 tab' : 'closed ' + count + ' tabs';
+
+  // Reset progress bar before showing
+  barEl.style.transition = 'none';
+  barEl.style.transform  = 'scaleX(0)';
+  void barEl.offsetWidth; // reflow
+
+  wrap.classList.add('visible');
+
+  requestAnimationFrame(function () {
+    barEl.style.transition = 'transform ' + TOAST_DURATION + 'ms linear';
+    barEl.style.transform  = 'scaleX(1)';
+  });
+
+  _toastTimer = setTimeout(function () {
+    wrap.classList.remove('visible');
+    _toastBarTimer = setTimeout(function () {
+      barEl.style.transition = 'none';
+      barEl.style.transform  = 'scaleX(0)';
+    }, 250);
+  }, TOAST_DURATION);
 }
 
 window.showUrlInFooter = function (url) {
@@ -688,6 +731,15 @@ chrome.runtime.onMessage.addListener(function (message) {
       window.data[suspendedNode.id] = suspendedNode;
       renderAll();
     } else {
+      // Check if this tab was opened for a dead pin slot — reconnect it before rendering
+      if (newUrl && pendingPinOpen[newUrl] !== undefined) {
+        var pinIdx = pendingPinOpen[newUrl];
+        delete pendingPinOpen[newUrl];
+        if (pinnedTabs[pinIdx]) {
+          pinnedTabs[pinIdx].tabId = message.tab.id;
+          AppStorage.pinnedTabs.save(pinnedTabs);
+        }
+      }
       addNewTab(message.tab);
       // addNewTab calls updateTree → renderAll internally
     }

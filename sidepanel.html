@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Nonlinear Browser</title>
+  <link rel="stylesheet" href="lib/fnon.min.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -236,6 +237,38 @@
       min-width: 0;
     }
 
+    /* ── Close toast ── */
+    .toast-wrap {
+      flex-shrink: 0; overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.2s ease;
+    }
+    .toast-wrap.visible { max-height: 40px; }
+
+    .toast {
+      margin: 0 10px 6px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      display: flex; align-items: center; gap: 8px;
+      opacity: 0; transform: translateY(4px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      position: relative; overflow: hidden;
+    }
+    .toast-wrap.visible .toast { opacity: 1; transform: translateY(0); }
+
+    .toast-text { flex: 1; font-size: 10px; color: #888; white-space: nowrap; }
+    .toast-kbd {
+      font-size: 9px; color: #bbb;
+      background: #e9e9e9; border-radius: 3px;
+      padding: 1px 5px; flex-shrink: 0;
+    }
+    .toast-bar {
+      position: absolute; bottom: 0; left: 0;
+      height: 2px; background: #d4d4d4;
+      width: 100%; transform-origin: left; transform: scaleX(0);
+    }
+
     /* ── Context menus ── */
     .ctx-item { padding: 7px 14px; cursor: pointer; color: #1c1c1e; }
     .ctx-item:hover { background: #f4f4f5; }
@@ -355,6 +388,14 @@
 </div>
 
 <div class="tree" id="tree" style="display:none"></div>
+
+<div class="toast-wrap" id="toastWrap">
+  <div class="toast" id="toast">
+    <span class="toast-text" id="toastText"></span>
+    <span class="toast-kbd">ctrl z</span>
+    <div class="toast-bar" id="toastBar"></div>
+  </div>
+</div>
 
 <div class="footer">
   <span class="footer-url" id="footerUrl"></span>

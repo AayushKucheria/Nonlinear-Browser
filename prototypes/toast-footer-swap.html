@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE A — Footer swap
+  The URL text in the footer briefly becomes the status message,
+  then fades back. Zero new chrome — same bar, same space.
+  The message is dim and secondary, like a status line in a code editor.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Toast · Footer swap</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    background: #fff;
+    color: #1c1c1e;
+    width: 280px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: #f9f9f9;
+    border-bottom: 1px solid #e5e5e5;
+    padding: 8px 10px;
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: #aaa; flex: 1;
+  }
+  .icon-btn {
+    width: 22px; height: 22px; border: none; background: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; color: #bbb; font-size: 13px;
+  }
+  .icon-btn:hover { background: #eee; color: #444; }
+
+  /* Pinned strip */
+  .pinned-strip {
+    background: #f9f9f9; border-bottom: 1px solid #e5e5e5;
+    padding: 7px 10px; display: flex; flex-shrink: 0;
+  }
+  .pin-slots { display: flex; gap: 6px; width: 100%; }
+  .pin-slot {
+    flex: 1; aspect-ratio: 1; max-height: 36px;
+    border-radius: 7px; display: flex; align-items: center;
+    justify-content: center; cursor: pointer;
+    background: #fff; box-shadow: 0 0 0 1.5px #e0e0e0;
+    font-size: 10px; font-weight: 800; color: #fff;
+  }
+  .ps-g  { background: #6366f1; }
+  .ps-gh { background: #1c1c1e; }
+  .ps-yt { background: #ef4444; }
+  .ps-fi { background: #f59e0b; }
+  .ps-tw { background: #0ea5e9; }
+  .ps-li { background: #0077b5; }
+
+  /* Search */
+  .search-row {
+    padding: 6px 8px; background: #f9f9f9;
+    border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
+  }
+  .search {
+    width: 100%; padding: 5px 8px;
+    background: #fff; border: 1px solid #ddd; border-radius: 4px;
+    color: #111; font-family: inherit; font-size: 11px; outline: none;
+  }
+  .search::placeholder { color: #ccc; }
+
+  /* Tree */
+  .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .tree::-webkit-scrollbar { width: 4px; }
+  .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+  .win-label {
+    display: flex; align-items: center; gap: 5px;
+    padding: 8px 8px 3px;
+    font-size: 9.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: #ccc; user-select: none;
+  }
+  .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+  .win-count {
+    font-size: 9px; color: #ccc; background: #f3f3f3;
+    padding: 1px 5px; border-radius: 3px; order: 10;
+  }
+
+  .tab-row {
+    display: flex; align-items: stretch;
+    min-height: 24px; cursor: default;
+  }
+  .tab-row:hover .tab-inner { background: #f4f4f5; }
+  .tab-row.is-active .tab-inner { background: #eff6ff; }
+  .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+  .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; }
+
+  .active-bar {
+    width: 2px; align-self: stretch;
+    background: #2563eb; border-radius: 1px;
+    flex-shrink: 0; margin: 4px 0;
+  }
+  .indent-wrap { flex: 1; display: flex; align-items: stretch; min-width: 0; }
+  .tab-inner {
+    flex: 1; display: flex; align-items: center; gap: 4px;
+    padding: 0 6px 0 4px; border-radius: 4px;
+    margin-right: 4px; min-width: 0;
+  }
+  .toggle {
+    width: 10px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 9px; color: #bbb;
+  }
+  .favicon {
+    width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0;
+    font-size: 6.5px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; user-select: none;
+  }
+  .tab-title { white-space: nowrap; font-size: 11.5px; color: #222; line-height: 20px; }
+  .tab-close {
+    opacity: 0; width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+  }
+  .tab-row:hover .tab-close { opacity: 1; }
+  .tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+  /* New tab row */
+  .new-tab-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 8px 3px 24px; opacity: 0;
+    font-size: 11px; color: #ccc; cursor: pointer;
+    transition: opacity 0.1s;
+  }
+  .tree:hover .new-tab-row,
+  .new-tab-row:hover { opacity: 1; }
+  .new-tab-row:hover { color: #888; }
+
+  /* ── Footer ── */
+  .footer {
+    border-top: 1px solid #e5e5e5; background: #f9f9f9;
+    padding: 6px 10px;
+    display: flex; align-items: center; gap: 6px;
+    flex-shrink: 0; min-height: 30px;
+    position: relative;
+  }
+
+  /* The URL text — always present */
+  .footer-url {
+    flex: 1; font-size: 9.5px; color: #bbb;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    min-width: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  /* The status message — overlays the same slot */
+  .footer-status {
+    position: absolute;
+    left: 10px; right: 10px;
+    font-size: 9.5px;
+    color: #aaa;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  /* Progress underline — grows left→right then disappears with the message */
+  .footer-progress {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 1.5px;
+    background: #d0d0d0;
+    width: 0;
+    transition: none;
+  }
+
+  /* kbd chip inline */
+  .kbd {
+    display: inline-block; background: #efefef;
+    border-radius: 2px;
+    padding: 0 3px; font-size: 8.5px; color: #999; font-family: inherit;
+  }
+
+  /* Demo controls */
+  .demo-bar {
+    background: #fafafa; border-top: 1px solid #e5e5e5;
+    padding: 8px 10px; display: flex; gap: 6px; flex-shrink: 0;
+  }
+  .demo-btn {
+    flex: 1; font-family: inherit; font-size: 10px; cursor: pointer;
+    padding: 4px 0; border-radius: 4px;
+    border: 1px solid #e0e0e0; background: #fff; color: #666;
+  }
+  .demo-btn:hover { border-color: #6366f1; color: #6366f1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">nonlinear browser</span>
+  <button class="icon-btn">—</button>
+</div>
+
+<div class="pinned-strip">
+  <div class="pin-slots">
+    <div class="pin-slot ps-g">G</div>
+    <div class="pin-slot ps-gh">GH</div>
+    <div class="pin-slot ps-yt">YT</div>
+    <div class="pin-slot ps-fi">F</div>
+    <div class="pin-slot ps-tw">T</div>
+    <div class="pin-slot ps-li">in</div>
+  </div>
+</div>
+
+<div class="search-row">
+  <input class="search" type="text" placeholder="search tabs…">
+</div>
+
+<div class="tree">
+  <div class="win-label">
+    <span>▾</span><span>Work</span>
+    <span class="win-count">5</span>
+  </div>
+
+  <div class="tab-row is-active" onclick="showStatus(1)">
+    <div class="active-bar"></div>
+    <div class="indent-wrap">
+      <div class="tab-inner">
+        <span class="toggle"></span>
+        <span class="favicon" style="background:#6366f1">N</span>
+        <span class="tab-title">Nonlinear Browser · renderer.js</span>
+        <span class="tab-close">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-row" onclick="showStatus(3)" style="cursor:pointer">
+    <div class="indent-wrap" style="padding-left:10px; border-left:1px solid #e8e8e8">
+      <div class="tab-inner">
+        <span class="toggle">▾</span>
+        <span class="favicon" style="background:#1c1c1e">GH</span>
+        <span class="tab-title">anthropics/claude-code</span>
+        <span class="tab-close">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-row" onclick="showStatus(1)" style="cursor:pointer">
+    <div class="indent-wrap" style="padding-left:20px; border-left:1px solid #e8e8e8; margin-left:12px">
+      <div class="tab-inner">
+        <span class="toggle"></span>
+        <span class="favicon" style="background:#1c1c1e">GH</span>
+        <span class="tab-title">Pull Request #42</span>
+        <span class="tab-close">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-row" onclick="showStatus(7)" style="cursor:pointer">
+    <div class="indent-wrap">
+      <div class="tab-inner">
+        <span class="toggle">▾</span>
+        <span class="favicon" style="background:#ef4444">YT</span>
+        <span class="tab-title">How Browsers Work — talk</span>
+        <span class="tab-close">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-row is-closed">
+    <div class="indent-wrap" style="padding-left:10px; border-left:1px solid #e8e8e8">
+      <div class="tab-inner">
+        <span class="toggle"></span>
+        <span class="favicon" style="background:#ccc">SO</span>
+        <span class="tab-title">Stack Overflow · useEffect</span>
+        <span class="tab-close">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="new-tab-row">+ new tab</div>
+
+  <div class="win-label" style="margin-top:4px">
+    <span>▾</span><span>Personal</span>
+    <span class="win-count">2</span>
+  </div>
+
+  <div class="tab-row" onclick="showStatus(2)" style="cursor:pointer">
+    <div class="indent-wrap">
+      <div class="tab-inner">
+        <span class="toggle"></span>
+        <span class="favicon" style="background:#10b981">Ca</span>
+        <span class="tab-title">Google Calendar</span>
+        <span class="tab-close">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-row" onclick="showStatus(1)" style="cursor:pointer">
+    <div class="indent-wrap">
+      <div class="tab-inner">
+        <span class="toggle"></span>
+        <span class="favicon" style="background:#f59e0b">Fi</span>
+        <span class="tab-title">Figma · Design system</span>
+        <span class="tab-close">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="new-tab-row">+ new tab</div>
+</div>
+
+<!-- Footer — the URL and status share the same horizontal space -->
+<div class="footer">
+  <span class="footer-url" id="footerUrl">https://github.com/anthropics/claude-code/pull/42</span>
+  <span class="footer-status" id="footerStatus"></span>
+  <div class="footer-progress" id="footerProgress"></div>
+</div>
+
+<!-- Demo controls (not part of real UI) -->
+<div class="demo-bar">
+  <button class="demo-btn" onclick="showStatus(1)">close 1 tab</button>
+  <button class="demo-btn" onclick="showStatus(3)">close 3 tabs</button>
+  <button class="demo-btn" onclick="showStatus(7)">close 7 tabs</button>
+</div>
+
+<script>
+  var _statusTimer = null;
+  var _progressTimer = null;
+  var DURATION = 4000; // ms the message stays
+
+  function showStatus(count) {
+    var urlEl      = document.getElementById('footerUrl');
+    var statusEl   = document.getElementById('footerStatus');
+    var progressEl = document.getElementById('footerProgress');
+
+    // Clear any running timer
+    if (_statusTimer) { clearTimeout(_statusTimer); _statusTimer = null; }
+    if (_progressTimer) { clearTimeout(_progressTimer); _progressTimer = null; }
+
+    // Build message
+    var msg = count === 1
+      ? 'closed 1 tab · ctrl z to undo'
+      : 'closed ' + count + ' tabs · ctrl z to undo';
+    statusEl.textContent = msg;
+
+    // Swap: hide URL, show status
+    urlEl.style.opacity    = '0';
+    statusEl.style.opacity = '1';
+
+    // Animate progress bar
+    progressEl.style.transition = 'none';
+    progressEl.style.width = '0';
+    // Force reflow so transition fires
+    void progressEl.offsetWidth;
+    progressEl.style.transition = 'width ' + DURATION + 'ms linear';
+    progressEl.style.width = '100%';
+
+    // After DURATION, swap back
+    _statusTimer = setTimeout(function () {
+      statusEl.style.opacity = '0';
+      urlEl.style.opacity    = '1';
+      // Reset progress bar quietly
+      _progressTimer = setTimeout(function () {
+        progressEl.style.transition = 'none';
+        progressEl.style.width = '0';
+      }, 300);
+    }, DURATION);
+  }
+</script>
+
+</body>
+</html>
