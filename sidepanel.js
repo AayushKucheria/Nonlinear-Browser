@@ -78,8 +78,6 @@ var sidebarState = {
     var tab = window.data && window.data[id];
     if (!tab) return;
 
-    if (tab.isSpace) return;   // fixed spaces are permanent — cannot be deleted
-
     var ids = collectSubtree(tab);   // parent + all non-deleted descendants
     closedGroupStack.push({ ids: ids });
     // Mark as extension-initiated so tabRemoved won't re-parent children
@@ -160,11 +158,7 @@ var sidebarState = {
 
   onContextMenu: function (tab, event) {
     event.preventDefault();
-    if (tab.isSpace) {
-      showSpaceCtxMenu(tab, event.clientX, event.clientY);
-    } else {
-      showCtxMenu(tab, event.clientX, event.clientY);
-    }
+    showCtxMenu(tab, event.clientX, event.clientY);
   },
 
   onWindowContextMenu: function (windowId, event) {
@@ -249,7 +243,6 @@ setInterval(_pollMemory, 8000);
 // ── Context menu state (module-level so sidebarState callbacks can use them) ──
 var ctxTab = null;
 var ctxWindowId = null;
-var ctxSpace = null;
 
 function showCtxMenu(tab, x, y) {
   ctxTab = tab;
@@ -260,20 +253,18 @@ function showCtxMenu(tab, x, y) {
   var hasBranch   = !!(tab.children && tab.children.length > 0);
 
   // Suspend item: hidden when already suspended; label changes for parent tabs
-  var suspendEl     = document.getElementById('ctxSuspend');
-  var resumeEl      = document.getElementById('ctxResume');
-  var sepEl         = document.getElementById('ctxSuspendSep');
-  var closeEl       = document.getElementById('ctxClose');
-  var moveToSpaceEl = document.getElementById('ctxMoveToSpace');
+  var suspendEl = document.getElementById('ctxSuspend');
+  var resumeEl  = document.getElementById('ctxResume');
+  var sepEl     = document.getElementById('ctxSuspendSep');
+  var closeEl   = document.getElementById('ctxClose');
 
   if (suspendEl) {
     suspendEl.style.display = isSuspended ? 'none' : '';
     suspendEl.textContent   = hasBranch ? '💤 \u00a0Suspend Branch' : '💤 \u00a0Suspend Tab';
   }
-  if (resumeEl)      resumeEl.style.display      = isSuspended ? '' : 'none';
-  if (sepEl)         sepEl.style.display         = isSuspended ? 'none' : '';
-  if (closeEl)       closeEl.style.display       = isSuspended ? 'none' : '';
-  if (moveToSpaceEl) moveToSpaceEl.style.display = tab.isSpace ? 'none' : '';
+  if (resumeEl) resumeEl.style.display = isSuspended ? '' : 'none';
+  if (sepEl)    sepEl.style.display    = isSuspended ? 'none' : '';
+  if (closeEl)  closeEl.style.display  = isSuspended ? 'none' : '';
 
   m.style.left = Math.min(x, window.innerWidth - 180) + 'px';
   m.style.top  = Math.min(y, window.innerHeight - 160) + 'px';
@@ -303,20 +294,6 @@ function hidePinCtxMenu() {
   var m = document.getElementById('pinCtxMenu');
   if (m) m.style.display = 'none';
   ctxPinIndex = null;
-}
-
-function showSpaceCtxMenu(space, x, y) {
-  ctxSpace = space;
-  var m = document.getElementById('spaceCtxMenu');
-  if (!m) return;
-  m.style.left = Math.min(x, window.innerWidth - 190) + 'px';
-  m.style.top  = Math.min(y, window.innerHeight - 60) + 'px';
-  m.style.display = 'block';
-}
-function hideSpaceCtxMenu() {
-  var m = document.getElementById('spaceCtxMenu');
-  if (m) m.style.display = 'none';
-  ctxSpace = null;
 }
 
 // Persisted window-name overrides: { [windowId]: 'Custom name' }
@@ -584,7 +561,7 @@ function _applyActiveTab(tabId) {
 // ── Multi-select helpers ──────────────────────────────────────────────────────
 function _applySelectionUpdate(id) {
   var row = document.querySelector('[data-tab-id="' + id + '"]');
-  if (!row || row.classList.contains('space-row')) return;
+  if (!row) return;
   var sel = selectedTabIds.has(id);
   row.classList.toggle('is-selected', sel);
   var check = row.querySelector('.tab-check');
@@ -644,10 +621,6 @@ document.addEventListener('DOMContentLoaded', function () {
     pinnedTabs = new Array(PIN_COUNT).fill(null);
   }
   renderPins();
-
-  // Seed fixed spaces into window.data BEFORE loadWindowList so
-  // dataToLocalRoot() can correctly nest tabs that live inside a space.
-  ensureFixedSpaces();
 
   // Silently restore last session and load live Chrome tabs
   checkLastSession();
@@ -736,18 +709,6 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () { window.showUrlInFooter(''); }, 1500);
   });
 
-  // Move to Space submenu
-  document.querySelectorAll('#ctxSpaceSubmenu .ctx-space-opt').forEach(function (item) {
-    item.addEventListener('click', function () {
-      if (!ctxTab) return;
-      var tab = ctxTab;
-      var sid = parseInt(item.dataset.sid) || null;
-      hideCtxMenu();
-      assignTabToSpace(tab.id, sid);
-      renderAll();
-    });
-  });
-
   document.getElementById('ctxSuspend').addEventListener('click', function () {
     if (!ctxTab) return;
     sidebarState.onSuspend(ctxTab.id);
@@ -805,47 +766,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (winCtxMenu && !winCtxMenu.contains(e.target)) hideWinCtxMenu();
   });
 
-  // ── Space context menu ────────────────────────────────────────────────────
-  function startSpaceRename(space) {
-    var row = document.querySelector('[data-tab-id="' + space.id + '"]');
-    if (!row) return;
-    var nameEl = row.querySelector('.space-name');
-    if (!nameEl) return;
-    var saved = space.name || 'Space';
-    nameEl.contentEditable = 'true';
-    nameEl.focus();
-    var range = document.createRange();
-    range.selectNodeContents(nameEl);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    nameEl.addEventListener('blur', function () {
-      nameEl.contentEditable = 'false';
-      var newName = nameEl.textContent.trim() || saved;
-      space.name = newName;
-      nameEl.textContent = newName;
-      localStore();
-      renderAll();
-    }, { once: true });
-    nameEl.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
-      if (e.key === 'Escape') { nameEl.textContent = saved; nameEl.blur(); }
-      e.stopPropagation();
-    });
-  }
-
-  document.getElementById('spaceCtxRename').addEventListener('click', function () {
-    if (!ctxSpace) return;
-    var space = ctxSpace;
-    hideSpaceCtxMenu();
-    startSpaceRename(space);
-  });
-
-  // Click-outside dismissal for space context menu
-  document.addEventListener('click', function (e) {
-    var sm = document.getElementById('spaceCtxMenu');
-    if (sm && !sm.contains(e.target)) hideSpaceCtxMenu();
-  });
-
   // ── Multi-select controls ─────────────────────────────────────────────────
 
   // Select mode toggle button
@@ -857,21 +777,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!selectMode) clearSelection();
   });
 
-  // Selection bar: move to space / ungroup dots
-  document.querySelectorAll('.sel-space-dot').forEach(function (dot) {
-    dot.addEventListener('click', function () {
-      var sid = parseInt(dot.dataset.sid) || null;
-      Array.from(selectedTabIds).forEach(function (id) { assignTabToSpace(id, sid); });
-      clearSelection();
-      renderAll();
-    });
-  });
-
   // Selection bar: close selected
   document.getElementById('selClose').addEventListener('click', function () {
     Array.from(selectedTabIds).slice().reverse().forEach(function (id) {
       var tab = window.data && window.data[id];
-      if (tab && !tab.deleted && !tab.isSpace) sidebarState.onClose(id);
+      if (tab && !tab.deleted) sidebarState.onClose(id);
     });
     clearSelection();
   });
@@ -881,7 +791,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-      hideCtxMenu(); hideWinCtxMenu(); hidePinCtxMenu(); hideSpaceCtxMenu();
+      hideCtxMenu(); hideWinCtxMenu(); hidePinCtxMenu();
       clearSelection();
       if (selectMode) {
         selectMode = false; sidebarState.selectMode = false;

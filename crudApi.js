@@ -1,47 +1,17 @@
 window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "deleted":false, "toggle": false, "lines": ["Current Session"], "children": [],  "x0": 0, "y0": 0};
-var date = new Date();
 window.data = {};
 
 function checkLastSession() {
-
-  var isRefreshed = true;
-  var previousTime = AppStorage.session.getTimestamp();
-  var currentTime = date.getTime();
-  if(!previousTime || (previousTime && (currentTime - previousTime) > 3600000)) // if the time since the extension was loaded exceeds an hour
-  {
-    isRefreshed = false; // dont refresh
-  }
-  lastSession = AppStorage.session.load();
-  if(lastSession) {
-    if(!isRefreshed) {//not Refreshed
-      Fnon.Dialogue.Primary("Your last browsing session was autosaved. Would you like to restore it?", 'Restore last session?', 'Yes', 'No',
-      () => { // Merge with current session
-        for(let [id, tabObj] of Object.entries(lastSession)) {
-          if(!data[id]) {
-            tabObj.children = []; // Objects get children when converted to localRoot, doing it before will fuck stuff up.
-            data[id] = tabObj;
-          }
-        }
-        loadWindowList(true); // Merge
-      },
-      () => { // Don't restore
-        loadWindowList(true);
-      });
-    }
-    else { // Refreshed. Restore previous tree without current Session
-      for(let [id, tabObj] of Object.entries(lastSession)) {
-        if(!data[id]) {
-          tabObj.children = []; // Objects get children when converted to localRoot, doing it before will fuck stuff up.
-          data[id] = tabObj;
-        }
+  var lastSession = AppStorage.session.load();
+  if (lastSession) {
+    for (var id in lastSession) {
+      if (!data[id]) {
+        lastSession[id].children = [];
+        data[id] = lastSession[id];
       }
-      loadWindowList(false);
     }
   }
-  else {
-    // No session stored. Creating new.
-    loadWindowList(true);
-  }
+  loadWindowList(true);
 }
 
 function dataToLocalRoot() {
@@ -51,12 +21,20 @@ function dataToLocalRoot() {
     }
     else {
       const parentObj = data[tabObj.parentId];
-      parentObj.children.push(tabObj);
+      if (parentObj) {
+        parentObj.children.push(tabObj);
+      } else {
+        // Parent no longer exists — promote to top-level
+        tabObj.parentId = '';
+        window.localRoot.children.push(tabObj);
+      }
     };
   };
 
   function _sortNewestFirst(arr) {
-    arr.sort(function(a, b) { return b.id - a.id; });
+    arr.sort(function(a, b) {
+      return b.id - a.id;
+    });
     arr.forEach(function(t) { if (t.children && t.children.length > 1) _sortNewestFirst(t.children); });
   }
   _sortNewestFirst(window.localRoot.children);
@@ -159,6 +137,7 @@ function addNewTab(tab) {
   localStore();
 }
 
+
 function updateTab(tabId, changeInfo) {
   let updatedTab = data[tabId];
   if (!updatedTab) return;
@@ -241,6 +220,7 @@ function moveTab(draggedId, targetId, position) {
   var targetTab = data[targetId];
   if (targetTab && dragged.windowId !== targetTab.windowId) {
     updateTabWindowId(dragged, targetTab.windowId);
+    BrowserApi.moveTab(dragged.id, targetTab.windowId);
   }
   localStore();
 }
@@ -270,6 +250,7 @@ function moveTabToWindow(draggedId, targetWindowId) {
 
   // Update windowId recursively
   updateTabWindowId(dragged, targetWindowId);
+  BrowserApi.moveTab(draggedId, targetWindowId);
 
   // Insert after the last existing tab that belongs to targetWindowId
   var lastIdx = -1;

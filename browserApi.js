@@ -12,5 +12,6 @@ window.BrowserApi = {
   bookmarkTab(url, title)    { chrome.bookmarks.create({ title: title, url: url }); },
   getProcessInfo(cb)         { if (chrome.processes && chrome.processes.getProcessInfo) {
                                  chrome.processes.getProcessInfo([], true, cb);
-                               } }
+                               } },
+  moveTab(tabId, windowId)   { chrome.tabs.move(tabId, { windowId: windowId, index: -1 }); },
 };

@@ -33,14 +33,16 @@
 
   // ---------------------------------------------------------------------------
   // countOpen(tabs) → number
-  // Counts non-deleted (open) tabs recursively. Spaces are not counted.
+  // Counts non-deleted (open) tabs recursively.
   // ---------------------------------------------------------------------------
   function countOpen(tabs) {
     var n = 0;
     for (var i = 0; i < tabs.length; i++) {
       var t = tabs[i];
-      if (!t.isSpace && !t.deleted) n++;
-      if (t.children && t.children.length) n += countOpen(t.children);
+      if (!t.deleted) {
+        n++;
+        if (t.children && t.children.length) n += countOpen(t.children);
+      }
     }
     return n;
   }
@@ -55,12 +57,8 @@
   function matchesSearch(tab, query) {
     if (!query) return true;
     var q = query.toLowerCase();
-    if (tab.isSpace) {
-      if ((tab.name || '').toLowerCase().indexOf(q) !== -1) return true;
-    } else {
-      if ((tab.customTitle || tab.title || '').toLowerCase().indexOf(q) !== -1) return true;
-      if ((tab.url || '').toLowerCase().indexOf(q) !== -1) return true;
-    }
+    if ((tab.customTitle || tab.title || '').toLowerCase().indexOf(q) !== -1) return true;
+    if ((tab.url || '').toLowerCase().indexOf(q) !== -1) return true;
     var children = tab.children || [];
     for (var i = 0; i < children.length; i++) {
       if (matchesSearch(children[i], q)) return true;
@@ -68,116 +66,6 @@
     return false;
   }
   window.matchesSearch = matchesSearch;
-
-  // ---------------------------------------------------------------------------
-  // renderSpaceRow(space, depth, container, ancestors, isLast, state)
-  //
-  // Renders a space node (named container, no Chrome tab behind it).
-  // Visually: circle bullet + warm name + soft child count suffix.
-  // ---------------------------------------------------------------------------
-  function renderSpaceRow(space, depth, container, ancestors, isLast, state) {
-    var collapsedTabs = state.collapsedTabs;
-    var showClosed    = state.showClosed;
-    var query         = state.query;
-
-    // ── Row wrapper ──────────────────────────────────────────────────────────
-    var row = document.createElement('div');
-    row.className = 'space-row';
-    row.draggable = true;
-    row.dataset.tabId = space.id;
-
-    row.addEventListener('dragstart', function (e) {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', String(space.id));
-      state.onDragStart(space.id, space.windowId);
-    });
-    row.addEventListener('dragend', function () { state.onDragEnd(); });
-    row.addEventListener('dragover', function (e) {
-      e.preventDefault(); state.onDragOver(space.id, row, e.clientY);
-    });
-    row.addEventListener('drop', function (e) {
-      e.preventDefault(); state.onDrop(space.id, e.clientY, row);
-    });
-    row.addEventListener('contextmenu', function (e) { state.onContextMenu(space, e); });
-
-    // ── Guide-rail indent (matches tab row logic) ─────────────────────────
-    var indentWrap = document.createElement('div');
-    indentWrap.className = 'space-indent';
-    if (depth > 0) {
-      indentWrap.style.paddingLeft = (depth * 10) + 'px';
-      indentWrap.style.borderLeft  = '1px solid #e8e8e8';
-      indentWrap.style.marginLeft  = ((depth - 1) * 10 + 2) + 'px';
-    }
-
-    // ── Inner content ─────────────────────────────────────────────────────
-    var inner = document.createElement('div');
-    inner.className = 'space-inner';
-    // Faint color wash background (5% opacity)
-    var c = space.color || '#9b8dc7';
-    var r = parseInt(c.slice(1, 3), 16);
-    var g = parseInt(c.slice(3, 5), 16);
-    var b = parseInt(c.slice(5, 7), 16);
-    inner.style.background = 'rgba(' + r + ',' + g + ',' + b + ',0.05)';
-
-    // Toggle arrow
-    var hasChildren = space.children && space.children.length > 0;
-    var tog = document.createElement('span');
-    tog.className = 'space-toggle';
-    if (hasChildren) {
-      tog.textContent = collapsedTabs.has(space.id) ? '▶' : '▾';
-      tog.addEventListener('click', (function (id) {
-        return function (e) { e.stopPropagation(); state.onToggle(id); };
-      }(space.id)));
-    }
-    inner.appendChild(tog);
-
-    // Colored circle bullet
-    var bullet = document.createElement('span');
-    bullet.className = 'space-bullet';
-    bullet.style.background = c;
-    inner.appendChild(bullet);
-
-    // Name + soft count suffix
-    var nameWrap = document.createElement('span');
-    nameWrap.className = 'space-name-wrap';
-
-    var nameEl = document.createElement('span');
-    nameEl.className = 'space-name';
-    nameEl.textContent = space.name || 'Space';
-    nameWrap.appendChild(nameEl);
-
-    if (hasChildren) {
-      var openCount = countOpen(space.children);
-      var countSuffix = document.createElement('span');
-      countSuffix.className = 'space-count-suffix';
-      countSuffix.textContent = '\u00b7 ' + openCount;
-      nameWrap.appendChild(countSuffix);
-    }
-    inner.appendChild(nameWrap);
-
-    indentWrap.appendChild(inner);
-    row.appendChild(indentWrap);
-    container.appendChild(row);
-
-    // ── Recurse into children ────────────────────────────────────────────
-    if (!collapsedTabs.has(space.id)) {
-      var children = space.children || [];
-      var visible  = children.filter(function (c) {
-        if (c.deleted && !showClosed) return false;
-        return matchesSearch(c, query);
-      });
-      for (var j = 0; j < visible.length; j++) {
-        renderTabRow(
-          visible[j],
-          depth + 1,
-          container,
-          ancestors.concat([!isLast]),
-          j === visible.length - 1,
-          state
-        );
-      }
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // renderTabRow(tab, depth, container, ancestors, isLast, state)
@@ -195,8 +83,6 @@
   // }
   // ---------------------------------------------------------------------------
   function renderTabRow(tab, depth, container, ancestors, isLast, state) {
-    // Delegate space nodes to renderSpaceRow
-    if (tab.isSpace) { renderSpaceRow(tab, depth, container, ancestors, isLast, state); return; }
     var collapsedTabs = state.collapsedTabs;
     var showClosed    = state.showClosed;
     var query         = state.query;
@@ -446,21 +332,11 @@
 
     var children = (localRoot && localRoot.children) || [];
 
-    // Separate space nodes from regular tabs
-    var spaces      = children.filter(function(c) { return c.isSpace && !c.deleted; });
-    var regularTabs = children.filter(function(c) { return !c.isSpace; });
-
-    // Render space sections first (no window-label wrapper)
-    var visibleSpaces = spaces.filter(function(sp) { return matchesSearch(sp, query); });
-    for (var si = 0; si < visibleSpaces.length; si++) {
-      renderTabRow(visibleSpaces[si], 0, container, [], si === visibleSpaces.length - 1, state);
-    }
-
-    // Group regular tabs by windowId (insertion order preserved)
+    // Group tabs by windowId (insertion order preserved)
     var windowMap = [];      // [{windowId, tabs:[]}]
     var windowIdx = {};      // windowId → index in windowMap
-    for (var i = 0; i < regularTabs.length; i++) {
-      var tab = regularTabs[i];
+    for (var i = 0; i < children.length; i++) {
+      var tab = children[i];
       var wid = tab.windowId;
       if (windowIdx[wid] === undefined) {
         windowIdx[wid] = windowMap.length;
@@ -472,14 +348,14 @@
     for (var wi = 0; wi < windowMap.length; wi++) {
       var windowId   = windowMap[wi].windowId;
       var tabs       = windowMap[wi].tabs;
-      var winName    = (windowNames && windowNames[windowId]) || ('Window ' + windowId);
+      var winName    = (windowNames && windowNames[windowId]) || ('Space ' + windowId);
       var openCount  = countOpen(tabs);
 
       // ── Window label ──────────────────────────────────────────────────────
       var label = document.createElement('div');
       label.className = 'win-label';
       label.dataset.windowId = windowId;
-      label.addEventListener('contextmenu', function (e) { state.onWindowContextMenu(windowId, e); });
+      label.addEventListener('contextmenu', function (e) { state.onWindowContextMenu(parseInt(e.currentTarget.dataset.windowId), e); });
 
       var chev = document.createElement('span');
       chev.className = 'win-chevron';

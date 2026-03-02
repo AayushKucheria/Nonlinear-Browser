@@ -34,19 +34,30 @@ function makeTab(overrides) {
 function makeState(overrides) {
   return Object.assign(
     {
-      collapsedTabs: new Set(),
-      showClosed:    false,
-      query:         '',
-      onToggle:      jest.fn(),
-      onClose:       jest.fn(),
-      onActivate:    jest.fn(),
-      onMute:        jest.fn(),
-      onNewTab:      jest.fn(),
-      tabMemory:     null,
+      collapsedTabs:       new Set(),
+      showClosed:          false,
+      query:               '',
+      onToggle:            jest.fn(),
+      onClose:             jest.fn(),
+      onActivate:          jest.fn(),
+      onMute:              jest.fn(),
+      onNewTab:            jest.fn(),
+      onDragStart:         jest.fn(),
+      onDragEnd:           jest.fn(),
+      onDragOver:          jest.fn(),
+      onDrop:              jest.fn(),
+      onContextMenu:       jest.fn(),
+      onWindowContextMenu: jest.fn(),
+      onWindowDrop:        jest.fn(),
+      onResume:            jest.fn(),
+      tabMemory:           null,
+      _draggingWindowId:   null,
+      pinnedTabIds:        new Set(),
     },
     overrides
   );
 }
+
 
 function makeContainer() {
   return document.createElement('div');
@@ -80,6 +91,28 @@ describe('countOpen', () => {
       }),
     ];
     expect(countOpen(tabs)).toBe(2);
+  });
+
+  test('counts tabs that have isSpace:true (no longer excluded)', () => {
+    const tabs = [
+      Object.assign(makeTab({ id: 1, deleted: false }), { isSpace: true }),
+      makeTab({ id: 2, deleted: false }),
+    ];
+    expect(countOpen(tabs)).toBe(2);
+  });
+
+  test('does not count children of a deleted parent', () => {
+    const tabs = [
+      makeTab({
+        id:       1,
+        deleted:  true,
+        children: [
+          makeTab({ id: 2, deleted: false }),
+          makeTab({ id: 3, deleted: false }),
+        ],
+      }),
+    ];
+    expect(countOpen(tabs)).toBe(0);
   });
 });
 
@@ -123,6 +156,11 @@ describe('matchesSearch', () => {
   test('returns true when tab.customTitle matches query', () => {
     const tab = makeTab({ title: 'Original Title', customTitle: 'My Custom Name' });
     expect(matchesSearch(tab, 'custom name')).toBe(true);
+  });
+
+  test('matches isSpace:true tab by title (no longer uses name-only branch)', () => {
+    const tab = Object.assign(makeTab({ title: 'Research', url: '' }), { isSpace: true, name: 'space 1' });
+    expect(matchesSearch(tab, 'research')).toBe(true);
   });
 });
 
@@ -379,6 +417,38 @@ describe('buildSidebarTree', () => {
     ]);
     buildSidebarTree(c, localRoot, {}, makeState());
     expect(c.querySelectorAll('.new-tab-row').length).toBe(2);
+  });
+
+  test('default window label uses "Space X" not "Window X"', () => {
+    const c         = makeContainer();
+    const localRoot = makeLocalRoot([
+      makeTab({ id: 1, windowId: 99 }),
+    ]);
+    buildSidebarTree(c, localRoot, {}, makeState());
+    const winLabel = c.querySelector('.win-label');
+    expect(winLabel.textContent).toContain('Space 99');
+    expect(winLabel.textContent).not.toContain('Window 99');
+  });
+
+  test('contextmenu on each win-label fires with that label\'s own windowId', () => {
+    const c         = makeContainer();
+    const localRoot = makeLocalRoot([
+      makeTab({ id: 1, windowId: 10 }),
+      makeTab({ id: 2, windowId: 20 }),
+      makeTab({ id: 3, windowId: 30 }),
+    ]);
+    const state = makeState();
+    buildSidebarTree(c, localRoot, {}, state);
+
+    const labels = Array.from(c.querySelectorAll('.win-label'));
+    expect(labels.length).toBe(3);
+
+    labels.forEach(function (lbl) {
+      state.onWindowContextMenu.mockClear();
+      lbl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+      const expected = parseInt(lbl.dataset.windowId);
+      expect(state.onWindowContextMenu).toHaveBeenCalledWith(expected, expect.anything());
+    });
   });
 });
 

@@ -25,14 +25,13 @@ npm test           # Jest 29
 |---|---|
 | `manifest.json` | MV3 manifest; service worker = `background.js`, side panel = `sidepanel.html`; `_execute_action` command for `Ctrl+Shift+Y`; permissions include `bookmarks`, `processes` |
 | `background.js` | **MV3 service worker** — `setPanelBehavior`; forwards tab events + `tabActivated`; handles `closePanel` message via `setOptions` toggle |
-| `sidepanel.html` | Side panel HTML shell — header (`nonlinear browser` title, `☐` select-mode btn, `—` close btn), pinned strip (`#pinSlots`), search bar, skeleton loader (`#skeleton`), tree div (`#tree`, initially hidden), selection bar (`#selectionBar`), footer (URL bar only); all feature CSS; `#ctxMenu`, `#winCtxMenu`, `#pinCtxMenu`, `#spaceCtxMenu` context menus |
+| `sidepanel.html` | Side panel HTML shell — header (`nonlinear browser` title, `☐` select-mode btn, `—` close btn), pinned strip (`#pinSlots`), search bar, skeleton loader (`#skeleton`), tree div (`#tree`, initially hidden), selection bar (`#selectionBar`), footer (URL bar only); all feature CSS; `#ctxMenu`, `#winCtxMenu`, `#pinCtxMenu` context menus |
 | `sidepanel.js` | Bootstraps the panel; `sidebarState` with drag/audio/window-drop/suspend/resume/newTab/select callbacks; multi-select state (`selectedTabIds`, `selectMode`, `lastSelectedId`); `clearSelection`, `rangeSelectTo`, `_applySelectionUpdate`, `updateSelectionBar` helpers; `renderPins` (hash bail-out + pin drag-to-reorder); `_firstRender` skeleton swap; `_applyActiveTab` targeted DOM update; RAM polling via `_pollMemory`; `tabMemory` map on sidebarState; undo-close + Ctrl+Z; collapse/expand; `showUrlInFooter`; `pendingResume`; `_closingByExtension` set; `pinnedTabIds` Set on sidebarState |
-| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch` (title + url + customTitle), `renderTabRow`, `buildSidebarTree`; `_faviconImgCache` (reuses `<img>` elements across rebuilds, eliminates flicker); `_makeNewTabRow` (+ New tab ghost row); guide-rail indent hierarchy (`.indent-wrap`); scrolling title animation on hover; RAM badge (`.tab-ram-badge`); audio 🔊/🔇 button; 🗑 close icon; `.tab-check` selection indicator; `is-selected` class; window-label drag targets |
+| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch` (title + url + customTitle), `renderTabRow`, `buildSidebarTree`; `_faviconImgCache` (reuses `<img>` elements across rebuilds, eliminates flicker); `_makeNewTabRow` (+ New tab ghost row); guide-rail indent hierarchy (`.indent-wrap`); scrolling title animation on hover; RAM badge (`.tab-ram-badge`); audio 🔊/🔇 button; 🗑 close icon; `.tab-check` selection indicator; `is-selected` class; window-label drag targets; default label `"Space X"` |
 | `storage.js` | Storage layer — `window.AppStorage`; all localStorage/sessionStorage access and key names live here |
-| `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` / `chrome.bookmarks.*` / `chrome.processes.*` calls; `createTab(url, windowId?)` accepts optional windowId |
-| `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `moveTabToWindow` + `updateTabWindowId` + `deleteWindowTabs`; new tabs inserted with `unshift` (newest-first); `dataToLocalRoot` sorts children by descending ID |
+| `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` / `chrome.bookmarks.*` / `chrome.processes.*` calls; `createTab(url, windowId?)` accepts optional windowId; `moveTab(tabId, windowId)` moves tab via `chrome.tabs.move(tabId, { windowId, index: -1 })` |
+| `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `moveTabToWindow` + `updateTabWindowId` + `deleteWindowTabs`; new tabs inserted with `unshift` (newest-first); `dataToLocalRoot` sorts children by descending ID, promotes orphaned tabs (missing parent) to root |
 | `helperFunctions.js` | `traverse`, `wrapText`, `visualLength` |
-| `savedTrees.js` | localStorage-based tree snapshots — `saveTree`, `getSavedTrees`, `fetchTree` |
 | `lib/` | Vendored JS: `fnon.min.js` |
 
 **Global state (set on `window`):**
@@ -74,11 +73,11 @@ functions resolve them via the global scope so they pick up the new objects.
 valid 4-element array — all text lands on line 0.
 
 ### Mocks (tests/setup.js)
-- `global.chrome` — MV3 stubs for tabs, windows, action, runtime, sidePanel, bookmarks, **processes**
+- `global.chrome` — MV3 stubs for tabs, windows, action, runtime, sidePanel, bookmarks, **processes**; `chrome.tabs.move` stub added for cross-window drag tests
 - `global.d3` — empty object (prevents ReferenceError)
 - `global.Fnon` — stub for toast/dialog library
 - `global.AppStorage` — stub with `jest.fn()` methods (session, savedTrees, windowNames, pinnedTabs); overridden by `eval(storage.js)` in crudApi/renderer tests
-- `global.BrowserApi` — stub with `jest.fn()` methods for all Chrome tab/window calls + muteTab, bookmarkTab, **getProcessInfo**
+- `global.BrowserApi` — stub with `jest.fn()` methods for all Chrome tab/window calls + muteTab, bookmarkTab, **getProcessInfo**, **moveTab**
 - `global.updateTree`, `global.initializeTree`, `global.drawTree` — `jest.fn()`
 - `global.tabWidth = 200`, `global.innerWidth = 1280`, `global.innerHeight = 720`
 - `<span id="ruler">` injected into jsdom body
@@ -87,46 +86,39 @@ valid 4-element array — all text lands on line 0.
 
 ## What the tests cover
 
-### crudApi.test.js (16 tests)
+### crudApi.test.js (33 tests)
 
-| Test | What's verified |
+| Group | What's verified |
 |---|---|
-| `updateTab` missing tabId → no throw | Null guard |
-| `updateTab` title/favIcon → calls `updateTree(window.localRoot)` | display-change trigger |
-| `updateTab` audible → calls `updateTree` | audio field triggers redraw |
-| `updateTab` non-display field → no `updateTree` call | Regression |
-| `addNewTab` no opener → pushed to `window.localRoot.children` | Regression |
-| `addNewTab` chrome://newtab/ → root-level | Regression |
-| `addNewTab` with opener → pushed to parent's children | Regression |
-| `addNewTab` → audible/muted initialised false | New audio fields |
-| `removeSubtree` → removes tab + descendants from data, splices parent | Regression |
-| `localRootToData` → traverses `window.localRoot.children` | Typo fix |
-| `traverse` null/leaf/tree | Core utility |
-| `wrapText` empty / short input | Core utility |
-| `moveTabToWindow` → moves tab, updates windowId | Cross-window move |
-| `moveTabToWindow` → recursively updates descendants | Cross-window move |
-| `moveTabToWindow` → noop if same window | Cross-window move |
-| `moveTab` cross-window → updates windowId on tab + children | Cross-window drag |
+| `updateTab` | Missing tabId no-throw; title/favIcon/audible triggers `updateTree`; non-display field does not |
+| `addNewTab` | No opener → root; `chrome://newtab/` → root; opener → parent; audible/muted init false |
+| `removeSubtree` | Removes tab + descendants from data; splices parent; calls `updateTree` + `localStore` |
+| `localRootToData` | Traverses `window.localRoot.children` (regression fix) |
+| `dataToLocalRoot` | Top-level tab pushed to root; child nested under valid parent; orphaned parent promoted to root (no crash) |
+| `moveTabToWindow` | Moves tab + updates windowId; recursively updates descendants; noop if same window; calls `BrowserApi.moveTab` on cross-window; does not call on same-window |
+| `moveTab — cross-window` | Updates windowId on tab + children; calls `BrowserApi.moveTab` on cross-window; does not call on same-window |
+| `checkLastSession` | No dialog when no session; no dialog when session exists (silent merge) |
+| `BrowserApi.moveTab` | Delegates to `chrome.tabs.move(tabId, { windowId, index: -1 })` |
 
-### renderer.test.js (37 tests)
+### renderer.test.js (45 tests)
 
 | Group | What's tested |
 |---|---|
-| `countOpen` | Empty list; flat list with deleted tabs; recursive children |
-| `matchesSearch` | Empty query; title match; url match; customTitle match; descendant match bubbles up; no match |
+| `countOpen` | Empty list; flat list with deleted tabs; recursive children; `isSpace:true` tabs counted; deleted parent with live children returns 0 |
+| `matchesSearch` | Empty query; title match; url match; customTitle match; descendant match bubbles up; no match; `isSpace:true` tab matched by title |
 | `renderTabRow` — structure | `.tab-row` appended; title text; `.toggle` present; `.clickable` for parents; `.favicon` with letter or `<img>` |
 | `renderTabRow` — state classes | `.is-active` / `.is-closed` from `tab.active` / `tab.deleted` |
 | `renderTabRow` — indent-wrap | depth=0 no padding/border; depth=1 10px paddingLeft + 1px borderLeft + 2px marginLeft; depth=2 20px paddingLeft + 12px marginLeft |
 | `renderTabRow` — children | Renders into same container; respects `collapsedTabs`; respects `showClosed`; filters by search query |
 | `renderTabRow` — audio indicator | `.tab-audio` always present; `🔊`/`is-audible` when audible; `🔇`/`is-muted` when muted; click fires `state.onMute` |
 | `renderTabRow` — RAM badge | Badge shown when `tabMemory[id] >= 150`; omitted when `< 150` or `null` |
-| `buildSidebarTree` | `.win-label` per window; tab count; `windowNames` map; `.new-tab-row` per window |
+| `buildSidebarTree` | `.win-label` per window; tab count; `windowNames` map; `.new-tab-row` per window; default label `"Space X"` not `"Window X"`; contextmenu on each label fires with that label's own windowId |
 
 ## What cannot be unit tested (requires live browser)
 
 - Service worker ↔ side panel message passing (`sendToUI` / `chrome.runtime.onMessage`)
 - Tab focus / close via `BrowserApi.focusTab` / `BrowserApi.removeTab`
-- Window-name rename persistence (double-click / right-click → Rename Window)
+- Space-name rename persistence (double-click / right-click → Rename Space)
 - Drag-and-drop reordering (DOM drag events)
 - Cross-window drag (drag tab onto window label → `moveTabToWindow`)
 - Close panel button / keyboard shortcut (`chrome.sidePanel.setOptions`)
@@ -160,7 +152,7 @@ valid 4-element array — all text lands on line 0.
   lines 2-3 use 70%.
 - `traverse(parent, traverseFn, childrenFn)` — `childrenFn` returning `null`/falsy stops that branch.
 - `AppStorage.windowNames` — key `'windowNames'`; `{[windowId]: string}` map for custom window labels
-- `AppStorage.pinnedTabs` — key `'pinnedTabs'`; array of 6 `{url, title, favIconUrl, tabId} | null` entries
+- `AppStorage.pinnedTabs` — key `'pinnedTabs'`; array of 10 `{url, title, favIconUrl, tabId} | null` entries
 - `sidebarState._draggingWindowId` — tracks the source windowId during a drag; used by window-label `dragover` to allow cross-window drops
 - `closedGroupStack` (sidepanel.js) — undo stack; each entry is `{ids: [tabId, ...]}` for a closed subtree; Ctrl+Z pops and un-deletes
 - `pendingResume` (sidepanel.js) — `{[url]: tabNode}` map; populated by `onResume` before calling `createTab(url)`; consumed by `tabCreated` handler to reuse the existing tree node (preserving position) instead of inserting a duplicate. URL-keyed, so two suspended tabs at identical URLs would collide (known limitation).
@@ -176,9 +168,12 @@ valid 4-element array — all text lands on line 0.
 - **Guide-rail hierarchy** (renderer.js) — `.indent-wrap` div with `paddingLeft: depth*10px` + `borderLeft: 1px solid #e8e8e8` replaces the old `.seg.branch`/`.seg.vert` tree-line elements. Each level costs 10px instead of 16px. The 1px left border is the visual spine.
 - **Scrolling title** (renderer.js) — on `mouseenter`, `requestAnimationFrame` measures `titleEl.scrollWidth - titleWrap.clientWidth`; if overflow > 2px, sets `--scroll-px` and `--scroll-dur` CSS vars and adds `.scrolling` class which runs a `title-scroll` keyframe animation. On `mouseleave`, class is removed. The title's parent (`.tab-title-wrap`) clips overflow; the title element itself has no `text-overflow`.
 - `showCtxMenu` (sidepanel.js) — updates context menu item visibility before showing: hides/shows Suspend vs Resume based on `tab.suspended`; changes label to "Suspend Branch" when tab has children.
-- Context menu helpers: `showCtxMenu`, `hideCtxMenu`, `showWinCtxMenu`, `hideWinCtxMenu`, `hidePinCtxMenu`, `showSpaceCtxMenu`, `hideSpaceCtxMenu` — all module-level in sidepanel.js
+- Context menu helpers: `showCtxMenu`, `hideCtxMenu`, `showWinCtxMenu`, `hideWinCtxMenu`, `hidePinCtxMenu` — all module-level in sidepanel.js
 - **Rename bug:** `hideCtxMenu()` nulls `ctxTab`. Always capture `var tab = ctxTab` before calling `hideCtxMenu()` in any context menu handler that needs the tab reference afterward.
-- **Spaces are permanent** — `onClose` returns early for `tab.isSpace` nodes; no 🗑 icon rendered on space rows. Fixed spaces (IDs -1/-2/-3) cannot be deleted.
+- **Window contextmenu closure pattern** — `buildSidebarTree` attaches contextmenu listeners using `e.currentTarget.dataset.windowId` (read at dispatch time) instead of a closed-over `var windowId` (which always resolves to the last iteration's value after the loop). Always use `dataset` for event-listener values that vary per element in a loop.
+- **`dataToLocalRoot` null guard** — if `tabObj.parentId` points to a node not in `data`, the tab is promoted to root (`tabObj.parentId = ''`). Prevents crash on stale/orphaned parentIds (e.g. after clearing localStorage between versions).
+- **`countOpen` semantics** — only recurses into children when the parent is non-deleted. A deleted parent's children are considered invisible, so they don't inflate the badge count.
+- **`BrowserApi.moveTab`** — `moveTab(tabId, windowId)` calls `chrome.tabs.move(tabId, { windowId, index: -1 })`. Called by `moveTab` and `moveTabToWindow` in crudApi when the target window differs, so tabs physically move in Chrome.
 - `selectedTabIds` (sidepanel.js) — `Set<tabId>` of currently selected tabs; set on `sidebarState.selectedTabIds` so renderer reads it live. `clearSelection()` clears state + removes `.is-selected` from DOM. `onActivate`/`onResume` always call `clearSelection()`.
 - `selectMode` (sidepanel.js) — boolean; when true, single clicks call `onSelect` instead of activating. Toggled by `#selectToggle` button; adds `body.select-mode` class. Escape exits select mode.
 - `lastSelectedId` (sidepanel.js) — anchor for Shift+Click range selection via `rangeSelectTo(toId)`.

@@ -55,6 +55,8 @@ beforeEach(() => {
   window.localRoot = makeRoot();
   window.data      = {};
   updateTree.mockClear();
+  if (typeof BrowserApi.moveTab.mockClear === 'function') BrowserApi.moveTab.mockClear();
+  chrome.tabs.move.mockClear();
 });
 
 // ─── updateTab ───────────────────────────────────────────────────────────────
@@ -292,6 +294,28 @@ describe('moveTabToWindow', () => {
     expect(window.localRoot.children.length).toBe(1);
     expect(window.data[5].windowId).toBe(3);
   });
+
+  test('cross-window move calls BrowserApi.moveTab with dragged id and target window', () => {
+    const tabA = makeTab(1, { windowId: 1, parentId: '' });
+    const tabB = makeTab(2, { windowId: 2, parentId: '' });
+    window.data[1] = tabA;
+    window.data[2] = tabB;
+    window.localRoot.children = [tabA, tabB];
+
+    moveTabToWindow(1, 2);
+
+    expect(BrowserApi.moveTab).toHaveBeenCalledWith(1, 2);
+  });
+
+  test('same-window move does not call BrowserApi.moveTab', () => {
+    const tab = makeTab(5, { windowId: 3, parentId: '' });
+    window.data[5] = tab;
+    window.localRoot.children = [tab];
+
+    moveTabToWindow(5, 3);
+
+    expect(BrowserApi.moveTab).not.toHaveBeenCalled();
+  });
 });
 
 // ─── moveTab cross-window ─────────────────────────────────────────────────────
@@ -322,6 +346,46 @@ describe('moveTab — cross-window', () => {
 
     expect(window.data[1].windowId).toBe(2);
     expect(window.data[3].windowId).toBe(2);
+  });
+
+  test('cross-window drag calls BrowserApi.moveTab with dragged id and new window', () => {
+    const src = makeTab(1, { windowId: 1, parentId: '' });
+    const dst = makeTab(2, { windowId: 2, parentId: '' });
+    window.data[1] = src;
+    window.data[2] = dst;
+    window.localRoot.children = [src, dst];
+
+    moveTab(1, 2, 'before');
+
+    expect(BrowserApi.moveTab).toHaveBeenCalledWith(1, 2);
+  });
+
+  test('same-window drag does not call BrowserApi.moveTab', () => {
+    const src = makeTab(1, { windowId: 1, parentId: '' });
+    const dst = makeTab(2, { windowId: 1, parentId: '' });
+    window.data[1] = src;
+    window.data[2] = dst;
+    window.localRoot.children = [src, dst];
+
+    moveTab(1, 2, 'before');
+
+    expect(BrowserApi.moveTab).not.toHaveBeenCalled();
+  });
+});
+
+// ─── checkLastSession — silent merge (no dialog) ──────────────────────────────
+
+describe('checkLastSession — silent merge', () => {
+  test('does not call Fnon.Dialogue.Primary when there is no saved session', () => {
+    checkLastSession();
+    expect(global.Fnon.Dialogue.Primary).not.toHaveBeenCalled();
+  });
+
+  test('does not call Fnon.Dialogue.Primary when there is a saved session', () => {
+    localStorage.setItem('user', JSON.stringify({ 99: makeTab(99, { parentId: '' }) }));
+    checkLastSession();
+    expect(global.Fnon.Dialogue.Primary).not.toHaveBeenCalled();
+    localStorage.removeItem('user');
   });
 });
 
@@ -357,5 +421,65 @@ describe('localRootToData', () => {
     window.localRoot.children = [];
     expect(() => localRootToData()).not.toThrow();
     expect(window.data).toEqual({});
+  });
+});
+
+// ─── dataToLocalRoot ─────────────────────────────────────────────────────────
+
+describe('dataToLocalRoot', () => {
+  test('top-level tab (parentId empty) is pushed to localRoot.children', () => {
+    const tab = makeTab(1, { parentId: '' });
+    window.data[1] = tab;
+
+    dataToLocalRoot();
+
+    expect(window.localRoot.children).toContain(tab);
+  });
+
+  test('tab with valid parentId is nested under its parent, not at root', () => {
+    const parent = makeTab(1, { parentId: '' });
+    const child  = makeTab(2, { parentId: 1 });
+    window.data[1] = parent;
+    window.data[2] = child;
+
+    dataToLocalRoot();
+
+    expect(window.localRoot.children).toContain(parent);
+    expect(window.localRoot.children).not.toContain(child);
+    expect(parent.children).toContain(child);
+  });
+
+  test('tab whose parentId is missing from data is promoted to root (no crash)', () => {
+    const tab = makeTab(10, { parentId: 999 }); // parent 999 does not exist
+    window.data[10] = tab;
+
+    expect(() => dataToLocalRoot()).not.toThrow();
+    expect(window.localRoot.children).toContain(tab);
+    expect(window.data[10].parentId).toBe('');
+  });
+});
+
+// ─── BrowserApi.moveTab ───────────────────────────────────────────────────────
+
+describe('BrowserApi.moveTab — delegates to chrome.tabs.move', () => {
+  var _savedBrowserApi;
+
+  beforeAll(() => {
+    _savedBrowserApi = global.BrowserApi;
+    // eval the real browserApi.js so window.BrowserApi is the real implementation
+    eval(fs.readFileSync(path.join(__dirname, '..', 'browserApi.js'), 'utf8')); // eslint-disable-line no-eval
+  });
+
+  afterAll(() => {
+    global.BrowserApi = _savedBrowserApi;
+  });
+
+  beforeEach(() => {
+    chrome.tabs.move.mockClear();
+  });
+
+  test('calls chrome.tabs.move with tabId and { windowId, index: -1 }', () => {
+    BrowserApi.moveTab(42, 7);
+    expect(chrome.tabs.move).toHaveBeenCalledWith(42, { windowId: 7, index: -1 });
   });
 });

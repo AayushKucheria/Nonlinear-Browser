@@ -9,6 +9,7 @@ global.chrome = {
     update:      jest.fn(),
     get:         jest.fn(),
     sendMessage: jest.fn(),
+    move:        jest.fn(),
   },
   windows: {
     getAll:    jest.fn(),
@@ -61,10 +62,6 @@ global.AppStorage = {
     save:         jest.fn(),
     getTimestamp: jest.fn(() => null),
   },
-  savedTrees: {
-    load: jest.fn(() => []),
-    save: jest.fn(),
-  },
   windowNames: {
     load: jest.fn(() => ({})),
     save: jest.fn(),
@@ -85,6 +82,7 @@ global.BrowserApi = {
   muteTab:        jest.fn(),
   bookmarkTab:    jest.fn(),
   getProcessInfo: jest.fn(),
+  moveTab:        jest.fn(),
 };
 
 // ─── Visualisation functions (defined in visualize.js, mocked here) ──────────
