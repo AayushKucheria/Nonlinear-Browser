@@ -60,10 +60,20 @@ window.drawTree       = function () { renderAll(); };
 // ── Sidebar state ─────────────────────────────────────────────────────────────
 var sidebarState = {
   collapsedTabs:      new Set(),
+  collapsedWindows:   new Set(),
   showClosed:         false,
   query:              '',
   _draggingWindowId:  null,
   pinnedTabIds:       new Set(),
+
+  onToggleWindow: function (windowId) {
+    if (sidebarState.collapsedWindows.has(windowId)) {
+      sidebarState.collapsedWindows.delete(windowId);
+    } else {
+      sidebarState.collapsedWindows.add(windowId);
+    }
+    renderAll();
+  },
 
   onToggle: function (id) {
     if (sidebarState.collapsedTabs.has(id)) {
@@ -309,8 +319,10 @@ function renderPins() {
   // which causes favicons to flicker (re-fetch or re-paint).
   var nextState = JSON.stringify(pinnedTabs.map(function (p) {
     if (!p) return null;
-    var isOpen = !!(window.data && window.data[p.tabId] && !window.data[p.tabId].deleted);
-    return { tabId: p.tabId, url: p.url, isOpen: isOpen };
+    var tabData = window.data && window.data[p.tabId];
+    var isOpen = !!(tabData && !tabData.deleted);
+    var liveFavicon = (isOpen && tabData) ? tabData.favIconUrl : null;
+    return { tabId: p.tabId, url: p.url, isOpen: isOpen, favicon: liveFavicon || p.favIconUrl };
   }));
   if (nextState === _lastPinsState) return;
   _lastPinsState = nextState;
@@ -333,9 +345,11 @@ function renderPins() {
       var isOpen = !!(window.data && window.data[pin.tabId] && !window.data[pin.tabId].deleted);
       if (!isOpen) slot.classList.add('pin-closed');
 
-      if (pin.favIconUrl) {
+      var liveFavicon = (isOpen && window.data && window.data[pin.tabId]) ? window.data[pin.tabId].favIconUrl : null;
+      var displayFavicon = liveFavicon || pin.favIconUrl;
+      if (displayFavicon) {
         var img = document.createElement('img');
-        img.src = pin.favIconUrl;
+        img.src = displayFavicon;
         img.width = 20; img.height = 20;
         img.style.borderRadius = '3px';
         slot.appendChild(img);
@@ -740,7 +754,7 @@ document.addEventListener('DOMContentLoaded', function () {
     pinnedTabs[ctxPinIndex] = null;
     AppStorage.pinnedTabs.save(pinnedTabs);
     hidePinCtxMenu();
-    renderPins();
+    renderAll();  // recomputes pinnedTabIds so the tab reappears in the tree
   });
 
   // ── Window context menu ───────────────────────────────────────────────────

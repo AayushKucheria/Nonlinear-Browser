@@ -426,7 +426,8 @@ describe('buildSidebarTree', () => {
     ]);
     buildSidebarTree(c, localRoot, {}, makeState());
     const winLabel = c.querySelector('.win-label');
-    expect(winLabel.textContent).toContain('Space 99');
+    // Sequential numbering: first (only) window gets "Space 1"
+    expect(winLabel.textContent).toContain('Space 1');
     expect(winLabel.textContent).not.toContain('Window 99');
   });
 

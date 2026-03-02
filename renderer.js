@@ -348,14 +348,22 @@
     for (var wi = 0; wi < windowMap.length; wi++) {
       var windowId   = windowMap[wi].windowId;
       var tabs       = windowMap[wi].tabs;
-      var winName    = (windowNames && windowNames[windowId]) || ('Space ' + windowId);
+      var winName    = (windowNames && windowNames[windowId]) || ('Space ' + (wi + 1));
       var openCount  = countOpen(tabs);
 
       // ── Window label ──────────────────────────────────────────────────────
+      var isCollapsed = !!(state.collapsedWindows && state.collapsedWindows.has(windowId));
+
       var label = document.createElement('div');
-      label.className = 'win-label';
+      label.className = 'win-label' + (isCollapsed ? ' collapsed' : '');
       label.dataset.windowId = windowId;
       label.addEventListener('contextmenu', function (e) { state.onWindowContextMenu(parseInt(e.currentTarget.dataset.windowId), e); });
+      label.addEventListener('click', (function (wid) {
+        return function (e) {
+          if (e.target.closest('.win-name')) return;  // let rename dblclick handle it
+          if (state.onToggleWindow) state.onToggleWindow(wid);
+        };
+      }(windowId)));
 
       var chev = document.createElement('span');
       chev.className = 'win-chevron';
@@ -431,22 +439,25 @@
       });
 
       container.appendChild(label);
-      container.appendChild(_makeNewTabRow(windowId, state));
 
-      // ── Tabs for this window ──────────────────────────────────────────────
-      var visible = tabs.filter(function (t) {
-        if (t.deleted && !showClosed) return false;
-        return matchesSearch(t, query);
-      });
-      for (var ti = 0; ti < visible.length; ti++) {
-        renderTabRow(
-          visible[ti],
-          0,
-          container,
-          [],
-          ti === visible.length - 1,
-          state
-        );
+      if (!isCollapsed) {
+        container.appendChild(_makeNewTabRow(windowId, state));
+
+        // ── Tabs for this window ──────────────────────────────────────────────
+        var visible = tabs.filter(function (t) {
+          if (t.deleted && !showClosed) return false;
+          return matchesSearch(t, query);
+        });
+        for (var ti = 0; ti < visible.length; ti++) {
+          renderTabRow(
+            visible[ti],
+            0,
+            container,
+            [],
+            ti === visible.length - 1,
+            state
+          );
+        }
       }
     }
   }
