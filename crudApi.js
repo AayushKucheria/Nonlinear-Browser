@@ -226,6 +226,81 @@ function moveTab(draggedId, targetId, position) {
 }
 window.moveTab = moveTab;
 
+// Move multiple tabs (group drag) to a target position.
+// Strips any tab whose ancestor is also in the selection (avoids double-moves).
+// Preserves the relative tree order of the remaining tabs.
+function moveMultipleTabs(draggedIds, targetId, position) {
+  var target = window.data[targetId];
+  if (!target) return;
+
+  var idSet = {};
+  draggedIds.forEach(function(id) { idSet[id] = true; });
+
+  // Collect valid tab objects (must exist, must not be the target itself)
+  var tabs = draggedIds.map(function(id) { return window.data[id]; }).filter(function(t) {
+    return t && t.id !== targetId;
+  });
+
+  // Filter out any tab whose ancestor is also in the selection
+  tabs = tabs.filter(function(tab) {
+    var p = tab.parentId ? window.data[tab.parentId] : null;
+    while (p) {
+      if (idSet[p.id]) return false;
+      p = p.parentId ? window.data[p.parentId] : null;
+    }
+    return true;
+  });
+
+  // Guard: abort if target is a descendant of any dragged tab
+  for (var i = 0; i < tabs.length; i++) {
+    var isDesc = false;
+    traverse(tabs[i], function(t) { if (t.id === targetId) isDesc = true; }, function(t) { return t.children; });
+    if (isDesc) return;
+  }
+
+  // Sort tabs by current tree order
+  var orderMap = {};
+  var counter = 0;
+  traverse(window.localRoot, function(t) { orderMap[t.id] = counter++; }, function(t) { return t.children; });
+  tabs.sort(function(a, b) { return orderMap[a.id] - orderMap[b.id]; });
+
+  // Batch-remove all tabs from their current parents
+  tabs.forEach(function(tab) {
+    var parent = tab.parentId ? window.data[tab.parentId] : window.localRoot;
+    if (parent) {
+      var idx = parent.children.indexOf(tab);
+      if (idx !== -1) parent.children.splice(idx, 1);
+    }
+  });
+
+  if (position === 'into') {
+    tabs.forEach(function(tab) {
+      tab.parentId = String(targetId);
+      target.children.push(tab);
+    });
+  } else {
+    var targetParent = target.parentId ? window.data[target.parentId] : window.localRoot;
+    if (!targetParent) return;
+    var ti = targetParent.children.indexOf(target);
+    var insertAt = position === 'before' ? ti : ti + 1;
+    tabs.forEach(function(tab, i) {
+      tab.parentId = target.parentId || '';
+      targetParent.children.splice(insertAt + i, 0, tab);
+    });
+  }
+
+  // Handle cross-window moves
+  tabs.forEach(function(tab) {
+    if (tab.windowId !== target.windowId) {
+      updateTabWindowId(tab, target.windowId);
+      BrowserApi.moveTab(tab.id, target.windowId);
+    }
+  });
+
+  localStore();
+}
+window.moveMultipleTabs = moveMultipleTabs;
+
 // Recursively update windowId on a tab and all its descendants in window.data.
 function updateTabWindowId(tab, newWindowId) {
   tab.windowId = newWindowId;

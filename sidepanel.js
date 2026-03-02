@@ -118,6 +118,13 @@ var sidebarState = {
     sidebarState._draggingWindowId = windowId;
     var el = document.querySelector('[data-tab-id="' + id + '"]');
     if (el) el.classList.add('dragging');
+    // If this tab is part of the selection, mark all selected tabs as dragging
+    if (sidebarState.selectedTabIds && sidebarState.selectedTabIds.has(id)) {
+      sidebarState.selectedTabIds.forEach(function(selId) {
+        var selEl = document.querySelector('[data-tab-id="' + selId + '"]');
+        if (selEl) selEl.classList.add('dragging');
+      });
+    }
   },
 
   onDragOver: function (id, rowEl, clientY) {
@@ -135,7 +142,12 @@ var sidebarState = {
     var rect = rowEl.getBoundingClientRect();
     var pct  = (clientY - rect.top) / rect.height;
     var pos  = pct < 0.3 ? 'before' : pct > 0.7 ? 'after' : 'into';
-    moveTab(dragState.draggedId, targetId, pos);
+    var sel = sidebarState.selectedTabIds;
+    if (sel && sel.size > 0 && sel.has(dragState.draggedId)) {
+      moveMultipleTabs(Array.from(sel), targetId, pos);
+    } else {
+      moveTab(dragState.draggedId, targetId, pos);
+    }
     dragState.draggedId = null;
     sidebarState._draggingWindowId = null;
     renderAll();
@@ -160,7 +172,12 @@ var sidebarState = {
   },
 
   onWindowDrop: function (targetWindowId, draggedId) {
-    moveTabToWindow(draggedId, targetWindowId);
+    var sel = sidebarState.selectedTabIds;
+    if (sel && sel.size > 0 && sel.has(draggedId)) {
+      sel.forEach(function(id) { moveTabToWindow(id, targetWindowId); });
+    } else {
+      moveTabToWindow(draggedId, targetWindowId);
+    }
     dragState.draggedId = null;
     sidebarState._draggingWindowId = null;
     renderAll();
