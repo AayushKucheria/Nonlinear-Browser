@@ -13,7 +13,7 @@ npm install        # first time only
 npm test           # Jest 29
 ```
 
-70 tests across 3 suites, runtime ~2 s.
+85 tests across 3 suites, runtime ~2 s.
 
 ---
 
@@ -23,9 +23,9 @@ npm test           # Jest 29
 |---|---|
 | `manifest.json` | MV3 manifest; service worker = `background.js`, side panel = `sidepanel.html`; `_execute_action` command for `Ctrl+Shift+Y`; permissions include `bookmarks`, `processes` |
 | `background.js` | **MV3 service worker** — `setPanelBehavior`; forwards tab events + `tabActivated`; handles `closePanel` message via `setOptions` toggle |
-| `sidepanel.html` | Side panel HTML shell — header (`nonlinear browser` title, `—` close btn), pinned strip (`#pinSlots`), search bar, skeleton loader (`#skeleton`), tree div (`#tree`, initially hidden), footer (URL bar only); all feature CSS; `#ctxMenu`, `#winCtxMenu`, `#pinCtxMenu` context menus |
-| `sidepanel.js` | Bootstraps the panel; `sidebarState` with drag/audio/window-drop/suspend/resume/newTab callbacks; `renderPins` (hash bail-out + pin drag-to-reorder); `_firstRender` skeleton swap; `_applyActiveTab` targeted DOM update; RAM polling via `_pollMemory`; `tabMemory` map on sidebarState; undo-close + Ctrl+Z; collapse/expand; `showUrlInFooter`; `pendingResume`; `_closingByExtension` set; `pinnedTabIds` Set on sidebarState |
-| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch` (title + url + customTitle), `renderTabRow`, `buildSidebarTree`; `_faviconImgCache` (reuses `<img>` elements across rebuilds, eliminates flicker); `_makeNewTabRow` (+ New tab ghost row); guide-rail indent hierarchy (`.indent-wrap`); scrolling title animation on hover; RAM badge (`.tab-ram-badge`); audio 🔊/🔇 button; 🗑 close icon; window-label drag targets |
+| `sidepanel.html` | Side panel HTML shell — header (`nonlinear browser` title, `☐` select-mode btn, `—` close btn), pinned strip (`#pinSlots`), search bar, skeleton loader (`#skeleton`), tree div (`#tree`, initially hidden), selection bar (`#selectionBar`), footer (URL bar only); all feature CSS; `#ctxMenu`, `#winCtxMenu`, `#pinCtxMenu`, `#spaceCtxMenu` context menus |
+| `sidepanel.js` | Bootstraps the panel; `sidebarState` with drag/audio/window-drop/suspend/resume/newTab/select callbacks; multi-select state (`selectedTabIds`, `selectMode`, `lastSelectedId`); `clearSelection`, `rangeSelectTo`, `_applySelectionUpdate`, `updateSelectionBar` helpers; `renderPins` (hash bail-out + pin drag-to-reorder); `_firstRender` skeleton swap; `_applyActiveTab` targeted DOM update; RAM polling via `_pollMemory`; `tabMemory` map on sidebarState; undo-close + Ctrl+Z; collapse/expand; `showUrlInFooter`; `pendingResume`; `_closingByExtension` set; `pinnedTabIds` Set on sidebarState |
+| `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch` (title + url + customTitle), `renderTabRow`, `buildSidebarTree`; `_faviconImgCache` (reuses `<img>` elements across rebuilds, eliminates flicker); `_makeNewTabRow` (+ New tab ghost row); guide-rail indent hierarchy (`.indent-wrap`); scrolling title animation on hover; RAM badge (`.tab-ram-badge`); audio 🔊/🔇 button; 🗑 close icon; `.tab-check` selection indicator; `is-selected` class; window-label drag targets |
 | `storage.js` | Storage layer — `window.AppStorage`; all localStorage/sessionStorage access and key names live here |
 | `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` / `chrome.bookmarks.*` / `chrome.processes.*` calls; `createTab(url, windowId?)` accepts optional windowId |
 | `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `moveTabToWindow` + `updateTabWindowId` + `deleteWindowTabs`; new tabs inserted with `unshift` (newest-first); `dataToLocalRoot` sorts children by descending ID |
@@ -138,6 +138,7 @@ valid 4-element array — all text lands on line 0.
 - Skeleton loader swap (requires real DOMContentLoaded + first `renderAll` call)
 - Scrolling title animation (requires real `scrollWidth` / `clientWidth` — jsdom returns 0 for both)
 - New-tab row click (requires `BrowserApi.createTab` round-trip to produce a `tabCreated` event)
+- Multi-select (Ctrl+Click, Shift+Click range, select-mode toggle, selection bar actions)
 
 ---
 
@@ -173,5 +174,13 @@ valid 4-element array — all text lands on line 0.
 - **Guide-rail hierarchy** (renderer.js) — `.indent-wrap` div with `paddingLeft: depth*10px` + `borderLeft: 1px solid #e8e8e8` replaces the old `.seg.branch`/`.seg.vert` tree-line elements. Each level costs 10px instead of 16px. The 1px left border is the visual spine.
 - **Scrolling title** (renderer.js) — on `mouseenter`, `requestAnimationFrame` measures `titleEl.scrollWidth - titleWrap.clientWidth`; if overflow > 2px, sets `--scroll-px` and `--scroll-dur` CSS vars and adds `.scrolling` class which runs a `title-scroll` keyframe animation. On `mouseleave`, class is removed. The title's parent (`.tab-title-wrap`) clips overflow; the title element itself has no `text-overflow`.
 - `showCtxMenu` (sidepanel.js) — updates context menu item visibility before showing: hides/shows Suspend vs Resume based on `tab.suspended`; changes label to "Suspend Branch" when tab has children.
-- Context menu helpers: `showCtxMenu`, `hideCtxMenu`, `showWinCtxMenu`, `hideWinCtxMenu`, `hidePinCtxMenu` — all module-level in sidepanel.js
+- Context menu helpers: `showCtxMenu`, `hideCtxMenu`, `showWinCtxMenu`, `hideWinCtxMenu`, `hidePinCtxMenu`, `showSpaceCtxMenu`, `hideSpaceCtxMenu` — all module-level in sidepanel.js
 - **Rename bug:** `hideCtxMenu()` nulls `ctxTab`. Always capture `var tab = ctxTab` before calling `hideCtxMenu()` in any context menu handler that needs the tab reference afterward.
+- **Spaces are permanent** — `onClose` returns early for `tab.isSpace` nodes; no 🗑 icon rendered on space rows. Fixed spaces (IDs -1/-2/-3) cannot be deleted.
+- `selectedTabIds` (sidepanel.js) — `Set<tabId>` of currently selected tabs; set on `sidebarState.selectedTabIds` so renderer reads it live. `clearSelection()` clears state + removes `.is-selected` from DOM. `onActivate`/`onResume` always call `clearSelection()`.
+- `selectMode` (sidepanel.js) — boolean; when true, single clicks call `onSelect` instead of activating. Toggled by `#selectToggle` button; adds `body.select-mode` class. Escape exits select mode.
+- `lastSelectedId` (sidepanel.js) — anchor for Shift+Click range selection via `rangeSelectTo(toId)`.
+- `sidebarState.onSelect(id, event)` — handles Ctrl/Meta click (toggle), Shift click (`rangeSelectTo`), and select-mode single click.
+- `_applySelectionUpdate(id)` (sidepanel.js) — targeted DOM update (no full rebuild): toggles `.is-selected` and updates `.tab-check` text on one row.
+- `updateSelectionBar()` (sidepanel.js) — shows/hides `#selectionBar` and updates `#selCount` text based on `selectedTabIds.size`.
+- `.tab-check` (renderer.js) — first child of `.tab-inner` on every tab row; shows ○/● for unselected/selected; hidden by default, visible via `body.select-mode` or `.is-selected`.

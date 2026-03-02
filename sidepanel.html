@@ -274,14 +274,33 @@
     .ctx-item:hover { background: #f4f4f5; }
     .ctx-danger:hover { background: #fef2f2; color: #dc2626; }
 
+    /* "Move to Space" submenu */
+    .ctx-has-sub { position: relative; }
+    .ctx-submenu {
+      display: none;
+      position: absolute;
+      left: 100%; top: -4px;
+      background: #fff; border: 1px solid #e0e0e0;
+      border-radius: 7px; box-shadow: 0 6px 20px rgba(0,0,0,.13);
+      min-width: 148px; padding: 4px 0;
+      font-size: 11.5px; z-index: 1000;
+    }
+    .ctx-has-sub:hover .ctx-submenu { display: block; }
+
     /* ── Pinned strip ── */
     .pinned-strip {
       background: #f9f9f9; border-bottom: 1px solid #e5e5e5;
       padding: 7px 10px; display: flex; flex-shrink: 0;
     }
-    .pin-slots { display: flex; gap: 6px; width: 100%; }
+    .pin-slots {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-auto-rows: 36px;
+      gap: 5px;
+      width: 100%;
+    }
     .pin-slot {
-      flex: 1; aspect-ratio: 1; max-height: 36px;
+      aspect-ratio: 1; max-height: 36px;
       border-radius: 7px; display: flex; align-items: center;
       justify-content: center; position: relative; cursor: pointer;
       transition: transform 0.1s;
@@ -338,6 +357,72 @@
     .pin-slot.pin-dragging  { opacity: 0.3; transform: scale(0.9); }
     .pin-slot.pin-drag-over { box-shadow: 0 0 0 2px #6366f1 !important; background: #eef2ff !important; }
 
+    /* ── Space row ── */
+    .space-row { display:flex; align-items:stretch; min-height:26px; cursor:default; position:relative; border-top:2px solid transparent; border-bottom:2px solid transparent; transition:border-color 0.08s; }
+    .space-row.dragging { opacity:0.35; }
+    .space-row.dz-before { border-top-color: #9b8dc7; }
+    .space-row.dz-after  { border-bottom-color: #9b8dc7; }
+    .space-row.dz-into .space-inner { outline:1.5px solid #9b8dc7; border-radius:4px; }
+    .space-row:hover .space-inner { background: #f7f5f0 !important; }
+    .space-indent { flex:1; display:flex; align-items:stretch; min-width:0; }
+    .space-inner { flex:1; display:flex; align-items:center; gap:6px; padding:0 6px 0 4px; border-radius:5px; margin-right:4px; min-width:0; transition:background 0.08s; }
+    .space-toggle { width:10px; height:26px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#ccc; cursor:pointer; flex-shrink:0; }
+    .space-toggle:hover { color:#888; }
+    .space-bullet { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .space-name-wrap { flex:1; min-width:0; overflow:hidden; display:flex; align-items:baseline; }
+    .space-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11.5px; font-weight:600; color:#3a3530; line-height:26px; outline:none; }
+    .space-name[contenteditable="true"] { background:#fff; border-radius:3px; padding:0 4px; box-shadow:0 0 0 1.5px #9b8dc7; color:#1c1c1e; }
+    .space-count-suffix { font-size:10px; font-weight:400; color:#bbb; white-space:nowrap; flex-shrink:0; margin-left:3px; line-height:26px; }
+    .space-close { opacity:0; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border-radius:3px; font-size:10px; color:#bbb; flex-shrink:0; cursor:pointer; }
+    .space-row:hover .space-close { opacity:1; }
+    .space-close:hover { background:#fee2e2; color:#dc2626; }
+
+    /* ── Color dot (space context menu) ── */
+    .color-dot { width:13px; height:13px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:transform 0.1s; flex-shrink:0; }
+    .color-dot:hover { transform:scale(1.25); }
+    .color-dot.active { border-color:#fff; box-shadow:0 0 0 1.5px #888; }
+
+    /* ── Select mode toggle active state ── */
+    .icon-btn.active { background: #eef2ff; color: #6366f1; }
+
+    /* ── Tab row — selected state ── */
+    .tab-row.is-selected .tab-inner       { background: #eef2ff; }
+    .tab-row.is-selected .tab-title       { color: #4338ca; }
+    .tab-row.is-selected:hover .tab-inner { background: #e0e7ff; }
+
+    /* ── Selection checkbox (always rendered, hidden by default) ── */
+    .tab-check {
+      width: 14px; height: 24px; flex-shrink: 0;
+      display: none; align-items: center; justify-content: center;
+      font-size: 9px; color: #bbb; cursor: pointer; user-select: none;
+    }
+    body.select-mode .tab-check     { display: flex; }
+    .tab-row.is-selected .tab-check { display: flex; color: #6366f1; }
+
+    /* ── Selection action bar ── */
+    .selection-bar {
+      display: none; align-items: center; gap: 6px;
+      padding: 5px 10px; flex-shrink: 0;
+      background: #f0f1ff; border-top: 1px solid #dde1ff; font-size: 11px;
+    }
+    .selection-bar.visible { display: flex; }
+    .sel-count { font-size: 10px; color: #4338ca; font-weight: 600; margin-right: 2px; }
+    .sel-space-dot {
+      width: 14px; height: 14px; border-radius: 50%; cursor: pointer; flex-shrink: 0;
+      transition: transform 0.1s;
+    }
+    .sel-space-dot:hover { transform: scale(1.2); }
+    .sel-ungroup { background: #e5e5e5 !important; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #888; }
+    .sel-btn {
+      font-family: inherit; font-size: 10px; color: #6366f1;
+      padding: 2px 7px; border-radius: 4px;
+      border: 1px solid #c7d2fe; background: #fff; cursor: pointer;
+    }
+    .sel-btn:hover       { background: #eef2ff; }
+    .sel-close-btn       { color: #dc2626; border-color: #fecaca; }
+    .sel-close-btn:hover { background: #fef2f2; }
+    .sel-clear-btn       { color: #bbb; border-color: #e5e5e5; padding: 2px 5px; }
+
     /* Skeleton shimmer */
     .skeleton-panel { flex: 1; overflow: hidden; padding: 4px 0; }
     .skel-win-row   { display: flex; align-items: center; gap: 6px; padding: 8px 10px 3px; }
@@ -356,6 +441,7 @@
 <div class="header">
   <span class="header-title">nonlinear browser</span>
   <button class="icon-btn" id="collapseAll" title="Collapse all">⊟</button>
+  <button class="icon-btn" id="selectToggle" title="Select tabs">☐</button>
   <button class="icon-btn" id="closePanel" title="Close sidebar" style="font-weight:300">—</button>
 </div>
 
@@ -389,6 +475,16 @@
 
 <div class="tree" id="tree" style="display:none"></div>
 
+<div class="selection-bar" id="selectionBar">
+  <span class="sel-count" id="selCount"></span>
+  <span class="sel-space-dot" data-sid="-1" title="Move to space 1" style="background:#7b9e87"></span>
+  <span class="sel-space-dot" data-sid="-2" title="Move to space 2" style="background:#9b8dc7"></span>
+  <span class="sel-space-dot" data-sid="-3" title="Move to space 3" style="background:#c4956a"></span>
+  <span class="sel-space-dot sel-ungroup" data-sid="0" title="Remove from space">✕</span>
+  <button class="sel-btn sel-close-btn" id="selClose" title="Close selected tabs">🗑</button>
+  <button class="sel-btn sel-clear-btn" id="selClear" title="Clear selection">✕</button>
+</div>
+
 <div class="toast-wrap" id="toastWrap">
   <div class="toast" id="toast">
     <span class="toast-text" id="toastText"></span>
@@ -399,7 +495,6 @@
 
 <div class="footer">
   <span class="footer-url" id="footerUrl"></span>
-  <button class="footer-btn" id="saveTree">save</button>
 </div>
 
 <div id="ctxMenu" style="display:none; position:fixed; z-index:999; background:#fff; border:1px solid #e0e0e0; border-radius:7px; box-shadow:0 6px 20px rgba(0,0,0,.13); min-width:164px; padding:4px 0; font-size:11.5px; font-family:inherit;">
@@ -407,6 +502,15 @@
   <div class="ctx-item" id="ctxBookmark">☆ &nbsp;Bookmark Tab</div>
   <div class="ctx-item" id="ctxRename">✎ &nbsp;Rename Tab</div>
   <div class="ctx-item" id="ctxCopy">⎘ &nbsp;Copy URL</div>
+  <div class="ctx-item ctx-has-sub" id="ctxMoveToSpace">⊞ &nbsp;Move to Space
+    <div class="ctx-submenu" id="ctxSpaceSubmenu">
+      <div class="ctx-item ctx-space-opt" data-sid="-1" style="color:#7b9e87">● &nbsp;space 1</div>
+      <div class="ctx-item ctx-space-opt" data-sid="-2" style="color:#9b8dc7">● &nbsp;space 2</div>
+      <div class="ctx-item ctx-space-opt" data-sid="-3" style="color:#c4956a">● &nbsp;space 3</div>
+      <div style="height:1px;background:#e5e7eb;margin:3px 0"></div>
+      <div class="ctx-item ctx-space-opt" data-sid="0" style="color:#bbb">✕ &nbsp;Remove from space</div>
+    </div>
+  </div>
   <div style="height:1px;background:#e5e7eb;margin:3px 0"></div>
   <div class="ctx-item" id="ctxSuspend">💤 &nbsp;Suspend Tab</div>
   <div class="ctx-item" id="ctxResume">▶ &nbsp;Resume Tab</div>
@@ -422,6 +526,11 @@
 
 <div id="pinCtxMenu" style="display:none; position:fixed; z-index:999; background:#fff; border:1px solid #e0e0e0; border-radius:7px; box-shadow:0 6px 20px rgba(0,0,0,.13); min-width:164px; padding:4px 0; font-size:11.5px; font-family:inherit;">
   <div class="ctx-item ctx-danger" id="ctxUnpin">✕ &nbsp;Unpin</div>
+</div>
+
+<!-- Right-click on a space node -->
+<div id="spaceCtxMenu" style="display:none; position:fixed; z-index:999; background:#fff; border:1px solid #e8e5e0; border-radius:7px; box-shadow:0 6px 20px rgba(0,0,0,.11); min-width:164px; padding:4px 0; font-size:11.5px; font-family:inherit;">
+  <div class="ctx-item" id="spaceCtxRename">✎ &nbsp;Rename space</div>
 </div>
 
 <script src="lib/fnon.min.js"></script>

@@ -12,7 +12,7 @@ var dragState = { draggedId: null };
 
 
 // ── Pinned tabs state ─────────────────────────────────────────────────────────
-var PIN_COUNT       = 6;
+var PIN_COUNT       = 10;
 var pinnedTabs      = [];   // array of {url, title, favIconUrl, tabId} | null
 var ctxPinIndex     = null;
 var _lastPinsState  = '';   // serialized snapshot; renderPins() bails if unchanged
@@ -37,6 +37,11 @@ var closedGroupStack = [];   // [{ids: [tabId, ...]}]
 // Used in tabRemoved to distinguish extension closes (don't re-parent children)
 // from external closes via the Chrome tab bar (do re-parent children).
 var _closingByExtension = new Set();
+
+// ── Multi-select state ────────────────────────────────────────────────────────
+var selectedTabIds = new Set();   // currently selected tab IDs
+var selectMode     = false;       // single-clicks select instead of activate
+var lastSelectedId = null;        // shift-click range anchor
 
 function collectSubtree(tab, result) {
   result = result || [];
@@ -72,6 +77,9 @@ var sidebarState = {
   onClose: function (id) {
     var tab = window.data && window.data[id];
     if (!tab) return;
+
+    if (tab.isSpace) return;   // fixed spaces are permanent — cannot be deleted
+
     var ids = collectSubtree(tab);   // parent + all non-deleted descendants
     closedGroupStack.push({ ids: ids });
     // Mark as extension-initiated so tabRemoved won't re-parent children
@@ -84,6 +92,7 @@ var sidebarState = {
   },
 
   onActivate: function (id) {
+    clearSelection();
     var tab = window.data && window.data[id];
     if (!tab) return;
     if (tab.deleted) {
@@ -151,7 +160,11 @@ var sidebarState = {
 
   onContextMenu: function (tab, event) {
     event.preventDefault();
-    showCtxMenu(tab, event.clientX, event.clientY);
+    if (tab.isSpace) {
+      showSpaceCtxMenu(tab, event.clientX, event.clientY);
+    } else {
+      showCtxMenu(tab, event.clientX, event.clientY);
+    }
   },
 
   onWindowContextMenu: function (windowId, event) {
@@ -182,6 +195,7 @@ var sidebarState = {
   },
 
   onResume: function (id) {
+    clearSelection();
     var tab = window.data && window.data[id];
     if (!tab || !tab.suspended) return;
 
@@ -195,7 +209,23 @@ var sidebarState = {
   onNewTab: function (windowId) {
     BrowserApi.createTab('', windowId);
   },
+
+  onSelect: function (id, event) {
+    if (event.shiftKey && lastSelectedId !== null) {
+      rangeSelectTo(id);
+    } else {
+      if (selectedTabIds.has(id)) { selectedTabIds.delete(id); }
+      else                         { selectedTabIds.add(id); }
+      _applySelectionUpdate(id);
+    }
+    lastSelectedId = id;
+    updateSelectionBar();
+  },
 };
+
+// Expose selection state on sidebarState so renderer reads live values
+sidebarState.selectedTabIds = selectedTabIds;
+sidebarState.selectMode     = false;
 
 // ── RAM memory tracking ───────────────────────────────────────────────────────
 var tabMemory = {};
@@ -219,6 +249,7 @@ setInterval(_pollMemory, 8000);
 // ── Context menu state (module-level so sidebarState callbacks can use them) ──
 var ctxTab = null;
 var ctxWindowId = null;
+var ctxSpace = null;
 
 function showCtxMenu(tab, x, y) {
   ctxTab = tab;
@@ -229,18 +260,20 @@ function showCtxMenu(tab, x, y) {
   var hasBranch   = !!(tab.children && tab.children.length > 0);
 
   // Suspend item: hidden when already suspended; label changes for parent tabs
-  var suspendEl = document.getElementById('ctxSuspend');
-  var resumeEl  = document.getElementById('ctxResume');
-  var sepEl     = document.getElementById('ctxSuspendSep');
-  var closeEl   = document.getElementById('ctxClose');
+  var suspendEl     = document.getElementById('ctxSuspend');
+  var resumeEl      = document.getElementById('ctxResume');
+  var sepEl         = document.getElementById('ctxSuspendSep');
+  var closeEl       = document.getElementById('ctxClose');
+  var moveToSpaceEl = document.getElementById('ctxMoveToSpace');
 
   if (suspendEl) {
     suspendEl.style.display = isSuspended ? 'none' : '';
     suspendEl.textContent   = hasBranch ? '💤 \u00a0Suspend Branch' : '💤 \u00a0Suspend Tab';
   }
-  if (resumeEl)  resumeEl.style.display  = isSuspended ? '' : 'none';
-  if (sepEl)     sepEl.style.display     = isSuspended ? 'none' : '';
-  if (closeEl)   closeEl.style.display   = isSuspended ? 'none' : '';
+  if (resumeEl)      resumeEl.style.display      = isSuspended ? '' : 'none';
+  if (sepEl)         sepEl.style.display         = isSuspended ? 'none' : '';
+  if (closeEl)       closeEl.style.display       = isSuspended ? 'none' : '';
+  if (moveToSpaceEl) moveToSpaceEl.style.display = tab.isSpace ? 'none' : '';
 
   m.style.left = Math.min(x, window.innerWidth - 180) + 'px';
   m.style.top  = Math.min(y, window.innerHeight - 160) + 'px';
@@ -270,6 +303,20 @@ function hidePinCtxMenu() {
   var m = document.getElementById('pinCtxMenu');
   if (m) m.style.display = 'none';
   ctxPinIndex = null;
+}
+
+function showSpaceCtxMenu(space, x, y) {
+  ctxSpace = space;
+  var m = document.getElementById('spaceCtxMenu');
+  if (!m) return;
+  m.style.left = Math.min(x, window.innerWidth - 190) + 'px';
+  m.style.top  = Math.min(y, window.innerHeight - 60) + 'px';
+  m.style.display = 'block';
+}
+function hideSpaceCtxMenu() {
+  var m = document.getElementById('spaceCtxMenu');
+  if (m) m.style.display = 'none';
+  ctxSpace = null;
 }
 
 // Persisted window-name overrides: { [windowId]: 'Custom name' }
@@ -534,6 +581,52 @@ function _applyActiveTab(tabId) {
   }
 }
 
+// ── Multi-select helpers ──────────────────────────────────────────────────────
+function _applySelectionUpdate(id) {
+  var row = document.querySelector('[data-tab-id="' + id + '"]');
+  if (!row || row.classList.contains('space-row')) return;
+  var sel = selectedTabIds.has(id);
+  row.classList.toggle('is-selected', sel);
+  var check = row.querySelector('.tab-check');
+  if (check) check.textContent = sel ? '●' : '○';
+}
+
+function clearSelection() {
+  selectedTabIds.clear();
+  lastSelectedId = null;
+  document.querySelectorAll('.tab-row.is-selected').forEach(function (el) {
+    el.classList.remove('is-selected');
+    var c = el.querySelector('.tab-check');
+    if (c) c.textContent = '○';
+  });
+  updateSelectionBar();
+}
+
+function rangeSelectTo(toId) {
+  var rows = Array.from(document.querySelectorAll('#tree .tab-row[data-tab-id]'));
+  var ids  = rows.map(function (r) { return parseInt(r.dataset.tabId); }).filter(function (id) { return id > 0; });
+  var fromIdx = lastSelectedId !== null ? ids.indexOf(lastSelectedId) : -1;
+  var toIdx   = ids.indexOf(toId);
+  if (fromIdx === -1) fromIdx = toIdx;
+  var start = Math.min(fromIdx, toIdx), end = Math.max(fromIdx, toIdx);
+  for (var i = start; i <= end; i++) {
+    var id = ids[i];
+    if (window.data && window.data[id] && !window.data[id].deleted) {
+      selectedTabIds.add(id);
+      _applySelectionUpdate(id);
+    }
+  }
+}
+
+function updateSelectionBar() {
+  var bar = document.getElementById('selectionBar');
+  var ct  = document.getElementById('selCount');
+  if (!bar) return;
+  var n = selectedTabIds.size;
+  bar.classList.toggle('visible', n > 0);
+  if (ct) ct.textContent = n + ' tab' + (n !== 1 ? 's' : '');
+}
+
 // ── DOMContentLoaded ──────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -542,17 +635,25 @@ document.addEventListener('DOMContentLoaded', function () {
     windowNames = AppStorage.windowNames.load() || {};
   }
 
-  // Restore persisted pinned tabs
+  // Restore persisted pinned tabs; pad to PIN_COUNT (migration: 6 → 10 slots)
   var savedPins = AppStorage.pinnedTabs.load();
   if (savedPins && Array.isArray(savedPins)) {
     pinnedTabs = savedPins;
+    while (pinnedTabs.length < PIN_COUNT) pinnedTabs.push(null);
   } else {
     pinnedTabs = new Array(PIN_COUNT).fill(null);
   }
   renderPins();
 
-  // Load initial tab tree via crudApi (calls initializeTree → renderAll when done)
-  loadWindowList(true);
+  // Seed fixed spaces into window.data BEFORE loadWindowList so
+  // dataToLocalRoot() can correctly nest tabs that live inside a space.
+  ensureFixedSpaces();
+
+  // Silently restore last session and load live Chrome tabs
+  checkLastSession();
+
+  // Final save on panel close to capture any last-second state
+  window.addEventListener('beforeunload', function () { if (typeof localStore === 'function') localStore(); });
 
   // Search
   document.getElementById('search').addEventListener('input', function () {
@@ -576,11 +677,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     allCollapsed = !allCollapsed;
     renderAll();
-  });
-
-  // Save tree snapshot
-  document.getElementById('saveTree').addEventListener('click', function () {
-    if (window.saveTree) saveTree();
   });
 
   // Close panel button
@@ -640,6 +736,18 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () { window.showUrlInFooter(''); }, 1500);
   });
 
+  // Move to Space submenu
+  document.querySelectorAll('#ctxSpaceSubmenu .ctx-space-opt').forEach(function (item) {
+    item.addEventListener('click', function () {
+      if (!ctxTab) return;
+      var tab = ctxTab;
+      var sid = parseInt(item.dataset.sid) || null;
+      hideCtxMenu();
+      assignTabToSpace(tab.id, sid);
+      renderAll();
+    });
+  });
+
   document.getElementById('ctxSuspend').addEventListener('click', function () {
     if (!ctxTab) return;
     sidebarState.onSuspend(ctxTab.id);
@@ -697,8 +805,91 @@ document.addEventListener('DOMContentLoaded', function () {
     if (winCtxMenu && !winCtxMenu.contains(e.target)) hideWinCtxMenu();
   });
 
+  // ── Space context menu ────────────────────────────────────────────────────
+  function startSpaceRename(space) {
+    var row = document.querySelector('[data-tab-id="' + space.id + '"]');
+    if (!row) return;
+    var nameEl = row.querySelector('.space-name');
+    if (!nameEl) return;
+    var saved = space.name || 'Space';
+    nameEl.contentEditable = 'true';
+    nameEl.focus();
+    var range = document.createRange();
+    range.selectNodeContents(nameEl);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    nameEl.addEventListener('blur', function () {
+      nameEl.contentEditable = 'false';
+      var newName = nameEl.textContent.trim() || saved;
+      space.name = newName;
+      nameEl.textContent = newName;
+      localStore();
+      renderAll();
+    }, { once: true });
+    nameEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+      if (e.key === 'Escape') { nameEl.textContent = saved; nameEl.blur(); }
+      e.stopPropagation();
+    });
+  }
+
+  document.getElementById('spaceCtxRename').addEventListener('click', function () {
+    if (!ctxSpace) return;
+    var space = ctxSpace;
+    hideSpaceCtxMenu();
+    startSpaceRename(space);
+  });
+
+  // Click-outside dismissal for space context menu
+  document.addEventListener('click', function (e) {
+    var sm = document.getElementById('spaceCtxMenu');
+    if (sm && !sm.contains(e.target)) hideSpaceCtxMenu();
+  });
+
+  // ── Multi-select controls ─────────────────────────────────────────────────
+
+  // Select mode toggle button
+  document.getElementById('selectToggle').addEventListener('click', function () {
+    selectMode = !selectMode;
+    sidebarState.selectMode = selectMode;
+    document.body.classList.toggle('select-mode', selectMode);
+    this.classList.toggle('active', selectMode);
+    if (!selectMode) clearSelection();
+  });
+
+  // Selection bar: move to space / ungroup dots
+  document.querySelectorAll('.sel-space-dot').forEach(function (dot) {
+    dot.addEventListener('click', function () {
+      var sid = parseInt(dot.dataset.sid) || null;
+      Array.from(selectedTabIds).forEach(function (id) { assignTabToSpace(id, sid); });
+      clearSelection();
+      renderAll();
+    });
+  });
+
+  // Selection bar: close selected
+  document.getElementById('selClose').addEventListener('click', function () {
+    Array.from(selectedTabIds).slice().reverse().forEach(function (id) {
+      var tab = window.data && window.data[id];
+      if (tab && !tab.deleted && !tab.isSpace) sidebarState.onClose(id);
+    });
+    clearSelection();
+  });
+
+  // Selection bar: clear
+  document.getElementById('selClear').addEventListener('click', clearSelection);
+
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { hideCtxMenu(); hideWinCtxMenu(); hidePinCtxMenu(); }
+    if (e.key === 'Escape') {
+      hideCtxMenu(); hideWinCtxMenu(); hidePinCtxMenu(); hideSpaceCtxMenu();
+      clearSelection();
+      if (selectMode) {
+        selectMode = false; sidebarState.selectMode = false;
+        document.body.classList.remove('select-mode');
+        var st = document.getElementById('selectToggle');
+        if (st) st.classList.remove('active');
+      }
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
       e.preventDefault();
       if (!closedGroupStack.length) return;
