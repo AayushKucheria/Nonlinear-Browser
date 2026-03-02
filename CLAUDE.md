@@ -4,6 +4,8 @@ Chrome Extension (Manifest V3) that shows browser tabs as a compact indented lis
 No build system. No bundler. No module format. Plain script tags loaded by the browser.
 Third-party JS (fnon) is vendored into `lib/` — MV3 prohibits remote scripts.
 
+**Brave browser note:** The extension works in Brave (uses the standard `side_panel` API). However, Brave's sidebar "add to sidebar" UI only surfaces Chrome Web Store extensions — locally-loaded unpacked extensions won't appear in that list. Publishing to the CWS would make it show up there automatically (manifest is already set up correctly).
+
 ---
 
 ## Running tests
