@@ -252,6 +252,30 @@ sidebarState.selectMode     = false;
 var tabMemory = {};
 sidebarState.tabMemory = tabMemory;
 
+// ── Auto-suspend ──────────────────────────────────────────────────────────────
+// Suspend tabs that haven't been activated in 30+ minutes.
+var tabLastUsed = {};        // { [tabId]: Date.now() timestamp }
+var AUTO_SUSPEND_MS = 30 * 60 * 1000;  // 30 minutes
+
+function _autoSuspendCheck() {
+  if (!window.data) return;
+  var threshold = Date.now() - AUTO_SUSPEND_MS;
+  Object.keys(window.data).forEach(function (idStr) {
+    var id  = parseInt(idStr);
+    var tab = window.data[id];
+    if (!tab || tab.deleted || tab.suspended || tab.active) return;
+    if (tab.audible && !tab.muted) return;  // never suspend a tab playing audio
+    if (sidebarState.pinnedTabIds && sidebarState.pinnedTabIds.has(id)) return;
+    // First time we see this tab: record now and skip (don't suspend on first pass)
+    if (!tabLastUsed[id]) { tabLastUsed[id] = Date.now(); return; }
+    if (tabLastUsed[id] < threshold) {
+      sidebarState.onSuspend(id);
+    }
+  });
+}
+// Check every minute; give the panel 5 s to finish loading first.
+setTimeout(function () { setInterval(_autoSuspendCheck, 60 * 1000); }, 5000);
+
 function _pollMemory() {
   if (!chrome.processes || !chrome.processes.getProcessInfo) return;
   chrome.processes.getProcessInfo([], true, function (procs) {
@@ -587,6 +611,15 @@ function _applyActiveTab(tabId) {
       newRow.insertBefore(bar, newRow.firstChild);
     }
   }
+
+  // Update active space label (targeted — no full rebuild)
+  document.querySelectorAll('.win-label.is-active-space').forEach(function (el) {
+    el.classList.remove('is-active-space');
+  });
+  if (tab && !tab.deleted) {
+    var spaceEl = document.querySelector('.win-label[data-window-id="' + tab.windowId + '"]');
+    if (spaceEl) spaceEl.classList.add('is-active-space');
+  }
 }
 
 // ── Multi-select helpers ──────────────────────────────────────────────────────
@@ -669,13 +702,21 @@ document.addEventListener('DOMContentLoaded', function () {
   var allCollapsed = false;
   document.getElementById('collapseAll').addEventListener('click', function () {
     if (!allCollapsed) {
+      // Collapse all tab branches
       traverse(window.localRoot, function (t) {
         if (t.children && t.children.length > 0) sidebarState.collapsedTabs.add(t.id);
       }, function (t) { return t.children; });
+      // Collapse all spaces/windows
+      if (window.data) {
+        Object.values(window.data).forEach(function (tab) {
+          if (tab.windowId && !tab.deleted) sidebarState.collapsedWindows.add(tab.windowId);
+        });
+      }
       this.textContent = '⊞';
       this.title = 'Expand all';
     } else {
       sidebarState.collapsedTabs.clear();
+      sidebarState.collapsedWindows.clear();
       this.textContent = '⊟';
       this.title = 'Collapse all';
     }
@@ -851,6 +892,7 @@ chrome.runtime.onMessage.addListener(function (message) {
   if (!message || !message.type) return;
 
   if (message.type === 'tabCreated') {
+    tabLastUsed[message.tab.id] = Date.now();
     // Check if this is a resume — reuse the suspended node to preserve tree position
     var newUrl = message.tab.url || message.tab.pendingUrl || '';
     var suspendedNode = newUrl && pendingResume[newUrl];
@@ -920,6 +962,18 @@ chrome.runtime.onMessage.addListener(function (message) {
     renderAll();
 
   } else if (message.type === 'tabActivated') {
+    tabLastUsed[message.tabId] = Date.now();
     _applyActiveTab(message.tabId);
+
+  } else if (message.type === 'focusPin') {
+    var pin = pinnedTabs[message.slot];
+    if (pin) {
+      if (window.data && window.data[pin.tabId] && !window.data[pin.tabId].deleted) {
+        BrowserApi.focusTab(pin.tabId, window.data[pin.tabId].windowId);
+      } else {
+        pendingPinOpen[pin.url] = message.slot;
+        BrowserApi.createTab(pin.url || '');
+      }
+    }
   }
 });

@@ -10,11 +10,13 @@ function checkLastSession() {
         data[id] = lastSession[id];
       }
     }
+    dataToLocalRoot(); // render immediately from saved data
   }
-  loadWindowList(true);
+  loadWindowList(true); // sync Chrome metadata in background
 }
 
 function dataToLocalRoot() {
+  window.localRoot.children = [];
   for(let [id, tabObj] of Object.entries(data)) {
     if(!tabObj.parentId || tabObj.parentId === '') {
       window.localRoot.children.push(tabObj);
@@ -65,7 +67,6 @@ function loadWindowList(addCurrentSession) {
             let tabInData = data[currentTab.id];
             tabInData.title = currentTab.title || '';
             tabInData.lines = wrapText((currentTab.title || currentTab.url || currentTab.pendingUrl || ''));
-            tabInData.windowId = windowList[i].id;
             tabInData.url = currentTab.url || '';
             tabInData.pendingUrl = currentTab.pendingUrl || '';
             tabInData.toggle = currentTab.toggle;

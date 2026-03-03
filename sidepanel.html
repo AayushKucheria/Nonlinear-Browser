@@ -197,16 +197,14 @@
     .tab-row.is-suspended .toggle { height: auto; padding-top: 3px; }
     .tab-row.is-suspended .favicon { margin-top: 3px; opacity: 0.35; filter: grayscale(1); }
     .tab-row.is-suspended .tab-title { color: #aaa; }
-    .tab-row.is-suspended .tab-url { display: block; }
     .tab-row.is-suspended .tab-sleep { opacity: 1; margin-top: 3px; }
     .tab-row.is-suspended .tab-audio { display: none; }
-    .tab-row.is-suspended .tab-close { display: none; }
 
     /* Close button */
     .tab-close {
-      opacity: 0; width: 16px; height: 16px;
+      opacity: 0; width: 20px; height: 20px;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+      border-radius: 3px; font-size: 13px; color: #aaa; flex-shrink: 0;
     }
     .tab-row:hover .tab-close { opacity: 1; }
     .tab-close:hover { background: #fee2e2; color: #dc2626; }
@@ -323,9 +321,16 @@
     .tab-row.is-muted   .tab-audio { opacity: 1; color: #bbb; }
     .tab-audio:hover { background: #eef2ff; color: #4338ca !important; }
 
+    /* ── Active space ── */
+    .win-label.is-active-space .win-name  { color: #2563eb; }
+    .win-label.is-active-space .win-count { background: #dbeafe; color: #2563eb; }
+    .win-label.is-active-space::after     { background: #bfdbfe; }
+
     /* ── Window label drop zone (cross-window drag) ── */
-    .win-label.dz-append { border-left: 2px solid #6366f1; background: #f5f5ff; }
-    .win-label.dz-append::after { background: #c7d2fe; }
+    .win-label.dz-append { background: #dbeafe; color: #1d4ed8; }
+    .win-label.dz-append .win-name { color: #1d4ed8; }
+    .win-label.dz-append .win-count { background: #bfdbfe; color: #1d4ed8; }
+    .win-label.dz-append::after { background: #bfdbfe; }
 
     /* RAM badge */
     .tab-ram-badge { font-size: 9px; font-weight: 600; color: #d97706; flex-shrink: 0; white-space: nowrap; }

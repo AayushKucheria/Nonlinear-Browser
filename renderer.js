@@ -130,7 +130,7 @@
 
     // URL in footer on hover; scroll title if truncated
     row.addEventListener('mouseenter', function () {
-      if (window.showUrlInFooter) window.showUrlInFooter(tab.url || tab.pendingUrl || '');
+      if (window.showUrlInFooter && !tab.suspended) window.showUrlInFooter(tab.url || tab.pendingUrl || '');
       requestAnimationFrame(function () {
         var overflow = titleEl.scrollWidth - titleWrap.clientWidth;
         if (overflow > 2) {
@@ -311,6 +311,15 @@
   }
   window.renderTabRow = renderTabRow;
 
+  // Returns true if any non-deleted tab in the list (or its descendants) is active.
+  function _hasActiveTab(tabs) {
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].active && !tabs[i].deleted) return true;
+      if (tabs[i].children && _hasActiveTab(tabs[i].children)) return true;
+    }
+    return false;
+  }
+
   // ---------------------------------------------------------------------------
   // buildSidebarTree(container, localRoot, windowNames, state)
   //
@@ -352,10 +361,11 @@
       var openCount  = countOpen(tabs);
 
       // ── Window label ──────────────────────────────────────────────────────
-      var isCollapsed = !!(state.collapsedWindows && state.collapsedWindows.has(windowId));
+      var isCollapsed   = !!(state.collapsedWindows && state.collapsedWindows.has(windowId));
+      var isActiveSpace = _hasActiveTab(tabs);
 
       var label = document.createElement('div');
-      label.className = 'win-label' + (isCollapsed ? ' collapsed' : '');
+      label.className = 'win-label' + (isCollapsed ? ' collapsed' : '') + (isActiveSpace ? ' is-active-space' : '');
       label.dataset.windowId = windowId;
       label.addEventListener('contextmenu', function (e) { state.onWindowContextMenu(parseInt(e.currentTarget.dataset.windowId), e); });
       label.addEventListener('click', (function (wid) {

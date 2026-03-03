@@ -31,6 +31,17 @@ chrome.windows.onFocusChanged.addListener(function (windowId) {
   });
 });
 
+// Forward Ctrl+Shift+1-0 pin shortcuts to the side panel.
+// The sidepanel owns pinnedTabs data, so background just forwards the slot index.
+chrome.commands.onCommand.addListener(function (command) {
+  var m = command.match(/^focus-pin-(\d)$/);
+  if (m) {
+    var digit = m[1];
+    var slot  = digit === '0' ? 9 : (parseInt(digit) - 1);
+    sendToUI({ type: 'focusPin', slot: slot });
+  }
+});
+
 chrome.runtime.onMessage.addListener(function (message) {
   if (message && message.type === 'closePanel') {
     chrome.sidePanel.setOptions({ enabled: false });
