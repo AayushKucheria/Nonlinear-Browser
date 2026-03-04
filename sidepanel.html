@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Nonlinear Browser</title>
-  <link rel="stylesheet" href="lib/fnon.min.css">
+  <link rel="preload" href="lib/fnon.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="lib/fnon.min.css"></noscript>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -476,12 +477,12 @@
   <div class="ctx-item ctx-danger" id="ctxUnpin">✕ &nbsp;Unpin</div>
 </div>
 
-<script src="lib/fnon.min.js"></script>
-<script src="helperFunctions.js"></script>
-<script src="storage.js"></script>
-<script src="browserApi.js"></script>
-<script src="crudApi.js"></script>
-<script src="renderer.js"></script>
-<script src="sidepanel.js"></script>
+<script src="lib/fnon.min.js" defer></script>
+<script src="helperFunctions.js" defer></script>
+<script src="storage.js" defer></script>
+<script src="browserApi.js" defer></script>
+<script src="crudApi.js" defer></script>
+<script src="renderer.js" defer></script>
+<script src="sidepanel.js" defer></script>
 </body>
 </html>

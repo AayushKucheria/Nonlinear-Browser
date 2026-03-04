@@ -2,7 +2,10 @@ window.localRoot = {"id": "Root", "title": "Current Session", "read":false, "del
 window.data = {};
 
 function checkLastSession() {
+  var t0 = performance.now();
   var lastSession = AppStorage.session.load();
+  console.log('[init] session loaded in', (performance.now()-t0).toFixed(1)+'ms,',
+    lastSession ? Object.keys(lastSession).length+' saved tabs' : 'no saved session');
   if (lastSession) {
     for (var id in lastSession) {
       if (!data[id]) {
@@ -10,12 +13,21 @@ function checkLastSession() {
         data[id] = lastSession[id];
       }
     }
+    // Drop ghost tabs that were persisted from old sessions before the purge policy existed
+    for (var id in data) {
+      if (data[id].deleted && !data[id].suspended) delete data[id];
+    }
+    console.log('[init] calling dataToLocalRoot (from cache)');
     dataToLocalRoot(); // render immediately from saved data
   }
+  console.log('[init] calling loadWindowList (Chrome API)');
+  console.time('[init] loadWindowList');
   loadWindowList(true); // sync Chrome metadata in background
 }
 
 function dataToLocalRoot() {
+  var n = Object.keys(data).length;
+  console.log('[init] dataToLocalRoot: building tree from', n, 'tab nodes');
   window.localRoot.children = [];
   for (var id in data) { data[id].children = []; }
   for(let [id, tabObj] of Object.entries(data)) {
@@ -60,6 +72,9 @@ function loadWindowList(addCurrentSession) {
   // Get windows + tabs data from chrome api
   if(addCurrentSession) {
     BrowserApi.getAllWindows(function(windowList) {
+      console.timeEnd('[init] loadWindowList');
+      var tabCount = windowList.reduce(function(n, w) { return n + w.tabs.length; }, 0);
+      console.log('[init] Chrome returned', windowList.length, 'windows,', tabCount, 'tabs');
       var seenIds = {};
 
       for(var i=0; i < windowList.length; i++) {
@@ -110,6 +125,7 @@ function loadWindowList(addCurrentSession) {
         }
       }
 
+      console.log('[init] calling dataToLocalRoot (after Chrome sync)');
       dataToLocalRoot();
     });
   }

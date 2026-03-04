@@ -31,6 +31,7 @@ var pendingPinOpen = {}; // { [url]: pinIndex }
 
 // ── Undo-close stack ──────────────────────────────────────────────────────────
 var closedGroupStack = [];   // [{ids: [tabId, ...]}]
+var MAX_UNDO = 10;           // max undo entries; oldest group is purged when exceeded
 
 // ── Extension-initiated close tracking ───────────────────────────────────────
 // Tab IDs that the extension is intentionally closing via onClose.
@@ -48,6 +49,35 @@ function collectSubtree(tab, result) {
   if (!tab.deleted) result.push(tab.id);
   if (tab.children) tab.children.forEach(function (c) { collectSubtree(c, result); });
   return result;
+}
+
+// Remove a set of (soft-deleted) tab IDs from the tree and data entirely.
+// Used when an undo group falls off the MAX_UNDO cap.
+function _purgeGroup(ids) {
+  ids.forEach(function (id) {
+    var tab = window.data[id];
+    if (!tab || !tab.deleted) return; // safety: never purge a live tab
+    var parent = tab.parentId ? (window.data[tab.parentId] || window.localRoot) : window.localRoot;
+    if (parent && parent.children) {
+      var idx = parent.children.indexOf(tab);
+      if (idx !== -1) parent.children.splice(idx, 1);
+    }
+    delete window.data[id];
+  });
+}
+
+// Hard-delete a tab and its deleted children from the tree and data.
+// Used for tabs closed externally (Chrome tab bar / another extension).
+function _hardDeleteTab(tab) {
+  if (tab.children) {
+    tab.children.filter(function (c) { return c.deleted; }).forEach(_hardDeleteTab);
+  }
+  var parent = tab.parentId ? (window.data[tab.parentId] || window.localRoot) : window.localRoot;
+  if (parent && parent.children) {
+    var idx = parent.children.indexOf(tab);
+    if (idx !== -1) parent.children.splice(idx, 1);
+  }
+  delete window.data[tab.id];
 }
 
 // ── Wire crudApi callbacks into renderAll ─────────────────────────────────────
@@ -90,6 +120,10 @@ var sidebarState = {
 
     var ids = collectSubtree(tab);   // parent + all non-deleted descendants
     closedGroupStack.push({ ids: ids });
+    if (closedGroupStack.length > MAX_UNDO) {
+      var evicted = closedGroupStack.shift();
+      _purgeGroup(evicted.ids);
+    }
     // Mark as extension-initiated so tabRemoved won't re-parent children
     ids.forEach(function (tabId) { _closingByExtension.add(tabId); });
     // Close from deepest children first to avoid Chrome re-parenting them
@@ -521,7 +555,16 @@ function renderPins() {
 // ── renderAll ─────────────────────────────────────────────────────────────────
 var _firstRender = true;
 
+var _renderScheduled = false;
 function renderAll() {
+  if (_renderScheduled) return;
+  _renderScheduled = true;
+  requestAnimationFrame(_doRender);
+}
+
+function _doRender() {
+  _renderScheduled = false;
+  var t0 = performance.now();
   var treeEl = document.getElementById('tree');
   if (!treeEl || !window.localRoot) return;
 
@@ -541,6 +584,8 @@ function renderAll() {
 
   buildSidebarTree(treeEl, window.localRoot, windowNames, sidebarState);
   renderPins();
+  console.log('[render] renderAll done in', (performance.now()-t0).toFixed(1)+'ms,',
+    window.localRoot ? window.localRoot.children.length : 0, 'top-level nodes');
 }
 
 // ── Close toast ───────────────────────────────────────────────────────────────
@@ -670,6 +715,8 @@ function updateSelectionBar() {
 
 // ── DOMContentLoaded ──────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
+  console.log('[init] DOMContentLoaded');
+  console.time('[init] total');
 
   // Restore persisted window names
   if (AppStorage.windowNames) {
@@ -687,6 +734,7 @@ document.addEventListener('DOMContentLoaded', function () {
   renderPins();
 
   // Silently restore last session and load live Chrome tabs
+  console.log('[init] calling checkLastSession');
   checkLastSession();
 
   // Final save on panel close to capture any last-second state
@@ -950,8 +998,13 @@ chrome.runtime.onMessage.addListener(function (message) {
         }
       }
 
-      // Soft-delete: keep in tree so "N closed tabs" disclosure works
-      tab.deleted = true;
+      if (closedByExtension) {
+        // Extension-initiated close — soft-delete so Ctrl+Z can restore it
+        tab.deleted = true;
+      } else {
+        // External close — hard-delete, no undo entry exists
+        _hardDeleteTab(tab);
+      }
       if (typeof localStore === 'function') localStore();
       renderAll();
     }
