@@ -959,7 +959,13 @@ chrome.runtime.onMessage.addListener(function (message) {
   } else if (message.type === 'tabUpdated') {
     updateTab(message.tabId, message.changeInfo);
     // updateTab calls updateTree → renderAll if display fields changed
-    renderAll();
+
+  } else if (message.type === 'tabAttached') {
+    var attachedTab = window.data && window.data[message.tabId];
+    if (attachedTab) {
+      attachedTab.windowId = message.windowId;
+      renderAll();
+    }
 
   } else if (message.type === 'tabActivated') {
     tabLastUsed[message.tabId] = Date.now();

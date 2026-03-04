@@ -22,6 +22,10 @@ chrome.tabs.onActivated.addListener(function (activeInfo) {
   sendToUI({ type: 'tabActivated', tabId: activeInfo.tabId, windowId: activeInfo.windowId });
 });
 
+chrome.tabs.onAttached.addListener(function (tabId, attachInfo) {
+  sendToUI({ type: 'tabAttached', tabId: tabId, windowId: attachInfo.newWindowId });
+});
+
 chrome.windows.onFocusChanged.addListener(function (windowId) {
   if (windowId === chrome.windows.WINDOW_ID_NONE) return;
   chrome.tabs.query({ active: true, windowId: windowId }, function (tabs) {

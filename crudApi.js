@@ -17,6 +17,7 @@ function checkLastSession() {
 
 function dataToLocalRoot() {
   window.localRoot.children = [];
+  for (var id in data) { data[id].children = []; }
   for(let [id, tabObj] of Object.entries(data)) {
     if(!tabObj.parentId || tabObj.parentId === '') {
       window.localRoot.children.push(tabObj);
@@ -59,10 +60,12 @@ function loadWindowList(addCurrentSession) {
   // Get windows + tabs data from chrome api
   if(addCurrentSession) {
     BrowserApi.getAllWindows(function(windowList) {
+      var seenIds = {};
 
       for(var i=0; i < windowList.length; i++) {
         for (var j=0; j < windowList[i].tabs.length; j++) {
           let currentTab = windowList[i].tabs[j];
+          seenIds[currentTab.id] = true;
           if(data[currentTab.id]) { // Exists in data, update relevant fields
             let tabInData = data[currentTab.id];
             tabInData.title = currentTab.title || '';
@@ -70,11 +73,14 @@ function loadWindowList(addCurrentSession) {
             tabInData.url = currentTab.url || '';
             tabInData.pendingUrl = currentTab.pendingUrl || '';
             tabInData.toggle = currentTab.toggle;
-            tabInData.deleted = currentTab.deleted;
+            tabInData.deleted = false;
             tabInData.read = currentTab.read;
             tabInData.favIconUrl = currentTab.favIconUrl || '';
             tabInData.parentId = currentTab.openerTabId ? currentTab.openerTabId : data[currentTab.id].parentId;
             tabInData.active = currentTab.active || false;
+            tabInData.windowId = windowList[i].id;
+            tabInData.audible  = currentTab.audible || false;
+            tabInData.muted    = !!(currentTab.mutedInfo && currentTab.mutedInfo.muted);
           }
           else {
             data[currentTab.id] = { "id": currentTab.id,
@@ -96,6 +102,14 @@ function loadWindowList(addCurrentSession) {
           }
         };
       };
+
+      // Mark tabs that are no longer in Chrome as deleted (stale ghost tabs)
+      for (var id in data) {
+        if (!seenIds[id] && !data[id].deleted && !data[id].suspended) {
+          data[id].deleted = true;
+        }
+      }
+
       dataToLocalRoot();
     });
   }
