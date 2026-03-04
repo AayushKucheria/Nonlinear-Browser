@@ -4,7 +4,17 @@ Chrome Extension (Manifest V3) that shows browser tabs as a compact indented lis
 No build system. No bundler. No module format. Plain script tags loaded by the browser.
 Third-party JS (fnon) is vendored into `lib/` — MV3 prohibits remote scripts.
 
+**Why no build system?** Chrome extensions load files directly from disk — no web server, no HTTP requests for JS files, so there's no network latency to optimize away. Chrome supports modern JS natively, so transpilation isn't needed either. A bundler would add complexity (MV3 service workers have quirks with `import()`) for no real benefit at this scale.
+
 **Brave browser note:** The extension works in Brave (uses the standard `side_panel` API). However, Brave's sidebar "add to sidebar" UI only surfaces Chrome Web Store extensions — locally-loaded unpacked extensions won't appear in that list. Publishing to the CWS would make it show up there automatically (manifest is already set up correctly).
+
+---
+
+## Dev workflow
+
+Edit a source file, then reload the extension at `chrome://extensions` (click the ↺ reload button next to the extension). There is no auto-reload — see "Why no build system?" above for why the CDP-based auto-reload approach isn't worth adding here.
+
+Keep `chrome://extensions` pinned as a tab while developing. After reloading, re-open the side panel if it was already open.
 
 ---
 
