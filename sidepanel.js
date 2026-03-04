@@ -126,8 +126,18 @@ var sidebarState = {
     }
     // Mark as extension-initiated so tabRemoved won't re-parent children
     ids.forEach(function (tabId) { _closingByExtension.add(tabId); });
-    // Close from deepest children first to avoid Chrome re-parenting them
-    ids.slice().reverse().forEach(function (tabId) { BrowserApi.removeTab(tabId); });
+    // Close from deepest children first to avoid Chrome re-parenting them.
+    // Suspended tabs are already gone from Chrome — soft-delete them directly.
+    ids.slice().reverse().forEach(function (tabId) {
+      var t = window.data && window.data[tabId];
+      if (t && t.suspended) {
+        t.deleted = true;
+        _closingByExtension.delete(tabId);
+      } else {
+        BrowserApi.removeTab(tabId);
+      }
+    });
+    renderAll();
     if (ids.length > 1) {
       showCloseToast(ids.length);
     }
@@ -338,10 +348,11 @@ function showCtxMenu(tab, x, y) {
   var hasBranch   = !!(tab.children && tab.children.length > 0);
 
   // Suspend item: hidden when already suspended; label changes for parent tabs
-  var suspendEl = document.getElementById('ctxSuspend');
-  var resumeEl  = document.getElementById('ctxResume');
-  var sepEl     = document.getElementById('ctxSuspendSep');
-  var closeEl   = document.getElementById('ctxClose');
+  var suspendEl        = document.getElementById('ctxSuspend');
+  var resumeEl         = document.getElementById('ctxResume');
+  var sepEl            = document.getElementById('ctxSuspendSep');
+  var closeEl          = document.getElementById('ctxClose');
+  var closeSelectedEl  = document.getElementById('ctxCloseSelected');
 
   if (suspendEl) {
     suspendEl.style.display = isSuspended ? 'none' : '';
@@ -349,7 +360,14 @@ function showCtxMenu(tab, x, y) {
   }
   if (resumeEl) resumeEl.style.display = isSuspended ? '' : 'none';
   if (sepEl)    sepEl.style.display    = isSuspended ? 'none' : '';
-  if (closeEl)  closeEl.style.display  = isSuspended ? 'none' : '';
+
+  // Show "Close [N] selected" when multiple tabs are selected and this tab is among them
+  var inSelection = selectedTabIds.size > 1 && selectedTabIds.has(tab.id);
+  if (closeSelectedEl) {
+    closeSelectedEl.style.display = inSelection ? '' : 'none';
+    if (inSelection) closeSelectedEl.textContent = '✕ \u00a0Close ' + selectedTabIds.size + ' selected tabs';
+  }
+  if (closeEl) closeEl.style.display = inSelection ? 'none' : '';
 
   m.style.left = Math.min(x, window.innerWidth - 180) + 'px';
   m.style.top  = Math.min(y, window.innerHeight - 160) + 'px';
@@ -839,6 +857,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!ctxTab) return;
     sidebarState.onResume(ctxTab.id);
     hideCtxMenu();
+  });
+
+  document.getElementById('ctxCloseSelected').addEventListener('click', function () {
+    hideCtxMenu();
+    Array.from(selectedTabIds).slice().reverse().forEach(function (id) {
+      var tab = window.data && window.data[id];
+      if (tab && !tab.deleted) sidebarState.onClose(id);
+    });
+    clearSelection();
   });
 
   document.getElementById('ctxClose').addEventListener('click', function () {

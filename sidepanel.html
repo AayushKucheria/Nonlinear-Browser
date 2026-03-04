@@ -184,21 +184,14 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* Sleep icon — hidden by default, shown for suspended rows */
-    .tab-sleep {
-      flex-shrink: 0; font-size: 10px; width: 16px; text-align: center;
-      opacity: 0; transition: opacity 0.12s;
-    }
-
     /* ── Suspended (ghost) row ── */
     .tab-row.is-suspended { min-height: 32px; }
     .tab-row.is-suspended .tab-inner {
       align-items: flex-start; padding-top: 3px; padding-bottom: 3px;
     }
     .tab-row.is-suspended .toggle { height: auto; padding-top: 3px; }
-    .tab-row.is-suspended .favicon { margin-top: 3px; opacity: 0.35; filter: grayscale(1); }
+    .tab-row.is-suspended .favicon { margin-top: 3px; }
     .tab-row.is-suspended .tab-title { color: #aaa; }
-    .tab-row.is-suspended .tab-sleep { opacity: 1; margin-top: 3px; }
     .tab-row.is-suspended .tab-audio { display: none; }
 
     /* Close button */
@@ -464,6 +457,7 @@
   <div class="ctx-item" id="ctxSuspend">💤 &nbsp;Suspend Tab</div>
   <div class="ctx-item" id="ctxResume">▶ &nbsp;Resume Tab</div>
   <div style="height:1px;background:#e5e7eb;margin:3px 0" id="ctxSuspendSep"></div>
+  <div class="ctx-item ctx-danger" id="ctxCloseSelected" style="display:none">✕ &nbsp;Close selected tabs</div>
   <div class="ctx-item ctx-danger" id="ctxClose">✕ &nbsp;Close Tab</div>
 </div>
 

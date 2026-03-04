@@ -146,7 +146,7 @@ valid 4-element array — all text lands on line 0.
 - `deleted: true` = closed/removed tab (soft-delete kept in tree for "N closed tabs" display)
 - `active: true` = currently active tab; set by `loadWindowList` from Chrome and updated on `tabActivated` messages
 - `audible: true` = tab is producing sound; `muted: true` = tab is muted; toggled via audio button (🔊/🔇)
-- `suspended: true` = tab removed from Chrome to free RAM; ghost row stays in tree. Suspending a parent cascades to all children. Resuming is always per-tab (click the ghost row or right-click → Resume Tab).
+- `suspended: true` = tab removed from Chrome to free RAM; ghost row stays in tree. Suspending a parent cascades to all children. Resuming is always per-tab (click the ghost row or right-click → Resume Tab). Closing a suspended tab soft-deletes it directly (`deleted = true`) — no `BrowserApi.removeTab` call since the tab is already gone from Chrome.
 - `customTitle` = optional user-set display name (right-click → Rename Tab); renderer prefers it over `title`
 - `wrapText` splits on `/(?=[\s\\/%,\.])/` and fills up to 4 lines; line 0-1 use 50% of tabWidth,
   lines 2-3 use 70%.
@@ -172,7 +172,7 @@ valid 4-element array — all text lands on line 0.
 - `collapsedWindows` (sidebarState, sidepanel.js) — `Set<windowId>` of collapsed spaces; toggled by `onToggleWindow(windowId)`; read by `buildSidebarTree` to skip rendering new-tab-row + tab rows for that window; win-label gets `.collapsed` class which CSS uses to rotate the chevron.
 - **Guide-rail hierarchy** (renderer.js) — `.indent-wrap` div with `paddingLeft: depth*10px` + `borderLeft: 1px solid #e8e8e8` replaces the old `.seg.branch`/`.seg.vert` tree-line elements. Each level costs 10px instead of 16px. The 1px left border is the visual spine.
 - **Scrolling title** (renderer.js) — on `mouseenter`, `requestAnimationFrame` measures `titleEl.scrollWidth - titleWrap.clientWidth`; if overflow > 2px, sets `--scroll-px` and `--scroll-dur` CSS vars and adds `.scrolling` class which runs a `title-scroll` keyframe animation. On `mouseleave`, class is removed. The title's parent (`.tab-title-wrap`) clips overflow; the title element itself has no `text-overflow`.
-- `showCtxMenu` (sidepanel.js) — updates context menu item visibility before showing: hides/shows Suspend vs Resume based on `tab.suspended`; changes label to "Suspend Branch" when tab has children.
+- `showCtxMenu` (sidepanel.js) — updates context menu item visibility before showing: hides/shows Suspend vs Resume based on `tab.suspended`; changes label to "Suspend Branch" when tab has children; shows `#ctxCloseSelected` ("Close N selected tabs") when `selectedTabIds.size > 1` and the right-clicked tab is in the selection (hides `#ctxClose` in that case).
 - Context menu helpers: `showCtxMenu`, `hideCtxMenu`, `showWinCtxMenu`, `hideWinCtxMenu`, `hidePinCtxMenu` — all module-level in sidepanel.js
 - **Rename bug:** `hideCtxMenu()` nulls `ctxTab`. Always capture `var tab = ctxTab` before calling `hideCtxMenu()` in any context menu handler that needs the tab reference afterward.
 - **Window contextmenu closure pattern** — `buildSidebarTree` attaches contextmenu listeners using `e.currentTarget.dataset.windowId` (read at dispatch time) instead of a closed-over `var windowId` (which always resolves to the last iteration's value after the loop). Always use `dataset` for event-listener values that vary per element in a loop.

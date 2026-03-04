@@ -238,12 +238,6 @@
       inner.appendChild(badge);
     }
 
-    // Sleep icon — only visible on suspended rows via CSS
-    var sleepEl = document.createElement('span');
-    sleepEl.className = 'tab-sleep';
-    sleepEl.textContent = '💤';
-    inner.appendChild(sleepEl);
-
     // Audio indicator (🔊/🔇) — only visible when tab is audible or muted
     var audio = document.createElement('span');
     audio.className = 'tab-audio';
