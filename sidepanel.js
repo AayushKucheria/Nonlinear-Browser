@@ -22,12 +22,12 @@ var _pinDragSrc     = null; // index of the pin slot being dragged (null = tab d
 // When resuming, createTab(url) fires tabCreated. pendingResume maps url →
 // suspended tab node so tabCreated can reuse the existing node (preserving tree
 // position) instead of inserting a duplicate.
-var pendingResume = {}; // { [url]: tabNode }
+var pendingResume = {}; // { [url]: tabNode[] } — queue so same-URL tabs don't collide
 
 // ── Pin: pending open tracking ────────────────────────────────────────────────
 // When clicking a dead pin, createTab(url) fires tabCreated. pendingPinOpen
 // maps url → pin index so tabCreated can reconnect the slot with the new tabId.
-var pendingPinOpen = {}; // { [url]: pinIndex }
+var pendingPinOpen = {}; // { [url]: pinIndex[] } — queue so same-URL pins don't collide
 
 // ── Undo-close stack ──────────────────────────────────────────────────────────
 var closedGroupStack = [];   // [{ids: [tabId, ...]}]
@@ -266,7 +266,10 @@ var sidebarState = {
 
     // Register before createTab so tabCreated can reuse this tree node
     var url = tab.url || tab.pendingUrl || '';
-    if (url) pendingResume[url] = tab;
+    if (url) {
+      if (!pendingResume[url]) pendingResume[url] = [];
+      pendingResume[url].push(tab);
+    }
 
     BrowserApi.createTab(url);
   },
@@ -460,7 +463,8 @@ function renderPins() {
           if (window.data && window.data[p.tabId] && !window.data[p.tabId].deleted) {
             BrowserApi.focusTab(p.tabId, window.data[p.tabId].windowId);
           } else {
-            pendingPinOpen[p.url] = idx;
+            if (!pendingPinOpen[p.url]) pendingPinOpen[p.url] = [];
+            pendingPinOpen[p.url].push(idx);
             BrowserApi.createTab(p.url || '');
           }
         };
@@ -751,6 +755,14 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   renderPins();
 
+  // Show warning banner if extension lacks file:// URL access
+  chrome.extension.isAllowedFileSchemeAccess(function (allowed) {
+    if (!allowed) document.getElementById('fileAccessBanner').style.display = 'flex';
+  });
+  document.getElementById('fileAccessDismiss').addEventListener('click', function () {
+    document.getElementById('fileAccessBanner').style.display = 'none';
+  });
+
   // Silently restore last session and load live Chrome tabs
   console.log('[init] calling checkLastSession');
   checkLastSession();
@@ -970,9 +982,9 @@ chrome.runtime.onMessage.addListener(function (message) {
     tabLastUsed[message.tab.id] = Date.now();
     // Check if this is a resume — reuse the suspended node to preserve tree position
     var newUrl = message.tab.url || message.tab.pendingUrl || '';
-    var suspendedNode = newUrl && pendingResume[newUrl];
+    var suspendedNode = newUrl && pendingResume[newUrl] && pendingResume[newUrl].shift();
+    if (!pendingResume[newUrl] || !pendingResume[newUrl].length) delete pendingResume[newUrl];
     if (suspendedNode) {
-      delete pendingResume[newUrl];
       delete window.data[suspendedNode.id];
       suspendedNode.id        = message.tab.id;
       suspendedNode.suspended = false;
@@ -981,9 +993,10 @@ chrome.runtime.onMessage.addListener(function (message) {
       renderAll();
     } else {
       // Check if this tab was opened for a dead pin slot — reconnect it before rendering
-      if (newUrl && pendingPinOpen[newUrl] !== undefined) {
-        var pinIdx = pendingPinOpen[newUrl];
-        delete pendingPinOpen[newUrl];
+      var pinQueue = newUrl && pendingPinOpen[newUrl];
+      if (pinQueue && pinQueue.length) {
+        var pinIdx = pinQueue.shift();
+        if (!pinQueue.length) delete pendingPinOpen[newUrl];
         if (pinnedTabs[pinIdx]) {
           pinnedTabs[pinIdx].tabId = message.tab.id;
           AppStorage.pinnedTabs.save(pinnedTabs);
@@ -1057,7 +1070,8 @@ chrome.runtime.onMessage.addListener(function (message) {
       if (window.data && window.data[pin.tabId] && !window.data[pin.tabId].deleted) {
         BrowserApi.focusTab(pin.tabId, window.data[pin.tabId].windowId);
       } else {
-        pendingPinOpen[pin.url] = message.slot;
+        if (!pendingPinOpen[pin.url]) pendingPinOpen[pin.url] = [];
+        pendingPinOpen[pin.url].push(message.slot);
         BrowserApi.createTab(pin.url || '');
       }
     }

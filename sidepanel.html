@@ -378,6 +378,21 @@
     .sel-close-btn:hover { background: #fef2f2; }
     .sel-clear-btn       { color: #bbb; border-color: #e5e5e5; padding: 2px 5px; }
 
+    /* ── File access warning banner ── */
+    #fileAccessBanner {
+      flex-shrink: 0; display: none;
+      align-items: center; gap: 6px;
+      padding: 5px 10px;
+      background: #fffbeb; border-bottom: 1px solid #fde68a;
+      font-size: 10px; color: #92400e; line-height: 1.4;
+    }
+    .file-banner-text { flex: 1; }
+    .file-banner-dismiss {
+      background: none; border: none; cursor: pointer;
+      color: #b45309; font-size: 12px; flex-shrink: 0; padding: 0 2px;
+    }
+    .file-banner-dismiss:hover { color: #78350f; }
+
     /* Skeleton shimmer */
     .skeleton-panel { flex: 1; overflow: hidden; padding: 4px 0; }
     .skel-win-row   { display: flex; align-items: center; gap: 6px; padding: 8px 10px 3px; }
@@ -406,6 +421,11 @@
 
 <div class="search-row">
   <input class="search" id="search" placeholder="/ filter…">
+</div>
+
+<div id="fileAccessBanner">
+  <span class="file-banner-text">⚠ Local files hidden — enable "Allow access to file URLs" at <b>chrome://extensions</b> → this extension</span>
+  <button class="file-banner-dismiss" id="fileAccessDismiss">✕</button>
 </div>
 
 <div id="skeleton" class="skeleton-panel">
