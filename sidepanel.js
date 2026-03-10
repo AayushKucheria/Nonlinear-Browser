@@ -615,11 +615,28 @@ var _toastTimer = null;
 var _toastBarTimer = null;
 var TOAST_DURATION = 4000;
 
+function showToast(message) {
+  var wrap   = document.getElementById('toastWrap');
+  var textEl = document.getElementById('toastText');
+  if (!wrap || !textEl) return;
+  textEl.textContent = message;
+  var kbd = wrap.querySelector('.toast-kbd');
+  var bar = document.getElementById('toastBar');
+  if (kbd) kbd.style.display = 'none';
+  if (bar) bar.style.display = 'none';
+  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+  wrap.classList.add('visible');
+  _toastTimer = setTimeout(function () { wrap.classList.remove('visible'); }, 2500);
+}
+
 function showCloseToast(count) {
   var wrap   = document.getElementById('toastWrap');
   var textEl = document.getElementById('toastText');
   var barEl  = document.getElementById('toastBar');
   if (!wrap || !textEl || !barEl) return;
+  var kbd = wrap.querySelector('.toast-kbd');
+  if (kbd) kbd.style.display = '';
+  barEl.style.display = '';
 
   if (_toastTimer)    { clearTimeout(_toastTimer);    _toastTimer    = null; }
   if (_toastBarTimer) { clearTimeout(_toastBarTimer); _toastBarTimer = null; }
@@ -812,7 +829,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ctxPin').addEventListener('click', function () {
     if (!ctxTab) return;
     var emptyIdx = pinnedTabs.indexOf(null);
-    if (emptyIdx === -1) { Fnon.Hint.Error('All pin slots are full'); return; }
+    if (emptyIdx === -1) { showToast('All pin slots are full'); return; }
     pinnedTabs[emptyIdx] = { url: ctxTab.url || '', title: ctxTab.title || '', favIconUrl: ctxTab.favIconUrl || '', tabId: ctxTab.id };
     AppStorage.pinnedTabs.save(pinnedTabs);
     hideCtxMenu();
@@ -824,7 +841,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!ctxTab) return;
     BrowserApi.bookmarkTab(ctxTab.url || '', ctxTab.customTitle || ctxTab.title || '');
     hideCtxMenu();
-    Fnon.Hint.Success('Bookmarked');
+    showToast('Bookmarked');
   });
 
   document.getElementById('ctxRename').addEventListener('click', function () {
@@ -969,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (tab && tab.deleted) { tab.deleted = false; restored++; }
       });
       renderAll();
-      if (restored) Fnon.Hint.Success('Restored ' + restored + ' tab' + (restored > 1 ? 's' : ''));
+      if (restored) showToast('Restored ' + restored + ' tab' + (restored > 1 ? 's' : ''));
     }
   });
 });

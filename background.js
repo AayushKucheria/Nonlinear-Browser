@@ -4,6 +4,10 @@
 // This replaces the old chrome.action.onClicked → chrome.tabs.create pattern.
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
+// Keep service worker alive — prevents Chrome blocking side panel paint on SW cold-start
+chrome.alarms.create('keepalive', { periodInMinutes: 0.4 }); // ~24s, under 30s idle kill
+chrome.alarms.onAlarm.addListener(function () {}); // no-op listener required for alarm to fire
+
 // Forward tab events to the side panel via runtime messaging.
 // The side panel listens with chrome.runtime.onMessage.
 chrome.tabs.onCreated.addListener(function (tab) {

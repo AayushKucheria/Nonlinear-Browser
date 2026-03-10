@@ -1,12 +1,4 @@
 
-function initToast() {
-
-  Fnon.Hint.Init({
-    position: 'center-bottom',
-    animation: 'slide-bottom'
-  });
-}
-
 // ================ Wrapping Tab Titles
 function wrapText(text) {
   let words = text.split(/(?=[\s\\/%,\.])/),

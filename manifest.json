@@ -2,7 +2,7 @@
   "name": "Nonlinear Browser",
   "description": "Representing browser tabs in a tree for contextual thought",
   "version": "0.5.0",
-  "permissions": ["tabs", "storage", "sidePanel", "bookmarks", "processes"],
+  "permissions": ["tabs", "storage", "sidePanel", "bookmarks", "processes", "alarms"],
   "host_permissions": ["file:///*"],
   "background": {
     "service_worker": "background.js"
