@@ -313,6 +313,15 @@
     .tab-row.is-muted   .tab-audio { opacity: 1; color: #bbb; }
     .tab-audio:hover { background: #eef2ff; color: #4338ca !important; }
 
+    /* ── Space delete button (hover) ── */
+    .win-delete {
+      order: 11; opacity: 0; cursor: pointer;
+      border-radius: 3px; font-size: 10px; color: #dc2626;
+      padding: 0 3px; transition: opacity 0.1s; flex-shrink: 0;
+    }
+    .win-label:hover .win-delete { opacity: 1; }
+    .win-delete:hover { background: #fee2e2; }
+
     /* ── Active space ── */
     .win-label.is-active-space .win-name  { color: #2563eb; }
     .win-label.is-active-space .win-count { background: #dbeafe; color: #2563eb; }
@@ -409,8 +418,9 @@
 <div class="header">
   <span class="header-title">nonlinear browser</span>
   <button class="icon-btn" id="collapseAll" title="Collapse all">⊟</button>
+  <button class="icon-btn" id="openTodos" title="Open todos.md">📝</button>
   <button class="icon-btn" id="selectToggle" title="Select tabs">☐</button>
-  <button class="icon-btn" id="closePanel" title="Close sidebar" style="font-weight:300">—</button>
+  <button class="icon-btn" id="closePanel" title="Close sidebar · reopen with Ctrl+Shift+Y" style="font-weight:300">—</button>
 </div>
 
 <div class="pinned-strip">
@@ -464,6 +474,7 @@
 
 <div class="footer">
   <span class="footer-url" id="footerUrl"></span>
+  <span class="footer-hint" id="kbdHint">Ctrl+Shift+Y</span>
 </div>
 
 <div id="ctxMenu" style="display:none; position:fixed; z-index:999; background:#fff; border:1px solid #e0e0e0; border-radius:7px; box-shadow:0 6px 20px rgba(0,0,0,.13); min-width:164px; padding:4px 0; font-size:11.5px; font-family:inherit;">

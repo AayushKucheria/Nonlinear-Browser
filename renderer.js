@@ -364,7 +364,8 @@
       label.addEventListener('contextmenu', function (e) { state.onWindowContextMenu(parseInt(e.currentTarget.dataset.windowId), e); });
       label.addEventListener('click', (function (wid) {
         return function (e) {
-          if (e.target.closest('.win-name')) return;  // let rename dblclick handle it
+          if (e.target.closest('.win-name')) return;  // click-to-rename handled by nameEl
+          if (e.target.closest('.win-delete')) return; // handled by delBtn
           if (state.onToggleWindow) state.onToggleWindow(wid);
         };
       }(windowId)));
@@ -376,15 +377,27 @@
       var nameEl = document.createElement('span');
       nameEl.className = 'win-name';
       nameEl.textContent = winName;
-      nameEl.title = 'Double-click to rename';
+      nameEl.title = 'Click to rename';
 
       var count = document.createElement('span');
       count.className = 'win-count';
       count.textContent = openCount;
 
+      var delBtn = document.createElement('span');
+      delBtn.className = 'win-delete';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Delete space & all tabs';
+      delBtn.addEventListener('click', (function (wid) {
+        return function (e) {
+          e.stopPropagation();
+          if (state.onDeleteWindow) state.onDeleteWindow(wid);
+        };
+      }(windowId)));
+
       label.appendChild(chev);
       label.appendChild(nameEl);
       label.appendChild(count);
+      label.appendChild(delBtn);
 
       // Cross-window drag: highlight label when dragging from a different window
       label.addEventListener('dragover', (function (wid, lbl) {
@@ -407,10 +420,11 @@
         };
       }(windowId, label)));
 
-      // Double-click to rename (persisted via AppStorage.windowNames)
-      nameEl.addEventListener('dblclick', function (e) {
+      // Click to rename (persisted via AppStorage.windowNames)
+      nameEl.addEventListener('click', function (e) {
         e.stopPropagation();
         var el = e.currentTarget;
+        el.dataset.original = el.textContent;  // captured for Escape restore
         el.contentEditable = 'true';
         el.focus();
         var range = document.createRange();
@@ -436,7 +450,7 @@
         if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
         if (e.key === 'Escape') {
           var el = e.currentTarget;
-          el.textContent = el.getAttribute('data-original') || el.textContent;
+          el.textContent = el.dataset.original || el.textContent;
           el.blur();
         }
         e.stopPropagation();

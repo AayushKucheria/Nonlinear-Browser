@@ -7,6 +7,12 @@
 //   crudApi.js          — window.localRoot, window.data, addNewTab, updateTab, removeSubtree
 //   renderer.js         — buildSidebarTree, countOpen
 
+// Path to the local todos file — opened by the 📝 button via VS Code URL scheme.
+// Chrome passes unknown schemes to the OS (xdg-open on Linux), so VS Code opens the file
+// and the side panel stays open. Change the scheme prefix for other editors if needed.
+var TODOS_FILE_PATH = '/home/aayush/Documents/Nonlinear-Browser/todos.md';
+var TODOS_FILE_URL  = 'file://' + TODOS_FILE_PATH;  // kept for chrome.tabs.query check
+
 // ── Drag state ────────────────────────────────────────────────────────────────
 var dragState = { draggedId: null };
 
@@ -237,6 +243,11 @@ var sidebarState = {
     showWinCtxMenu(windowId, event.clientX, event.clientY);
   },
 
+  onDeleteWindow: function (windowId) {
+    deleteWindowTabs(windowId);
+    renderAll();
+  },
+
   onSuspend: function (id) {
     var tab = window.data && window.data[id];
     if (!tab || tab.deleted) return;
@@ -248,6 +259,12 @@ var sidebarState = {
       (t.children || []).forEach(function (c) { if (!c.deleted) collect(c); });
     }
     collect(tab);
+
+    // Never suspend pinned tabs
+    toSuspend = toSuspend.filter(function (t) {
+      return !(sidebarState.pinnedTabIds && sidebarState.pinnedTabIds.has(t.id));
+    });
+    if (toSuspend.length === 0) return;
 
     // Mark all as suspended before removing from Chrome so the tabRemoved
     // handler knows to skip soft-deletion.
@@ -448,6 +465,16 @@ function renderPins() {
         img.src = displayFavicon;
         img.width = 20; img.height = 20;
         img.style.borderRadius = '3px';
+        img.onerror = (function (sl, p) {
+          return function () {
+            if (sl.contains(this)) sl.removeChild(this);
+            var fb = document.createElement('div');
+            fb.className = 'pin-letter';
+            fb.style.background = hashColor(p.title || '');
+            fb.textContent = ((p.title || '?')[0] || '?').toUpperCase();
+            sl.appendChild(fb);
+          };
+        }(slot, pin));
         slot.appendChild(img);
       } else {
         var letter = document.createElement('div');
@@ -665,8 +692,10 @@ function showCloseToast(count) {
 }
 
 window.showUrlInFooter = function (url) {
-  var el = document.getElementById('footerUrl');
+  var el   = document.getElementById('footerUrl');
+  var hint = document.getElementById('kbdHint');
   if (el) el.textContent = url;
+  if (hint) hint.style.visibility = url ? 'hidden' : 'visible';
 };
 
 // ── _applyActiveTab ───────────────────────────────────────────────────────────
@@ -822,6 +851,13 @@ document.addEventListener('DOMContentLoaded', function () {
   // Close panel button
   document.getElementById('closePanel').addEventListener('click', function () {
     chrome.runtime.sendMessage({ type: 'closePanel' });
+  });
+
+  // Todos button — open file in VS Code via vscode:// URL scheme.
+  // Chrome passes the unknown scheme to the OS (xdg-open on Linux) so VS Code
+  // opens the file and the side panel remains intact.
+  document.getElementById('openTodos').addEventListener('click', function () {
+    window.open('vscode://file/' + TODOS_FILE_PATH);
   });
 
   // ── Tab context menu ──────────────────────────────────────────────────────
@@ -1069,6 +1105,17 @@ chrome.runtime.onMessage.addListener(function (message) {
   } else if (message.type === 'tabUpdated') {
     updateTab(message.tabId, message.changeInfo);
     // updateTab calls updateTree → renderAll if display fields changed
+    // Keep stored pin favicon in sync so dead-pin slots show the right icon
+    if (message.changeInfo.favIconUrl) {
+      var didUpdatePin = false;
+      pinnedTabs.forEach(function (p, i) {
+        if (p && p.tabId === message.tabId) {
+          pinnedTabs[i] = { url: p.url, title: p.title, favIconUrl: message.changeInfo.favIconUrl, tabId: p.tabId };
+          didUpdatePin = true;
+        }
+      });
+      if (didUpdatePin) { AppStorage.pinnedTabs.save(pinnedTabs); _lastPinsState = ''; }
+    }
 
   } else if (message.type === 'tabAttached') {
     var attachedTab = window.data && window.data[message.tabId];
