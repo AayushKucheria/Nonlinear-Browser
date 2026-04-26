@@ -288,7 +288,7 @@ var sidebarState = {
       pendingResume[url].push(tab);
     }
 
-    BrowserApi.createTab(url);
+    BrowserApi.createTab(url, tab.windowId);
   },
 
   onNewTab: function (windowId) {
@@ -1040,9 +1040,11 @@ chrome.runtime.onMessage.addListener(function (message) {
     if (suspendedNode) {
       delete window.data[suspendedNode.id];
       suspendedNode.id        = message.tab.id;
+      suspendedNode.windowId  = message.tab.windowId;
       suspendedNode.suspended = false;
       suspendedNode.active    = message.tab.active || false;
       window.data[suspendedNode.id] = suspendedNode;
+      if (typeof localStore === 'function') localStore();
       renderAll();
     } else {
       // Check if this tab was opened for a dead pin slot — reconnect it before rendering
