@@ -208,8 +208,9 @@
         icon.appendChild(img);
       }
     } else {
-      icon.style.background = hashColor(tab.title || '');
-      icon.textContent = ((tab.title || '?')[0] || '?').toUpperCase();
+      var displayName = tab.title || tab.url || tab.pendingUrl || '';
+      icon.style.background = hashColor(displayName);
+      icon.textContent = (displayName[0] || '?').toUpperCase();
     }
     inner.appendChild(icon);
 
@@ -219,7 +220,7 @@
 
     var titleEl = document.createElement('span');
     titleEl.className = 'tab-title';
-    titleEl.textContent = tab.customTitle || tab.title || '';
+    titleEl.textContent = tab.customTitle || tab.title || tab.url || tab.pendingUrl || '';
     titleWrap.appendChild(titleEl);
 
     var urlEl = document.createElement('span');
