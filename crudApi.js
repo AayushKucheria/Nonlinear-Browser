@@ -77,6 +77,19 @@ function loadWindowList(addCurrentSession) {
       console.log('[init] Chrome returned', windowList.length, 'windows,', tabCount, 'tabs');
       var seenIds = {};
 
+      // Index saved nodes by URL so we can reconnect them after a restart
+      // (Chrome assigns new tab IDs on restart, so ID lookup fails for all saved tabs)
+      var savedByUrl = {};
+      for (var id in data) {
+        var node = data[id];
+        var url = node.url || node.pendingUrl || '';
+        if (url && url !== 'chrome://newtab/' && !node.deleted && !node.suspended) {
+          if (!savedByUrl[url]) savedByUrl[url] = [];
+          savedByUrl[url].push(node);
+        }
+      }
+      var idRemap = {}; // oldId → newId, used to fix up parentId after the loop
+
       for(var i=0; i < windowList.length; i++) {
         for (var j=0; j < windowList[i].tabs.length; j++) {
           let currentTab = windowList[i].tabs[j];
@@ -98,25 +111,53 @@ function loadWindowList(addCurrentSession) {
             tabInData.muted    = !!(currentTab.mutedInfo && currentTab.mutedInfo.muted);
           }
           else {
-            data[currentTab.id] = { "id": currentTab.id,
-                                    "title": currentTab.title || '',
-                                    "lines":  wrapText((currentTab.title || currentTab.url || currentTab.pendingUrl || '')),
-                                    "parentId": currentTab.openerTabId || '',
-                                    "children": [],
-                                    "windowId": windowList[i].id,
-                                    "url": currentTab.url || '',
-                                    "toggle": false,
-                                    "deleted": false,
-                                    "active": currentTab.active || false,
-                                    "pendingUrl":currentTab.pendingUrl || '',
-                                    "read" : false,
-                                    "favIconUrl": currentTab.favIconUrl || '',
-                                    "x0": innerWidth/2,
-                                    "y0": innerHeight/2
-            };
+            var tabUrl = currentTab.url || currentTab.pendingUrl || '';
+            var matched = (tabUrl && savedByUrl[tabUrl]) ? savedByUrl[tabUrl].shift() : null;
+            if (matched) {
+              // Reuse the saved node — update its ID and live fields, preserve tree position
+              var oldId = matched.id;
+              idRemap[oldId]    = currentTab.id;
+              matched.id        = currentTab.id;
+              matched.windowId  = windowList[i].id;
+              matched.title     = currentTab.title || matched.title;
+              matched.lines     = wrapText(currentTab.title || currentTab.url || currentTab.pendingUrl || '');
+              matched.url       = currentTab.url || '';
+              matched.pendingUrl = currentTab.pendingUrl || '';
+              matched.favIconUrl = currentTab.favIconUrl || matched.favIconUrl;
+              matched.active    = currentTab.active || false;
+              matched.audible   = currentTab.audible || false;
+              matched.muted     = !!(currentTab.mutedInfo && currentTab.mutedInfo.muted);
+              matched.deleted   = false;
+              delete data[oldId];
+              data[currentTab.id] = matched;
+            } else {
+              data[currentTab.id] = { "id": currentTab.id,
+                                      "title": currentTab.title || '',
+                                      "lines":  wrapText((currentTab.title || currentTab.url || currentTab.pendingUrl || '')),
+                                      "parentId": currentTab.openerTabId || '',
+                                      "children": [],
+                                      "windowId": windowList[i].id,
+                                      "url": currentTab.url || '',
+                                      "toggle": false,
+                                      "deleted": false,
+                                      "active": currentTab.active || false,
+                                      "pendingUrl":currentTab.pendingUrl || '',
+                                      "read" : false,
+                                      "favIconUrl": currentTab.favIconUrl || '',
+                                      "x0": innerWidth/2,
+                                      "y0": innerHeight/2
+              };
+            }
           }
         };
       };
+
+      // Fix up parentId references that point to remapped (old) IDs
+      for (var id in data) {
+        if (data[id].parentId && idRemap[data[id].parentId]) {
+          data[id].parentId = idRemap[data[id].parentId];
+        }
+      }
 
       // Mark tabs that are no longer in Chrome as deleted (stale ghost tabs)
       for (var id in data) {

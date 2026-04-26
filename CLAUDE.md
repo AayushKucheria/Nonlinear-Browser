@@ -40,7 +40,7 @@ npm test           # Jest 29
 | `renderer.js` | **Pure DOM renderer** — `countOpen`, `matchesSearch` (title + url + customTitle), `renderTabRow`, `buildSidebarTree`; `_faviconImgCache` (reuses `<img>` elements across rebuilds, eliminates flicker); `_makeNewTabRow` (+ New tab ghost row); guide-rail indent hierarchy (`.indent-wrap`); scrolling title animation on hover; RAM badge (`.tab-ram-badge`); audio 🔊/🔇 button; 🗑 close icon; `.tab-check` selection indicator; `is-selected` class; window-label drag targets; **space collapse** (click label toggles `.collapsed`; CSS rotates chevron); default label sequential `"Space N"` (render order, 1-based); **active space** (`_hasActiveTab` checks recursively; win-label gets `.is-active-space` when it contains the active tab) |
 | `storage.js` | Storage layer — `window.AppStorage`; all localStorage/sessionStorage access and key names live here |
 | `browserApi.js` | Browser API layer — `window.BrowserApi`; all `chrome.tabs.*` / `chrome.windows.*` / `chrome.bookmarks.*` / `chrome.processes.*` calls; `createTab(url, windowId?)` accepts optional windowId; `moveTab(tabId, windowId)` moves tab via `chrome.tabs.move(tabId, { windowId, index: -1 })` |
-| `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `moveMultipleTabs` + `moveTabToWindow` + `updateTabWindowId` + `deleteWindowTabs`; new tabs inserted with `unshift` (newest-first); `dataToLocalRoot` resets all `children` arrays before rebuild (prevents double-insertion), sorts children by descending ID, promotes orphaned tabs (missing parent) to root; `loadWindowList` tracks seen tab IDs and marks unseen non-suspended tabs `deleted:true` (clears stale ghost tabs after session restore), syncs `windowId`/`audible`/`muted` for existing tabs |
+| `crudApi.js` | Data layer — `window.localRoot` tree + `window.data` map; CRUD + `moveTab` + `moveMultipleTabs` + `moveTabToWindow` + `updateTabWindowId` + `deleteWindowTabs`; new tabs inserted with `unshift` (newest-first); `dataToLocalRoot` resets all `children` arrays before rebuild (prevents double-insertion), sorts children by descending ID, promotes orphaned tabs (missing parent) to root; `loadWindowList` tracks seen tab IDs and marks unseen non-suspended tabs `deleted:true` (clears stale ghost tabs after session restore), syncs `windowId`/`audible`/`muted` for existing tabs; **session restore ID remapping** — on browser restart Chrome assigns new tab IDs, so `loadWindowList` builds a `savedByUrl` index of existing nodes and URL-matches them to incoming Chrome tabs, updating each node's ID in-place and cascading `parentId` fixes via `idRemap` to preserve the custom tree hierarchy across restarts |
 | `helperFunctions.js` | `traverse`, `wrapText`, `visualLength` |
 | `lib/` | Vendored JS: *(empty — fnon removed, d3 deleted)* |
 
@@ -48,6 +48,44 @@ npm test           # Jest 29
 - `window.localRoot` — root node of the tab tree (`{id, title, children, …}`)
 - `window.data` — flat `{[tabId]: tabObj}` map, kept in sync with localRoot
 - `window.tabWidth` (200) — used by `wrapText` for line-break limits
+
+---
+
+## Chrome ↔ Extension state sync
+
+Chrome is the ground truth for which tabs exist. The extension owns the tree structure and soft-delete state. Every discrepancy is a case where those two get out of sync.
+
+```
+CHROME
+  tabs: [{id, url, title, favicon, active, audible, windowId}, ...]
+     │  events: tabCreated/Removed/Updated/Activated/Attached
+     ▼
+background.js  — relay only, forwards everything to sidepanel via runtime.sendMsg
+     │
+     ▼
+sidepanel.js   — event router; decides what to do with each event
+  tabCreated   → addNewTab  OR  consume pendingResume / pendingPinOpen
+  tabRemoved   → check _closingByExtension → soft-delete or re-parent children
+  tabUpdated   → updateTab (title/favicon/audible)
+  tabActivated → _applyActiveTab (targeted DOM update, no full rebuild)
+  tabAttached  → update windowId + renderAll
+     │ mutates
+     ▼
+window.data (flat map)  +  window.localRoot (tree)
+  Extension-only state Chrome never knows about:
+    deleted:true   — closed tab kept as ghost for "N closed" display
+    suspended:true — removed from Chrome to save RAM, ghost stays in tree
+    customTitle    — user-renamed label
+    parentId       — the hierarchy itself
+```
+
+**Two full reconciliation points** (not incremental):
+
+1. **Startup — `loadWindowList()`**: gets all Chrome windows/tabs, matches each to `window.data` by tab ID, creates new nodes for unknowns, marks unseen non-suspended nodes `deleted:true`.
+
+2. **Session restore** (browser restart): Chrome assigns brand-new IDs to all tabs, so the ID lookup in step 1 finds nothing. `loadWindowList` handles this with a URL-based fallback — it builds a `savedByUrl` index of all existing nodes, then for each unrecognized Chrome tab looks up a match by URL. When found it reuses the saved node (preserving `parentId`, `customTitle`, etc.) and just updates the ID. After the loop, `idRemap` is used to cascade `parentId` fixes across all nodes. `chrome://newtab/` is excluded from matching (too many false positives). Duplicate URLs are matched FIFO.
+
+**Known limitation:** `AppStorage.windowNames` is keyed by window ID, which also changes on restart. Custom space names are not yet remapped across restarts.
 
 ---
 
@@ -165,6 +203,7 @@ valid 4-element array — all text lands on line 0.
 - `AppStorage.pinnedTabs` — key `'pinnedTabs'`; array of 10 `{url, title, favIconUrl, tabId} | null` entries
 - `sidebarState._draggingWindowId` — tracks the source windowId during a drag; used by window-label `dragover` to allow cross-window drops
 - `closedGroupStack` (sidepanel.js) — undo stack; each entry is `{ids: [tabId, ...]}` for a closed subtree; Ctrl+Z pops and un-deletes
+- **Session restore ID remapping** (`loadWindowList` in crudApi.js) — `savedByUrl` is a `{[url]: tabNode[]}` index built from existing `data` before the Chrome tab loop; for each Chrome tab whose ID is not in `data` (i.e. browser restart), a URL match is attempted via `savedByUrl[url].shift()` (FIFO); on match: `oldId = node.id`, `idRemap[oldId] = newId`, node fields updated in-place, `delete data[oldId]`, `data[newId] = node`; after the loop, every node whose `parentId` is in `idRemap` gets it updated. `chrome://newtab/` excluded from index (too ambiguous).
 - `pendingResume` (sidepanel.js) — `{[url]: tabNode[]}` **FIFO queue**; populated by `onResume` (`push`) before calling `createTab(url)`; consumed by `tabCreated` handler (`shift`) to reuse the existing tree node (preserving position) instead of inserting a duplicate. Queue (not map) so multiple suspended tabs at the same URL each get correctly matched in FIFO order.
 - `pendingPinOpen` (sidepanel.js) — `{[url]: pinIndex[]}` **FIFO queue**; populated when clicking a dead pin slot (`push`); consumed in `tabCreated` (`shift`) to reconnect the new tab to its pin slot. Queue prevents collision when multiple pins share the same URL.
 - `_lastPinsState` (sidepanel.js) — serialized snapshot of pin slot state; `renderPins()` bails out early when unchanged to prevent favicon `<img>` elements from being recreated on every `renderAll()` call (fixes flicker on tabs that have slow/no-cache favicons). Hash includes live `favIconUrl` from `window.data[tabId]` (not just the stored value) so dynamic favicon changes (e.g. Toggl timer icon) are detected.
