@@ -448,7 +448,10 @@ function renderPins() {
 
   for (var i = 0; i < PIN_COUNT; i++) {
     var pin = pinnedTabs[i];
-    var slot = document.createElement('div');
+    // `let` so each iteration's drag listeners (dragstart/dragover/dragleave/drop)
+    // see their own slot. `var` would share one binding across iterations and
+    // every listener would mutate the last slot's classList.
+    let slot = document.createElement('div');
 
     if (pin) {
       slot.className = 'pin-slot filled';
