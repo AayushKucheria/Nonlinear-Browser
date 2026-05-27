@@ -1,0 +1,540 @@
+<!--
+  spaces-stacked.html
+
+  PROTOTYPE A: Three fixed spaces — always visible, stacked view.
+
+  Design direction:
+  - All 3 spaces + any ungrouped windows visible simultaneously as collapsible sections
+  - 10 pin slots in a 2×5 grid (bigger icons, vs current 1×6)
+  - Right-click any tab → "Move to Space…" submenu to reassign it
+  - Each space has a colored bullet + name + count
+  - Spaces collapse independently, just like windows do
+  - Drag-between-spaces is hinted but not live in this prototype
+
+  Key trade-offs vs the switcher approach:
+  + Full context at a glance — see all spaces simultaneously
+  + Drag-to-reorganize feels natural when destination is visible
+  - More scrolling if you have lots of tabs in every space
+  - Might feel cluttered when all 3 spaces are expanded
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spaces — Stacked</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #e4e4e4;
+    font-family: system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 12px; padding: 24px 20px; min-height: 100vh;
+  }
+  .page-title { font-size: 13px; font-weight: 700; color: #444; }
+  .page-sub   { font-size: 11px; color: #888; text-align: center; max-width: 480px; line-height: 1.6; }
+
+  /* ─── Sidebar shell ─── */
+  .sb {
+    font-family: 'JetBrains Mono','Fira Code',monospace;
+    font-size: 12px; color: #1c1c1e;
+    background: #fff; width: 300px; height: 680px;
+    display: flex; flex-direction: column; overflow: hidden;
+    border-radius: 10px; box-shadow: 0 4px 24px rgba(0,0,0,.14);
+  }
+
+  /* ─── Header ─── */
+  .header {
+    background: #f9f9f9; border-bottom: 1px solid #e5e5e5;
+    padding: 8px 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .header-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #aaa; flex: 1; }
+  .icon-btn {
+    width: 22px; height: 22px; border: none; background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; color: #bbb; font-size: 13px;
+  }
+  .icon-btn:hover { background: #eee; color: #444; }
+
+  /* ─── 2×5 Pin grid ─── */
+  .pin-strip {
+    background: #f9f9f9; border-bottom: 1px solid #e5e5e5;
+    padding: 7px 10px; flex-shrink: 0;
+  }
+  .pin-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+  }
+  .pin-slot {
+    aspect-ratio: 1; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform .1s; position: relative;
+  }
+  .pin-slot:hover { transform: scale(1.08); }
+  .pin-slot.filled { background: #fff; box-shadow: 0 0 0 1.5px #e0e0e0; }
+  .pin-slot.filled:hover { box-shadow: 0 0 0 1.5px #6366f1; }
+  .pin-fav {
+    width: 55%; height: 55%; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: #fff; letter-spacing: -.5px;
+  }
+  .pin-slot.empty { border: 1.5px dashed #ddd; }
+  .pin-slot.empty:hover { border-color: #6366f1; background: #f0f1ff; }
+  .pin-slot.empty::before { content: '+'; font-size: 15px; color: #ddd; }
+  .pin-slot.empty:hover::before { color: #6366f1; }
+
+  /* ─── Search ─── */
+  .search-row {
+    padding: 6px 8px; background: #f9f9f9;
+    border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
+  }
+  .search {
+    width: 100%; padding: 5px 8px;
+    background: #fff; border: 1px solid #ddd; border-radius: 4px;
+    color: #111; font-family: inherit; font-size: 11px; outline: none;
+  }
+  .search::placeholder { color: #ccc; }
+  .search:focus { border-color: #6366f1; }
+
+  /* ─── Tree scroll ─── */
+  .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .tree::-webkit-scrollbar { width: 4px; }
+  .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+  /* ─── Section label (space or window) ─── */
+  .sec-label {
+    display: flex; align-items: center; gap: 5px;
+    padding: 8px 8px 3px;
+    font-size: 9.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: #ccc; cursor: pointer; user-select: none;
+  }
+  .sec-label:hover { color: #aaa; }
+  .sec-chev { font-size: 8px; display: inline-block; transition: transform .12s; flex-shrink: 0; }
+  .sec-label.collapsed .sec-chev { transform: rotate(-90deg); }
+  .sec-spacer { flex: 1; height: 1px; background: #ececec; }
+  .sec-count {
+    font-size: 9px; color: #ccc; background: #f3f3f3;
+    padding: 1px 5px; border-radius: 3px;
+  }
+  .space-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ─── Tab row ─── */
+  .tab-row {
+    display: flex; align-items: stretch;
+    min-height: 24px; cursor: default; position: relative;
+    border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+  }
+  .tab-row:hover .tab-inner { background: #f4f4f5; }
+  .tab-row.is-active .tab-inner { background: #eff6ff; }
+  .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+
+  .active-bar {
+    width: 2px; align-self: stretch; background: #2563eb;
+    border-radius: 1px; flex-shrink: 0; margin: 4px 0;
+  }
+  .no-bar { width: 2px; flex-shrink: 0; }
+
+  .indent-wrap { flex: 1; display: flex; align-items: stretch; min-width: 0; }
+  .tab-inner {
+    flex: 1; display: flex; align-items: center; gap: 4px;
+    padding: 0 6px 0 4px; border-radius: 4px;
+    margin-right: 4px; min-width: 0;
+  }
+  .toggle {
+    width: 10px; height: 24px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; font-size: 9px; color: #bbb;
+  }
+  .toggle.has-children { cursor: pointer; }
+  .toggle.has-children:hover { color: #555; }
+  .favicon {
+    width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0;
+    font-size: 6px; font-weight: 800; display: flex; align-items: center;
+    justify-content: center; color: #fff;
+  }
+  .tab-title-wrap { flex: 1; min-width: 0; overflow: hidden; }
+  .tab-title {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 11.5px; color: #222; line-height: 24px;
+  }
+  .tab-close {
+    opacity: 0; width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+  }
+  .tab-row:hover .tab-close { opacity: 1; }
+  .tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+  /* ─── New tab row ─── */
+  .new-tab-row { display: flex; align-items: center; min-height: 22px; cursor: pointer; }
+  .new-tab-row:hover .new-tab-inner { background: #f4f4f5; }
+  .new-tab-inner { flex: 1; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 22px; border-radius: 4px; margin-right: 4px; }
+  .new-tab-plus  { font-size: 13px; color: #d0d0d0; }
+  .new-tab-label { font-size: 11px; color: #d0d0d0; }
+  .new-tab-row:hover .new-tab-plus,
+  .new-tab-row:hover .new-tab-label { color: #aaa; }
+
+  /* ─── Context menu ─── */
+  .ctx {
+    display: none; position: fixed; z-index: 999;
+    background: #fff; border: 1px solid #e0e0e0;
+    border-radius: 7px; box-shadow: 0 6px 20px rgba(0,0,0,.13);
+    min-width: 180px; padding: 4px 0; font-size: 11.5px; font-family: inherit;
+  }
+  .ctx.open { display: block; }
+  .ctx-item { padding: 7px 14px; cursor: pointer; color: #1c1c1e; white-space: nowrap; position: relative; }
+  .ctx-item:hover { background: #f4f4f5; }
+  .ctx-danger:hover { background: #fef2f2; color: #dc2626; }
+  .ctx-sep { height: 1px; background: #e5e7eb; margin: 3px 0; }
+  .ctx-item.has-sub { display: flex; align-items: center; justify-content: space-between; }
+  .ctx-item.has-sub::after { content: '›'; color: #ccc; margin-left: 8px; }
+  .ctx-item.has-sub .ctx-sub {
+    display: none; position: absolute; left: 100%; top: -4px;
+    background: #fff; border: 1px solid #e0e0e0;
+    border-radius: 7px; box-shadow: 0 6px 20px rgba(0,0,0,.13);
+    min-width: 150px; padding: 4px 0; z-index: 1000;
+  }
+  .ctx-item.has-sub:hover .ctx-sub { display: block; }
+  .ctx-sub .ctx-item { padding: 7px 12px; }
+
+  /* ─── Footer ─── */
+  .footer {
+    border-top: 1px solid #e5e5e5; background: #f9f9f9;
+    padding: 6px 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .footer-url { flex: 1; font-size: 9.5px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .footer-btn {
+    font-family: inherit; font-size: 10px; color: #888; cursor: pointer;
+    padding: 3px 8px; border-radius: 4px;
+    border: 1px solid #e0e0e0; background: #fff;
+  }
+  .footer-btn:hover { border-color: #6366f1; color: #6366f1; }
+</style>
+</head>
+<body>
+
+<div class="page-title">Prototype A — Stacked Spaces</div>
+<div class="page-sub">All three spaces visible simultaneously. Click to expand/collapse. Right-click a tab to move it between spaces.</div>
+
+<div class="sb">
+  <div class="header">
+    <span class="header-title">nonlinear browser</span>
+    <button class="icon-btn" title="Collapse all">⊟</button>
+    <button class="icon-btn" title="Close sidebar" style="font-weight:300">—</button>
+  </div>
+
+  <div class="pin-strip">
+    <div class="pin-grid" id="pinGrid"></div>
+  </div>
+
+  <div class="search-row">
+    <input class="search" id="searchInput" placeholder="/ filter…">
+  </div>
+
+  <div class="tree" id="tree"></div>
+
+  <div class="footer">
+    <span class="footer-url" id="footerUrl">feat: new sidebar UI (#142) — github.com</span>
+    <button class="footer-btn">save</button>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div class="ctx" id="ctxMenu">
+  <div class="ctx-item">📌 &nbsp;Pin to Top</div>
+  <div class="ctx-item">✎ &nbsp;Rename Tab</div>
+  <div class="ctx-item">⎘ &nbsp;Copy URL</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item has-sub">
+    ⊞ &nbsp;Move to Space
+    <div class="ctx-sub" id="moveMenu"></div>
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item">💤 &nbsp;Suspend Tab</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-danger">✕ &nbsp;Close Tab</div>
+</div>
+
+<script>
+const SPACES = [
+  { id: 1, name: 'work',     color: '#7b9e87' },
+  { id: 2, name: 'research', color: '#9b8dc7' },
+  { id: 3, name: 'misc',     color: '#c4956a' },
+];
+
+const PINS = [
+  { letter: 'G',  color: '#4285f4' },
+  { letter: 'GH', color: '#24292f' },
+  { letter: 'Fi', color: '#a259ff' },
+  { letter: 'No', color: '#1c1c1c' },
+  { letter: 'Li', color: '#5e6ad2' },
+  { letter: 'X',  color: '#000' },
+  { letter: 'Sp', color: '#1db954' },
+  { letter: 'YT', color: '#ff0000' },
+  null, null,
+];
+
+const FCOLORS = {
+  'github.com': '#24292f', 'linear.app': '#5e6ad2', 'figma.com': '#a259ff',
+  'notion.so': '#1c1c1c', 'wikipedia.org': '#000', 'arxiv.org': '#b31b1b',
+  'youtube.com': '#ff0000', 'reddit.com': '#ff4500', 'news.yc': '#ff6600',
+  'spotify.com': '#1db954', 'amazon.com': '#ff9900', 'maps.google.com': '#4285f4',
+  'docs.google.com': '#4285f4', 'vercel.com': '#000', 'stackoverflow.com': '#ef8236',
+};
+
+function fcolor(url) {
+  const d = url.split('/')[0];
+  return Object.entries(FCOLORS).find(([k]) => d.includes(k))?.[1] || '#6366f1';
+}
+function fletter(title) { return title.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase() || '?'; }
+
+// Data
+let tabs = [
+  // Space 1
+  { id:1, title:'GitHub — Pull Requests', url:'github.com/user/repo/pulls', spaceId:1, active:false, collapsed:false, children:[
+    { id:2, title:'feat: new sidebar UI (#142)', url:'github.com/user/repo/pull/142', spaceId:1, active:true, children:[] },
+    { id:3, title:'fix: memory leak in renderer (#141)', url:'github.com/user/repo/pull/141', spaceId:1, active:false, children:[] },
+  ]},
+  { id:4, title:'Linear — Sprint Board', url:'linear.app/team/sprint', spaceId:1, active:false, children:[] },
+  { id:5, title:'Figma — Design System', url:'figma.com/file/abc123', spaceId:1, active:false, collapsed:false, children:[
+    { id:6, title:'Sidebar v2 · Components', url:'figma.com/file/abc123/sidebar', spaceId:1, active:false, children:[] },
+  ]},
+  { id:7, title:'Notion — Meeting Notes', url:'notion.so/team/meeting', spaceId:1, active:false, children:[] },
+  // Space 2
+  { id:8, title:'Wikipedia — Transformer Architecture', url:'wikipedia.org/wiki/Transformer', spaceId:2, active:false, children:[] },
+  { id:9, title:'arXiv — Attention Is All You Need', url:'arxiv.org/abs/1706.03762', spaceId:2, active:false, children:[] },
+  { id:10, title:'YouTube — 3Blue1Brown', url:'youtube.com/channel/UCYO_jab', spaceId:2, active:false, collapsed:false, children:[
+    { id:11, title:'Neural Networks · Lecture 4', url:'youtube.com/watch?v=l42lr8AlrHk', spaceId:2, active:false, children:[] },
+  ]},
+  { id:12, title:'Vercel — Build Logs', url:'vercel.com/team/project/builds', spaceId:2, active:false, children:[] },
+  // Space 3
+  { id:13, title:'Reddit — r/programming', url:'reddit.com/r/programming', spaceId:3, active:false, children:[] },
+  { id:14, title:'Hacker News', url:'news.yc/news', spaceId:3, active:false, children:[] },
+  { id:15, title:'Spotify — Discover Weekly', url:'spotify.com/playlist/discover', spaceId:3, active:false, children:[] },
+  // Ungrouped window 2
+  { id:16, title:'Amazon — Checkout', url:'amazon.com/checkout', spaceId:0, active:false, children:[] },
+  { id:17, title:'Google Maps — San Francisco', url:'maps.google.com/?q=San+Francisco', spaceId:0, active:false, children:[] },
+];
+
+let collapsedSections = new Set();
+let collapsedTabs = new Set();
+let ctxTab = null;
+
+// ── Render pins ──
+function renderPins() {
+  const g = document.getElementById('pinGrid');
+  g.innerHTML = '';
+  PINS.forEach(p => {
+    const s = document.createElement('div');
+    if (p) {
+      s.className = 'pin-slot filled';
+      const f = document.createElement('div');
+      f.className = 'pin-fav';
+      f.style.background = p.color;
+      f.textContent = p.letter;
+      s.appendChild(f);
+    } else {
+      s.className = 'pin-slot empty';
+    }
+    g.appendChild(s);
+  });
+}
+
+// ── Render a single tab row (recursive) ──
+function renderTabRow(tab, depth, container) {
+  const row = document.createElement('div');
+  row.className = 'tab-row' + (tab.active ? ' is-active' : '');
+  row.dataset.id = tab.id;
+
+  if (tab.active) {
+    const bar = document.createElement('div'); bar.className = 'active-bar'; row.appendChild(bar);
+  } else {
+    const nb = document.createElement('div'); nb.className = 'no-bar'; row.appendChild(nb);
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'indent-wrap';
+  if (depth > 0) {
+    wrap.style.paddingLeft = (depth * 10) + 'px';
+    wrap.style.borderLeft = '1px solid #e8e8e8';
+    wrap.style.marginLeft = ((depth - 1) * 10 + 2) + 'px';
+  }
+
+  const inner = document.createElement('div'); inner.className = 'tab-inner';
+
+  const toggle = document.createElement('div');
+  if (tab.children && tab.children.length > 0) {
+    toggle.className = 'toggle has-children';
+    toggle.textContent = collapsedTabs.has(tab.id) ? '▸' : '▾';
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (collapsedTabs.has(tab.id)) collapsedTabs.delete(tab.id);
+      else collapsedTabs.add(tab.id);
+      renderTree();
+    });
+  } else {
+    toggle.className = 'toggle';
+  }
+
+  const fav = document.createElement('div');
+  fav.className = 'favicon';
+  fav.style.background = fcolor(tab.url);
+  fav.textContent = fletter(tab.title);
+
+  const tw = document.createElement('div'); tw.className = 'tab-title-wrap';
+  const t = document.createElement('div'); t.className = 'tab-title'; t.textContent = tab.title;
+  tw.appendChild(t);
+
+  const close = document.createElement('div'); close.className = 'tab-close'; close.textContent = '✕';
+
+  inner.appendChild(toggle); inner.appendChild(fav); inner.appendChild(tw); inner.appendChild(close);
+  wrap.appendChild(inner); row.appendChild(wrap);
+  container.appendChild(row);
+
+  inner.addEventListener('click', () => {
+    clearActive(tabs); tab.active = true;
+    document.getElementById('footerUrl').textContent = tab.title + ' — ' + tab.url.split('/')[0];
+    renderTree();
+  });
+
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault(); ctxTab = tab;
+    showCtx(e.clientX, e.clientY);
+  });
+
+  if (tab.children && tab.children.length > 0 && !collapsedTabs.has(tab.id)) {
+    tab.children.forEach(c => renderTabRow(c, depth + 1, container));
+  }
+}
+
+function clearActive(arr) {
+  arr.forEach(t => { t.active = false; if (t.children) clearActive(t.children); });
+}
+
+// ── Render the full tree ──
+function renderTree() {
+  const tree = document.getElementById('tree');
+  tree.innerHTML = '';
+
+  SPACES.forEach(sp => {
+    const spTabs = tabs.filter(t => t.spaceId === sp.id);
+    const total = countAll(spTabs);
+    const key = 'sp-' + sp.id;
+    const isCollapsed = collapsedSections.has(key);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'sec-label' + (isCollapsed ? ' collapsed' : '');
+    lbl.innerHTML = `
+      <span class="sec-chev">▾</span>
+      <span class="space-dot" style="background:${sp.color}"></span>
+      <span>${sp.name}</span>
+      <span class="sec-spacer"></span>
+      <span class="sec-count">${total}</span>
+    `;
+    lbl.addEventListener('click', () => {
+      if (collapsedSections.has(key)) collapsedSections.delete(key);
+      else collapsedSections.add(key);
+      renderTree();
+    });
+    tree.appendChild(lbl);
+
+    if (!isCollapsed) {
+      const content = document.createElement('div');
+      spTabs.forEach(t => renderTabRow(t, 0, content));
+      const nt = document.createElement('div'); nt.className = 'new-tab-row';
+      nt.innerHTML = '<div class="new-tab-inner"><span class="new-tab-plus">+</span><span class="new-tab-label">New tab</span></div>';
+      content.appendChild(nt);
+      tree.appendChild(content);
+    }
+  });
+
+  // Ungrouped window
+  const ungrouped = tabs.filter(t => t.spaceId === 0);
+  if (ungrouped.length > 0) {
+    const key = 'win-2'; const isCollapsed = collapsedSections.has(key);
+    const lbl = document.createElement('div');
+    lbl.className = 'sec-label' + (isCollapsed ? ' collapsed' : '');
+    lbl.innerHTML = `
+      <span class="sec-chev">▾</span>
+      <span>window 2</span>
+      <span class="sec-spacer"></span>
+      <span class="sec-count">${ungrouped.length}</span>
+    `;
+    lbl.addEventListener('click', () => {
+      if (collapsedSections.has(key)) collapsedSections.delete(key);
+      else collapsedSections.add(key);
+      renderTree();
+    });
+    tree.appendChild(lbl);
+    if (!isCollapsed) {
+      const content = document.createElement('div');
+      ungrouped.forEach(t => renderTabRow(t, 0, content));
+      const nt = document.createElement('div'); nt.className = 'new-tab-row';
+      nt.innerHTML = '<div class="new-tab-inner"><span class="new-tab-plus">+</span><span class="new-tab-label">New tab</span></div>';
+      content.appendChild(nt);
+      tree.appendChild(content);
+    }
+  }
+}
+
+function countAll(arr) {
+  let n = 0;
+  arr.forEach(t => { n++; if (t.children) n += countAll(t.children); });
+  return n;
+}
+
+// ── Context menu ──
+const ctxEl = document.getElementById('ctxMenu');
+
+function buildMoveMenu() {
+  const m = document.getElementById('moveMenu');
+  m.innerHTML = '';
+  SPACES.forEach(sp => {
+    if (ctxTab && ctxTab.spaceId === sp.id) return; // skip current
+    const item = document.createElement('div');
+    item.className = 'ctx-item';
+    item.innerHTML = `<span style="color:${sp.color}">●</span> &nbsp;${sp.name}`;
+    item.addEventListener('click', () => {
+      if (ctxTab) { ctxTab.spaceId = sp.id; }
+      ctxEl.classList.remove('open');
+      renderTree();
+    });
+    m.appendChild(item);
+  });
+  if (ctxTab && ctxTab.spaceId !== 0) {
+    const sep = document.createElement('div'); sep.className = 'ctx-sep'; m.appendChild(sep);
+    const rm = document.createElement('div'); rm.className = 'ctx-item';
+    rm.style.color = '#bbb'; rm.textContent = '✕  Remove from spaces';
+    rm.addEventListener('click', () => {
+      if (ctxTab) ctxTab.spaceId = 0;
+      ctxEl.classList.remove('open'); renderTree();
+    });
+    m.appendChild(rm);
+  }
+}
+
+function showCtx(x, y) {
+  buildMoveMenu();
+  ctxEl.style.left = Math.min(x, window.innerWidth - 200) + 'px';
+  ctxEl.style.top  = Math.min(y, window.innerHeight - 240) + 'px';
+  ctxEl.classList.add('open');
+}
+
+document.addEventListener('click', () => ctxEl.classList.remove('open'));
+
+// ── Search ──
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('.tab-row').forEach(row => {
+    if (!q) { row.style.display = ''; return; }
+    const title = row.querySelector('.tab-title')?.textContent.toLowerCase() || '';
+    row.style.display = title.includes(q) ? '' : 'none';
+  });
+});
+
+// ── Init ──
+renderPins();
+renderTree();
+</script>
+</body>
+</html>

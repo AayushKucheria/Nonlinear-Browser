@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE: group-select-toolbar.html
+  ═══════════════════════════════════════════════════════════════════
+  TAB GROUPING — Select-mode toggle + floating action toolbar
+
+  Design choices:
+  - "Select" mode button (checkbox icon ☑) in the header. Click it to enter
+    multi-select mode. Click again to exit.
+  - In select mode: single click on any tab SELECTS it (doesn't activate);
+    a subtle checkbox circle appears on the left of each row.
+  - Shift+click: range-select from the last touched tab to current.
+  - A floating action toolbar slides up from the bottom of the tree area
+    when ≥1 tab is selected: [📁 Group (N)] [💤 Suspend] [✕ Close]
+  - "📁 Group" opens an inline popover anchored to the toolbar button.
+  - Group node appearance: SECTION-HEADER style (different from folder-icon).
+    Subtle tinted background, colored left accent border (4px), all-caps
+    group name in small font, count chip on right. More like a Notion section
+    than a folder. Children appear indented below with matching left border.
+  - Right-click a group header: Rename / Ungroup / Delete
+  ═══════════════════════════════════════════════════════════════════
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nonlinear — Groups: Select Toolbar</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px; background: #fff; color: #1c1c1e;
+  width: 300px; height: 600px;
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid #ddd; border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.10);
+}
+
+/* ── Header ── */
+.header { background: #f9f9f9; border-bottom: 1px solid #e5e5e5; padding: 8px 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.header-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #aaa; flex: 1; }
+.icon-btn { width: 22px; height: 22px; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: #bbb; font-size: 13px; transition: background 0.1s, color 0.1s; }
+.icon-btn:hover { background: #eee; color: #444; }
+.icon-btn.active { background: #eef2ff; color: #6366f1; }
+
+/* ── Select-mode banner ── */
+#selectBanner { background: #f5f3ff; border-bottom: 1px solid #ddd6fe; padding: 5px 10px; font-size: 10px; color: #7c3aed; display: none; flex-shrink: 0; align-items: center; gap: 6px; }
+#selectBanner.visible { display: flex; }
+.banner-icon { font-size: 12px; }
+.banner-hint { flex: 1; }
+.banner-done { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #7c3aed; color: #fff; cursor: pointer; border: none; font-family: inherit; }
+.banner-done:hover { background: #6d28d9; }
+
+/* ── Search ── */
+.search-row { padding: 6px 8px; background: #f9f9f9; border-bottom: 1px solid #e5e5e5; flex-shrink: 0; }
+.search { width: 100%; padding: 5px 8px; background: #fff; border: 1px solid #ddd; border-radius: 4px; color: #111; font-family: inherit; font-size: 11px; outline: none; }
+.search::placeholder { color: #ccc; }
+.search:focus { border-color: #6366f1; }
+
+/* ── Tree wrap (relative for floating toolbar) ── */
+.tree-wrap { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Tree ── */
+.tree { flex: 1; overflow-y: auto; padding: 4px 0 50px; }
+.tree::-webkit-scrollbar { width: 4px; }
+.tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+/* ── Window label ── */
+.win-label { display: flex; align-items: center; gap: 5px; padding: 8px 8px 3px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #ccc; user-select: none; }
+.win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+.win-count { font-size: 9px; color: #ccc; background: #f3f3f3; padding: 1px 5px; border-radius: 3px; order: 10; }
+
+/* ── Tab row ── */
+.tab-row { display: flex; align-items: stretch; min-height: 24px; cursor: default; position: relative; border-top: 2px solid transparent; border-bottom: 2px solid transparent; transition: opacity 0.1s; }
+.tab-row:hover .tab-inner { background: #f4f4f5; }
+.tab-row.is-active .tab-inner { background: #eff6ff; }
+.tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+
+/* Checkbox circle — shown in select mode */
+.tab-check {
+  width: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.12s;
+}
+.select-mode .tab-check { opacity: 1; }
+.check-circle {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 1.5px solid #d0d0d0; background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; color: #fff; flex-shrink: 0;
+  transition: background 0.1s, border-color 0.1s;
+}
+.tab-row.is-selected .check-circle { background: #6366f1; border-color: #6366f1; }
+.tab-row.is-selected .check-circle::after { content: '✓'; }
+
+/* SELECTION */
+.tab-row.is-selected .tab-inner { background: #f0f4ff; }
+.tab-row.is-selected .tab-title { color: #3730a3; }
+.select-mode .tab-row { cursor: pointer; }
+
+.active-bar { width: 2px; align-self: stretch; background: #2563eb; border-radius: 1px; flex-shrink: 0; margin: 4px 0; }
+.indent-wrap { flex: 1; display: flex; align-items: stretch; min-width: 0; }
+.tab-inner { flex: 1; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px; border-radius: 4px; margin-right: 4px; min-width: 0; }
+.toggle { width: 10px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 9px; color: #bbb; }
+.toggle.clickable { cursor: pointer; }
+.toggle.clickable:hover { color: #555; }
+.favicon { width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0; font-size: 6.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; color: #fff; user-select: none; overflow: hidden; }
+.tab-title-wrap { flex: 1; min-width: 0; overflow: hidden; }
+.tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; color: #222; line-height: 24px; }
+.tab-close { opacity: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0; cursor: pointer; }
+.tab-row:hover .tab-close { opacity: 1; }
+.select-mode .tab-close { display: none; }
+.tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+/* ── GROUP ROW — section-header style ── */
+.group-row {
+  display: flex; align-items: stretch;
+  cursor: default;
+  border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+}
+.group-accent {
+  width: 4px; align-self: stretch; flex-shrink: 0;
+  border-radius: 0 0 0 0;
+  margin: 0;
+}
+.group-content {
+  flex: 1; display: flex; align-items: center; gap: 5px;
+  padding: 5px 8px 5px 6px; min-width: 0;
+  border-radius: 0 4px 4px 0;
+}
+.group-row:hover .group-content { background: #fafafa; }
+.group-toggle { font-size: 8px; color: #ccc; cursor: pointer; flex-shrink: 0; width: 10px; }
+.group-toggle:hover { color: #777; }
+.group-label-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.group-label {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.group-sublabel { font-size: 9px; color: #bbb; margin-top: 0; display: none; }
+.group-count { font-size: 9px; color: #bbb; background: #f0f0f0; padding: 1px 5px; border-radius: 10px; flex-shrink: 0; white-space: nowrap; }
+.group-close { opacity: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0; cursor: pointer; }
+.group-row:hover .group-close { opacity: 1; }
+.group-close:hover { background: #fee2e2; color: #dc2626; }
+
+/* Colored border below group accent when open */
+.group-children-wrap {
+  border-left: 2px solid;
+  margin-left: 3px;
+}
+
+/* ── New tab row ── */
+.new-tab-row { display: flex; align-items: center; min-height: 22px; cursor: pointer; }
+.new-tab-row:hover .new-tab-inner { background: #f4f4f5; }
+.new-tab-inner { flex: 1; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 22px; border-radius: 4px; margin-right: 4px; }
+.new-tab-plus { font-size: 13px; color: #d0d0d0; width: 14px; text-align: center; flex-shrink: 0; }
+.new-tab-label { font-size: 11px; color: #d0d0d0; }
+.new-tab-row:hover .new-tab-plus, .new-tab-row:hover .new-tab-label { color: #aaa; }
+
+/* ── Floating action toolbar ── */
+#actionToolbar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-top: 1px solid #e8e8e8;
+  padding: 7px 10px;
+  display: flex; align-items: center; gap: 6px;
+  transform: translateY(100%);
+  transition: transform 0.18s cubic-bezier(.2,.8,.3,1);
+  z-index: 100;
+}
+#actionToolbar.visible { transform: translateY(0); }
+.toolbar-count { font-size: 10px; color: #888; flex: 1; }
+.toolbar-count strong { color: #333; }
+.tool-btn {
+  font-family: inherit; font-size: 10.5px; padding: 4px 10px;
+  border-radius: 5px; cursor: pointer; border: 1px solid #e0e0e0;
+  background: #fff; color: #444; white-space: nowrap;
+  transition: background 0.1s;
+}
+.tool-btn:hover { background: #f4f4f5; }
+.tool-btn.primary { background: #6366f1; border-color: #6366f1; color: #fff; }
+.tool-btn.primary:hover { background: #4f46e5; }
+.tool-btn.danger:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+
+/* ── Group creation popover ── */
+#groupPopover {
+  display: none; position: fixed; z-index: 1001;
+  background: #fff; border: 1px solid #e0e0e0;
+  border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.15);
+  padding: 12px 14px; width: 220px; font-family: inherit;
+}
+#groupPopover h4 { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #bbb; margin-bottom: 8px; }
+#groupNameInput { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit; font-size: 11.5px; outline: none; color: #111; margin-bottom: 8px; }
+#groupNameInput:focus { border-color: #6366f1; }
+.color-swatches { display: flex; gap: 5px; margin-bottom: 10px; }
+.swatch { width: 16px; height: 16px; border-radius: 50%; cursor: pointer; border: 2.5px solid transparent; transition: transform 0.1s; }
+.swatch:hover { transform: scale(1.2); }
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #999; }
+.popover-footer { display: flex; gap: 6px; justify-content: flex-end; }
+.btn-sm { padding: 4px 10px; border-radius: 5px; font-family: inherit; font-size: 11px; cursor: pointer; border: none; }
+.btn-cancel { background: #f4f4f5; color: #666; }
+.btn-cancel:hover { background: #e8e8e8; }
+.btn-create { background: #6366f1; color: #fff; }
+.btn-create:hover { background: #4f46e5; }
+
+/* ── Context menu ── */
+#ctxMenu { display: none; position: fixed; z-index: 999; background: #fff; border: 1px solid #e0e0e0; border-radius: 7px; box-shadow: 0 6px 20px rgba(0,0,0,.13); min-width: 178px; padding: 4px 0; font-size: 11.5px; font-family: inherit; }
+.ctx-item { padding: 7px 14px; cursor: pointer; color: #1c1c1e; white-space: nowrap; }
+.ctx-item:hover { background: #f4f4f5; }
+.ctx-danger:hover { background: #fef2f2; color: #dc2626; }
+.ctx-sep { height: 1px; background: #e5e7eb; margin: 3px 0; }
+
+/* ── Footer ── */
+.footer { border-top: 1px solid #e5e5e5; background: #f9f9f9; padding: 6px 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.footer-url { flex: 1; font-size: 9.5px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.footer-btn { font-family: inherit; font-size: 10px; color: #888; cursor: pointer; padding: 3px 8px; border-radius: 4px; border: 1px solid #e0e0e0; background: #fff; }
+.footer-btn:hover { border-color: #6366f1; color: #6366f1; }
+
+/* ── Usage hint ── */
+#usageHint { padding: 8px 12px; background: #f0fdf4; border-bottom: 1px solid #bbf7d0; font-size: 10px; color: #166534; flex-shrink: 0; line-height: 1.5; }
+#usageHint span { opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<div id="usageHint">
+  <strong>Try it:</strong> click ☑ in the header to enter select mode,<br>
+  <span>then click tabs to select them, then use the toolbar to group</span>
+</div>
+
+<div class="header">
+  <span class="header-title">nonlinear browser</span>
+  <button class="icon-btn" title="Collapse all">⊟</button>
+  <button class="icon-btn" id="selectModeBtn" title="Enter select mode (multi-select tabs)">☑</button>
+  <button class="icon-btn" style="font-weight:300" title="Close">—</button>
+</div>
+
+<div id="selectBanner">
+  <span class="banner-icon">☑</span>
+  <span class="banner-hint">Click tabs to select · Shift+click to range-select</span>
+  <button class="banner-done" id="bannerDone">Done</button>
+</div>
+
+<div class="search-row">
+  <input class="search" placeholder="/ filter…">
+</div>
+
+<div class="tree-wrap">
+  <div class="tree" id="tree"></div>
+
+  <!-- Floating action toolbar -->
+  <div id="actionToolbar">
+    <span class="toolbar-count"><strong id="toolbarCount">0</strong> tabs selected</span>
+    <button class="tool-btn" id="toolSuspend">💤 Suspend</button>
+    <button class="tool-btn danger" id="toolClose">✕ Close</button>
+    <button class="tool-btn primary" id="toolGroup">📁 Group…</button>
+  </div>
+</div>
+
+<div class="footer">
+  <span class="footer-url" id="footerUrl">hover a tab to see URL</span>
+  <button class="footer-btn">save</button>
+</div>
+
+<!-- Context menu -->
+<div id="ctxMenu">
+  <div class="ctx-item" id="ctxRename">✎ &nbsp;Rename Tab</div>
+  <div class="ctx-item" id="ctxCopy">⎘ &nbsp;Copy URL</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-danger" id="ctxClose">✕ &nbsp;Close Tab</div>
+  <div class="ctx-item" id="ctxRenameGroup" style="display:none">✎ &nbsp;Rename Group</div>
+  <div class="ctx-item" id="ctxUngroup" style="display:none">↑ &nbsp;Ungroup (promote tabs)</div>
+  <div class="ctx-sep" id="ctxGroupSep" style="display:none"></div>
+  <div class="ctx-item ctx-danger" id="ctxDeleteGroup" style="display:none">🗑 &nbsp;Delete Group + Tabs</div>
+</div>
+
+<!-- Group popover -->
+<div id="groupPopover">
+  <h4>New Group</h4>
+  <input id="groupNameInput" placeholder="Group name…" autocomplete="off" spellcheck="false">
+  <div class="color-swatches" id="colorSwatches"></div>
+  <div class="popover-footer">
+    <button class="btn-sm btn-cancel" id="popoverCancel">Cancel</button>
+    <button class="btn-sm btn-create" id="popoverCreate">Create group</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─── Data model ────────────────────────────────────────────────────────────────
+let tree = {
+  windows: [
+    {
+      id: 1, name: 'Work',
+      items: [
+        { id: 't1', title: 'Nonlinear Browser — PR #42', fav: 'G', bg: '#24292f', active: true, url: 'github.com/user/nonlinear/pull/42', children: [
+            { id: 't2', title: 'renderer.js · 3 changes', fav: 'G', bg: '#24292f', url: 'github.com/user/nonlinear/blob/renderer.js', children: [] }
+          ]
+        },
+        { id: 'group1', type: 'group', name: 'Sprint Planning', color: '#8b5cf6', url: '',
+          children: [
+            { id: 't3', title: 'Linear — Sprint 23 board', fav: 'L', bg: '#5e6ad2', url: 'linear.app/team/sprint-23', children: [] },
+            { id: 't4', title: 'Notion — Architecture notes', fav: 'N', bg: '#191919', url: 'notion.so/arch-notes', children: [] }
+          ]
+        },
+        { id: 't5', title: 'Figma — Sidebar redesign', fav: 'F', bg: '#f24e1e', url: 'figma.com/file/sidebar', children: [] },
+        { id: 't6', title: 'Slack — #dev-frontend', fav: 'S', bg: '#4a154b', url: 'app.slack.com/dev-frontend', children: [] }
+      ]
+    },
+    {
+      id: 2, name: 'Personal',
+      items: [
+        { id: 't7', title: 'YouTube — Lo-fi study mix', fav: 'Y', bg: '#ff0000', url: 'youtube.com/watch?v=lofi', children: [] },
+        { id: 't8', title: 'Gmail — Inbox (3 unread)', fav: 'G', bg: '#ea4335', url: 'mail.google.com/inbox', children: [] },
+        { id: 't9', title: 'Twitter / X — Home', fav: 'X', bg: '#000', url: 'x.com/home', children: [] },
+        { id: 't10', title: 'Hacker News', fav: 'Y', bg: '#ff6600', url: 'news.ycombinator.com', children: [] }
+      ]
+    }
+  ]
+};
+
+let selectMode = false;
+let selectedIds = new Set();
+let collapsedIds = new Set();
+let lastSelectedId = null;   // for shift+click range select
+let ctxTarget = null;
+
+const GROUP_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981'];
+let pendingGroupColor = GROUP_COLORS[0];
+
+// ─── Select mode toggle ───────────────────────────────────────────────────────
+document.getElementById('selectModeBtn').addEventListener('click', () => {
+  selectMode = !selectMode;
+  if (!selectMode) { selectedIds.clear(); lastSelectedId = null; }
+  updateSelectModeUI();
+  renderAll();
+});
+document.getElementById('bannerDone').addEventListener('click', () => {
+  selectMode = false; selectedIds.clear(); lastSelectedId = null;
+  updateSelectModeUI(); renderAll();
+});
+
+function updateSelectModeUI() {
+  const btn = document.getElementById('selectModeBtn');
+  const banner = document.getElementById('selectBanner');
+  if (selectMode) {
+    btn.classList.add('active');
+    banner.classList.add('visible');
+    document.getElementById('tree').classList.add('select-mode');
+  } else {
+    btn.classList.remove('active');
+    banner.classList.remove('visible');
+    document.getElementById('tree').classList.remove('select-mode');
+  }
+  updateToolbar();
+}
+
+function updateToolbar() {
+  const tb = document.getElementById('actionToolbar');
+  const n = selectedIds.size;
+  if (n > 0) {
+    tb.classList.add('visible');
+    document.getElementById('toolbarCount').textContent = n;
+    document.getElementById('toolGroup').textContent = `📁 Group ${n}…`;
+  } else {
+    tb.classList.remove('visible');
+  }
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderAll() {
+  const container = document.getElementById('tree');
+  container.innerHTML = '';
+  for (const win of tree.windows) renderWindow(win, container);
+  if (selectMode) container.classList.add('select-mode');
+}
+
+function renderWindow(win, container) {
+  const label = document.createElement('div');
+  label.className = 'win-label';
+  label.innerHTML = `<span style="font-size:8px;color:#ddd">▾</span>&nbsp;${win.name}<span class="win-count">${countOpen(win.items)}</span>`;
+  container.appendChild(label);
+
+  const newRow = document.createElement('div'); newRow.className = 'new-tab-row';
+  newRow.innerHTML = '<div class="new-tab-inner"><span class="new-tab-plus">+</span><span class="new-tab-label">New tab</span></div>';
+  container.appendChild(newRow);
+
+  for (const item of win.items) renderItem(item, 0, win.items, container);
+}
+
+function countOpen(items) {
+  let n = 0;
+  for (const item of items) {
+    if (item.type === 'group') n += countOpen(item.children);
+    else { n++; if (item.children) n += countOpen(item.children); }
+  }
+  return n;
+}
+
+function renderItem(item, depth, siblingList, container) {
+  if (item.type === 'group') renderGroup(item, depth, siblingList, container);
+  else renderTab(item, depth, siblingList, container);
+}
+
+function renderTab(tab, depth, siblingList, container) {
+  const row = document.createElement('div');
+  row.className = 'tab-row' +
+    (tab.active ? ' is-active' : '') +
+    (selectedIds.has(tab.id) ? ' is-selected' : '');
+  row.dataset.id = tab.id;
+
+  // Checkbox circle (visible in select mode via CSS)
+  const check = document.createElement('div'); check.className = 'tab-check';
+  const circle = document.createElement('div'); circle.className = 'check-circle';
+  check.appendChild(circle); row.appendChild(check);
+
+  if (tab.active && !selectMode) {
+    const bar = document.createElement('div'); bar.className = 'active-bar'; row.appendChild(bar);
+  }
+
+  const indentWrap = document.createElement('div'); indentWrap.className = 'indent-wrap';
+  if (depth > 0) {
+    indentWrap.style.paddingLeft = (depth * 10) + 'px';
+    indentWrap.style.borderLeft = '1px solid #e8e8e8';
+    indentWrap.style.marginLeft = ((depth - 1) * 10 + 2) + 'px';
+  }
+
+  const inner = document.createElement('div'); inner.className = 'tab-inner';
+
+  const tog = document.createElement('span');
+  tog.className = 'toggle' + (tab.children && tab.children.length ? ' clickable' : '');
+  if (tab.children && tab.children.length) {
+    tog.textContent = collapsedIds.has(tab.id) ? '▶' : '▾';
+    tog.addEventListener('click', e => { e.stopPropagation(); collapsedIds.has(tab.id) ? collapsedIds.delete(tab.id) : collapsedIds.add(tab.id); renderAll(); });
+  }
+  inner.appendChild(tog);
+
+  const fav = document.createElement('span'); fav.className = 'favicon';
+  fav.style.background = tab.bg; fav.textContent = tab.fav;
+  inner.appendChild(fav);
+
+  const tw = document.createElement('span'); tw.className = 'tab-title-wrap';
+  const tl = document.createElement('span'); tl.className = 'tab-title'; tl.textContent = tab.title;
+  tw.appendChild(tl); inner.appendChild(tw);
+
+  const cls = document.createElement('span'); cls.className = 'tab-close'; cls.textContent = '🗑';
+  cls.addEventListener('click', e => { e.stopPropagation(); removeItem(tab.id); });
+  inner.appendChild(cls);
+
+  indentWrap.appendChild(inner); row.appendChild(indentWrap);
+
+  row.addEventListener('click', e => {
+    e.stopPropagation();
+    if (selectMode) {
+      if (e.shiftKey && lastSelectedId) {
+        rangeSelect(tab.id);
+      } else {
+        if (selectedIds.has(tab.id)) selectedIds.delete(tab.id);
+        else selectedIds.add(tab.id);
+        lastSelectedId = tab.id;
+      }
+      renderAll(); updateToolbar();
+    } else {
+      activateTab(tab.id);
+    }
+  });
+
+  row.addEventListener('mouseenter', () => { document.getElementById('footerUrl').textContent = tab.url || ''; });
+  row.addEventListener('mouseleave', () => { document.getElementById('footerUrl').textContent = ''; });
+  row.addEventListener('contextmenu', e => { e.preventDefault(); showCtxMenu(e, { type: 'tab', item: tab, parentItems: siblingList }); });
+
+  container.appendChild(row);
+
+  if (!collapsedIds.has(tab.id) && tab.children && tab.children.length) {
+    for (const child of tab.children) renderItem(child, depth + 1, tab.children, container);
+  }
+}
+
+function renderGroup(group, depth, siblingList, container) {
+  // Group header row
+  const row = document.createElement('div');
+  row.className = 'group-row';
+  row.dataset.id = group.id;
+
+  // Colored left accent
+  const accent = document.createElement('div'); accent.className = 'group-accent';
+  accent.style.background = group.color; row.appendChild(accent);
+
+  // Indent if needed
+  if (depth > 0) {
+    row.style.paddingLeft = (depth * 10) + 'px';
+  }
+
+  const content = document.createElement('div'); content.className = 'group-content';
+  // Add a subtle background tint based on color
+  content.style.background = hexToAlpha(group.color, 0.04);
+
+  const tog = document.createElement('span'); tog.className = 'group-toggle';
+  tog.textContent = collapsedIds.has(group.id) ? '▶' : '▾';
+  tog.addEventListener('click', e => { e.stopPropagation(); collapsedIds.has(group.id) ? collapsedIds.delete(group.id) : collapsedIds.add(group.id); renderAll(); });
+  content.appendChild(tog);
+
+  const labelWrap = document.createElement('div'); labelWrap.className = 'group-label-wrap';
+  const label = document.createElement('div'); label.className = 'group-label';
+  label.style.color = group.color; label.textContent = group.name;
+  labelWrap.appendChild(label); content.appendChild(labelWrap);
+
+  const count = document.createElement('span'); count.className = 'group-count'; count.textContent = group.children.length + ' tabs';
+  content.appendChild(count);
+
+  const cls = document.createElement('span'); cls.className = 'group-close'; cls.textContent = '🗑';
+  cls.addEventListener('click', e => { e.stopPropagation(); removeItem(group.id); });
+  content.appendChild(cls);
+
+  row.appendChild(content);
+
+  row.addEventListener('contextmenu', e => { e.preventDefault(); showCtxMenu(e, { type: 'group', item: group, parentItems: siblingList }); });
+  container.appendChild(row);
+
+  // Children with matching left border
+  if (!collapsedIds.has(group.id) && group.children.length) {
+    const wrap = document.createElement('div'); wrap.className = 'group-children-wrap';
+    wrap.style.borderLeftColor = hexToAlpha(group.color, 0.3);
+
+    for (const child of group.children) {
+      renderItem(child, depth + 1, group.children, wrap);
+    }
+    container.appendChild(wrap);
+  }
+}
+
+// ─── Range select ──────────────────────────────────────────────────────────────
+function rangeSelect(toId) {
+  // Build a flat list of all selectable tab IDs in DOM order
+  const allRows = [...document.querySelectorAll('.tab-row[data-id]')];
+  const allIds = allRows.map(r => r.dataset.id);
+  const fromIdx = allIds.indexOf(lastSelectedId);
+  const toIdx = allIds.indexOf(toId);
+  if (fromIdx === -1 || toIdx === -1) { selectedIds.add(toId); return; }
+  const lo = Math.min(fromIdx, toIdx), hi = Math.max(fromIdx, toIdx);
+  for (let i = lo; i <= hi; i++) selectedIds.add(allIds[i]);
+  lastSelectedId = toId;
+}
+
+// ─── Toolbar actions ──────────────────────────────────────────────────────────
+document.getElementById('toolGroup').addEventListener('click', () => {
+  if (selectedIds.size === 0) return;
+  showGroupPopover();
+});
+document.getElementById('toolClose').addEventListener('click', () => {
+  for (const id of selectedIds) removeItem(id);
+  selectedIds.clear(); updateToolbar(); renderAll();
+});
+document.getElementById('toolSuspend').addEventListener('click', () => {
+  // Visual feedback only (no real suspend in prototype)
+  selectedIds.clear(); updateToolbar(); renderAll();
+  flashMessage('Tabs suspended (prototype demo)');
+});
+
+// ─── Context menu ─────────────────────────────────────────────────────────────
+function showCtxMenu(e, target) {
+  ctxTarget = target;
+  const menu = document.getElementById('ctxMenu');
+  const isGroup = target.type === 'group';
+  document.getElementById('ctxRename').style.display = isGroup ? 'none' : '';
+  document.getElementById('ctxCopy').style.display = isGroup ? 'none' : '';
+  document.getElementById('ctxClose').style.display = isGroup ? 'none' : '';
+  document.getElementById('ctxRenameGroup').style.display = isGroup ? '' : 'none';
+  document.getElementById('ctxUngroup').style.display = isGroup ? '' : 'none';
+  document.getElementById('ctxGroupSep').style.display = isGroup ? '' : 'none';
+  document.getElementById('ctxDeleteGroup').style.display = isGroup ? '' : 'none';
+
+  menu.style.display = 'block';
+  let x = e.clientX, y = e.clientY;
+  if (x + 180 > window.innerWidth) x = window.innerWidth - 184;
+  if (y + 180 > window.innerHeight) y = window.innerHeight - 184;
+  menu.style.left = x + 'px'; menu.style.top = y + 'px';
+}
+
+function hideCtxMenu() { document.getElementById('ctxMenu').style.display = 'none'; ctxTarget = null; }
+
+document.getElementById('ctxRename').addEventListener('click', () => {
+  if (!ctxTarget) return; const item = ctxTarget.item; hideCtxMenu();
+  const row = document.querySelector(`[data-id="${item.id}"] .tab-title`);
+  if (!row) return;
+  row.contentEditable = 'true'; row.focus();
+  const range = document.createRange(); range.selectNodeContents(row);
+  window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+  row.addEventListener('blur', () => { row.contentEditable = 'false'; item.title = row.textContent; renderAll(); }, { once: true });
+  row.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); row.blur(); } }, { once: true });
+});
+document.getElementById('ctxClose').addEventListener('click', () => { const t = ctxTarget; hideCtxMenu(); if (t) removeItem(t.item.id); });
+document.getElementById('ctxRenameGroup').addEventListener('click', () => {
+  if (!ctxTarget) return; const g = ctxTarget.item; hideCtxMenu();
+  const el = document.querySelector(`[data-id="${g.id}"] .group-label`);
+  if (!el) return;
+  el.contentEditable = 'true'; el.focus();
+  const r = document.createRange(); r.selectNodeContents(el);
+  window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+  el.addEventListener('blur', () => { el.contentEditable = 'false'; g.name = el.textContent.trim() || g.name; renderAll(); }, { once: true });
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } }, { once: true });
+});
+document.getElementById('ctxUngroup').addEventListener('click', () => { const t = ctxTarget; hideCtxMenu(); if (t) ungroupGroup(t.item, t.parentItems); });
+document.getElementById('ctxDeleteGroup').addEventListener('click', () => { const t = ctxTarget; hideCtxMenu(); if (t) removeItem(t.item.id); });
+document.addEventListener('click', e => {
+  if (!document.getElementById('ctxMenu').contains(e.target)) hideCtxMenu();
+  if (!document.getElementById('groupPopover').contains(e.target) && e.target.id !== 'toolGroup') hideGroupPopover();
+});
+
+// ─── Group popover ────────────────────────────────────────────────────────────
+function showGroupPopover() {
+  const pop = document.getElementById('groupPopover');
+  document.getElementById('groupNameInput').value = '';
+  const sw = document.getElementById('colorSwatches');
+  sw.innerHTML = '';
+  pendingGroupColor = GROUP_COLORS[0];
+  for (const c of GROUP_COLORS) {
+    const s = document.createElement('div'); s.className = 'swatch' + (c === pendingGroupColor ? ' active' : '');
+    s.style.background = c;
+    s.addEventListener('click', () => { sw.querySelectorAll('.swatch').forEach(x => x.classList.remove('active')); s.classList.add('active'); pendingGroupColor = c; });
+    sw.appendChild(s);
+  }
+  const tb = document.getElementById('actionToolbar');
+  const rect = tb.getBoundingClientRect();
+  pop.style.display = 'block';
+  pop.style.left = rect.left + 'px';
+  pop.style.top = (rect.top - 160) + 'px';
+  document.getElementById('groupNameInput').focus();
+}
+
+function hideGroupPopover() { document.getElementById('groupPopover').style.display = 'none'; }
+document.getElementById('popoverCancel').addEventListener('click', hideGroupPopover);
+document.getElementById('popoverCreate').addEventListener('click', commitCreateGroup);
+document.getElementById('groupNameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') commitCreateGroup();
+  if (e.key === 'Escape') hideGroupPopover();
+});
+
+function commitCreateGroup() {
+  const name = document.getElementById('groupNameInput').value.trim() || 'Group';
+  hideGroupPopover();
+  createGroupFromSelection(name, pendingGroupColor);
+}
+
+// ─── Group creation ────────────────────────────────────────────────────────────
+function createGroupFromSelection(name, color) {
+  if (selectedIds.size === 0) return;
+  let insertionList = null, firstIndex = Infinity;
+  let selectedItems = [];
+
+  function search(items) {
+    for (let i = 0; i < items.length; i++) {
+      if (selectedIds.has(items[i].id)) {
+        if (!insertionList) insertionList = items;
+        if (insertionList === items) {
+          firstIndex = Math.min(firstIndex, i);
+          selectedItems.push({ item: items[i], list: items, index: i });
+        }
+      }
+      if (items[i].children) search(items[i].children);
+    }
+  }
+  for (const win of tree.windows) search(win.items);
+  if (!insertionList || !selectedItems.length) return;
+
+  const group = { id: 'group_' + Date.now(), type: 'group', name, color, url: '', children: selectedItems.map(s => s.item) };
+  const toRemove = selectedItems.slice().sort((a, b) => b.index - a.index);
+  for (const s of toRemove) { const idx = s.list.indexOf(s.item); if (idx !== -1) s.list.splice(idx, 1); }
+  insertionList.splice(Math.min(firstIndex, insertionList.length), 0, group);
+
+  selectedIds.clear(); lastSelectedId = null; selectMode = false;
+  updateSelectModeUI(); renderAll();
+
+  // Flash highlight the new group
+  setTimeout(() => {
+    const el = document.querySelector(`[data-id="${group.id}"] .group-content`);
+    if (el) { el.style.transition = 'background 0.4s'; el.style.background = hexToAlpha(color, 0.15); setTimeout(() => { el.style.background = hexToAlpha(color, 0.04); }, 600); }
+  }, 20);
+}
+
+// ─── Ungroup ───────────────────────────────────────────────────────────────────
+function ungroupGroup(group, parentList) {
+  const idx = parentList.indexOf(group);
+  if (idx === -1) return;
+  parentList.splice(idx, 1, ...group.children);
+  renderAll();
+}
+
+// ─── Remove item ───────────────────────────────────────────────────────────────
+function removeItem(id) {
+  function rm(items) { for (let i = 0; i < items.length; i++) { if (items[i].id === id) { items.splice(i, 1); return true; } if (items[i].children && rm(items[i].children)) return true; } return false; }
+  for (const win of tree.windows) rm(win.items);
+  renderAll();
+}
+
+// ─── Activate tab ──────────────────────────────────────────────────────────────
+function activateTab(id) {
+  function walk(items) { for (const item of items) { if (item.type !== 'group') item.active = (item.id === id); if (item.children) walk(item.children); } }
+  for (const win of tree.windows) walk(win.items);
+  renderAll();
+}
+
+// ─── Flash message ─────────────────────────────────────────────────────────────
+function flashMessage(msg) {
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;font-size:10px;padding:5px 12px;border-radius:5px;pointer-events:none;z-index:9999;';
+  div.textContent = msg; document.body.appendChild(div);
+  setTimeout(() => div.remove(), 1800);
+}
+
+// ─── Utilities ─────────────────────────────────────────────────────────────────
+function hexToAlpha(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ─── Keyboard ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (selectMode) { selectMode = false; selectedIds.clear(); lastSelectedId = null; updateSelectModeUI(); renderAll(); }
+    hideCtxMenu(); hideGroupPopover();
+  }
+});
+
+// ─── Initial render ────────────────────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>

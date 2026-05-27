@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Background -->
+  <rect width="128" height="128" rx="22" fill="#1c1c1e"/>
+
+  <!-- Tab tree lines — indented list representation -->
+  <!-- Row 1: root tab -->
+  <rect x="18" y="28" width="52" height="10" rx="3" fill="#ffffff" opacity="0.95"/>
+  <!-- active indicator -->
+  <rect x="74" y="28" width="28" height="10" rx="3" fill="#0a84ff" opacity="0.85"/>
+
+  <!-- Row 2: child, depth 1 -->
+  <rect x="18" y="26" width="1.5" height="24" rx="1" fill="#444" opacity="0.8"/>
+  <rect x="18" y="46" width="8" height="1.5" rx="1" fill="#444" opacity="0.8"/>
+  <rect x="28" y="43" width="44" height="10" rx="3" fill="#ffffff" opacity="0.6"/>
+
+  <!-- Row 3: child, depth 1 -->
+  <rect x="18" y="61" width="1.5" height="16" rx="1" fill="#444" opacity="0.8"/>
+  <rect x="18" y="61" width="8" height="1.5" rx="1" fill="#444" opacity="0.8"/>
+  <rect x="28" y="58" width="56" height="10" rx="3" fill="#ffffff" opacity="0.6"/>
+
+  <!-- Row 4: grandchild, depth 2 -->
+  <rect x="28" y="68" width="1.5" height="18" rx="1" fill="#444" opacity="0.6"/>
+  <rect x="28" y="76" width="8" height="1.5" rx="1" fill="#444" opacity="0.6"/>
+  <rect x="38" y="73" width="40" height="10" rx="3" fill="#ffffff" opacity="0.4"/>
+
+  <!-- Row 5: root tab 2 -->
+  <rect x="18" y="90" width="62" height="10" rx="3" fill="#ffffff" opacity="0.6"/>
+</svg>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<!--
+  prototypes/sidebar-new-features.html
+
+  Direction A: All four requested features, faithful to the existing compact light aesthetic.
+
+  Features shown:
+  1. TOGGLE  — Extension icon (⊞) in browser toolbar opens/closes the panel with a slide animation.
+  2. DRAG & DROP — Explicit ⠿ drag handle on each row. Drop-line indicator (purple) shows insertion point.
+               Hovering over middle 40% of a row nests the dragged tab as a child (blue glow).
+               Dragging over a window label moves tab to top of that window.
+  3. URL STATUS BAR — Persistent footer shows the hovered tab's URL (truncated from left so domain is visible).
+               No floating tooltip above the tab.
+  4. CONTEXT MENU — Right-click: Rename Tab (inline edit), Copy URL (clipboard), Close Tab.
+
+  Design choices:
+  - ⠿ handle is the only draggable zone — prevents accidental drags on click
+  - Status bar uses direction:rtl so the end of the URL (path) is always visible
+  - Drop position is determined by mouse Y within the row: top 30% = before, bottom 30% = after, middle = into
+  - Context menu dismisses on click-outside or Escape
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nonlinear — Feature Prototype A</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px; background: #d1d5db;
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  }
+
+  /* ── Browser chrome ─────────────────────────────────────────────────────── */
+  .browser-bar {
+    background: #2d2d30; padding: 7px 12px;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  .traffic { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
+  .dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+  .addr {
+    flex: 1; background: #3e3e42; border-radius: 5px;
+    padding: 4px 10px; color: #ccc; font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ext-btn {
+    width: 30px; height: 30px; border-radius: 6px;
+    background: #6366f1; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: background 0.15s; position: relative;
+    color: #fff; user-select: none;
+  }
+  .ext-btn:hover { background: #4f46e5; }
+  .ext-btn.closed { background: #4b5563; }
+  .ext-btn .tip {
+    position: absolute; top: 36px; right: 0;
+    background: #1c1c1e; color: #e0e0e0; font-size: 10px;
+    padding: 4px 8px; border-radius: 4px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 200;
+  }
+  .ext-btn:hover .tip { opacity: 1; }
+
+  /* ── Page + sidebar layout ──────────────────────────────────────────────── */
+  .content-area { flex: 1; display: flex; overflow: hidden; }
+
+  .fake-page {
+    flex: 1; background: #fff; display: flex; align-items: center; justify-content: center;
+    color: #888; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 40px; overflow-y: auto;
+  }
+  .page-card {
+    max-width: 420px; text-align: center;
+  }
+  .page-card h2 { font-size: 18px; color: #333; margin-bottom: 10px; }
+  .page-card p { font-size: 13px; line-height: 1.6; color: #777; margin-bottom: 16px; }
+  .feature-pill {
+    display: inline-block; background: #f3f4f6; border: 1px solid #e5e7eb;
+    border-radius: 20px; padding: 4px 12px; font-size: 11px; color: #555;
+    margin: 3px; font-family: monospace;
+  }
+
+  /* ── Sidebar ────────────────────────────────────────────────────────────── */
+  .sidebar {
+    width: 280px; flex-shrink: 0; background: #fff;
+    border-left: 1px solid #d1d5db;
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: width 0.22s ease, opacity 0.2s ease;
+  }
+  .sidebar.closed { width: 0; opacity: 0; pointer-events: none; }
+
+  /* header */
+  .s-hdr {
+    background: #f9f9f9; border-bottom: 1px solid #e5e5e5;
+    padding: 8px 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .s-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #aaa; flex: 1; }
+  .s-stats { font-size: 10px; color: #ccc; }
+  .icon-btn {
+    width: 22px; height: 22px; border: none; background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; color: #bbb; font-size: 13px;
+  }
+  .icon-btn:hover { background: #eee; color: #444; }
+
+  /* search */
+  .s-srch-row { padding: 6px 8px; background: #f9f9f9; border-bottom: 1px solid #e5e5e5; flex-shrink: 0; }
+  .s-srch {
+    width: 100%; padding: 5px 8px;
+    background: #fff; border: 1px solid #ddd; border-radius: 4px;
+    color: #111; font-family: inherit; font-size: 11px; outline: none;
+  }
+  .s-srch::placeholder { color: #ccc; }
+  .s-srch:focus { border-color: #6366f1; }
+
+  /* tree scroll */
+  .s-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .s-tree::-webkit-scrollbar { width: 4px; }
+  .s-tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+  /* window label */
+  .win-label {
+    display: flex; align-items: center; gap: 5px;
+    padding: 8px 8px 3px;
+    font-size: 9.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #ccc;
+    cursor: pointer; user-select: none;
+    transition: background 0.1s;
+  }
+  .win-label:hover { color: #aaa; }
+  .win-chev { font-size: 8px; transition: transform 0.12s; }
+  .win-label.collapsed .win-chev { transform: rotate(-90deg); }
+  .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+  .win-count { font-size: 9px; color: #ccc; background: #f3f3f3; padding: 1px 5px; border-radius: 3px; order: 10; }
+  .win-label.dz-win { background: #eff6ff; color: #2563eb; }
+  .win-label.dz-win::after { background: #93c5fd; }
+
+  /* tab row */
+  .tab-row {
+    display: flex; align-items: stretch;
+    min-height: 26px; cursor: pointer; position: relative;
+    border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+  }
+  .tab-row:hover .tab-inner { background: #f4f4f5; }
+  .tab-row.is-active .tab-inner { background: #eff6ff; }
+  .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+  .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; }
+  .tab-row.is-closed .favicon { opacity: 0.35; }
+
+  /* drag states */
+  .tab-row.dragging { opacity: 0.25; pointer-events: none; }
+  .tab-row.dz-before { border-top-color: #6366f1; }
+  .tab-row.dz-after  { border-bottom-color: #6366f1; }
+  .tab-row.dz-into .tab-inner { outline: 1.5px solid #6366f1; border-radius: 4px; background: #eef2ff !important; }
+
+  /* active bar */
+  .active-bar { width: 2px; align-self: stretch; background: #2563eb; border-radius: 1px; flex-shrink: 0; margin: 4px 0; }
+
+  /* tree lines */
+  .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
+  .seg { width: 16px; flex-shrink: 0; position: relative; }
+  .seg.vert::before { content:''; position:absolute; left:8px; top:0; bottom:0; width:1px; background:#e0e0e0; }
+  .seg.branch::before { content:''; position:absolute; left:8px; top:0; bottom:50%; width:1px; background:#e0e0e0; }
+  .seg.branch::after  { content:''; position:absolute; left:8px; top:50%; width:8px; height:1px; background:#e0e0e0; }
+
+  /* inner */
+  .tab-inner {
+    flex: 1; display: flex; align-items: center; gap: 5px;
+    padding: 0 6px 0 2px; border-radius: 4px; margin-right: 4px; min-width: 0;
+  }
+
+  /* drag handle */
+  .drag-h {
+    width: 14px; height: 26px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 11px; color: transparent; cursor: grab;
+    user-select: none;
+  }
+  .tab-row:hover .drag-h { color: #ccc; }
+  .drag-h:hover { color: #888 !important; }
+  .drag-h:active { cursor: grabbing; }
+
+  /* toggle */
+  .toggle {
+    width: 12px; height: 26px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 9px; color: #bbb;
+  }
+  .toggle.has-ch { cursor: pointer; }
+  .toggle.has-ch:hover { color: #555; }
+
+  /* favicon */
+  .favicon {
+    width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0;
+    font-size: 7px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+    color: #fff; user-select: none;
+  }
+
+  /* title */
+  .tab-title {
+    flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 11.5px; color: #222; line-height: 26px;
+  }
+  .tab-title[contenteditable="true"] {
+    outline: none; border-bottom: 1px dashed #6366f1; background: #fafafa;
+    color: #333; padding: 0 2px; line-height: normal;
+  }
+
+  /* close btn */
+  .tab-x {
+    opacity: 0; width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+  }
+  .tab-row:hover .tab-x { opacity: 1; }
+  .tab-x:hover { background: #fee2e2; color: #dc2626; }
+
+  /* ── Footer / URL status bar ───────────────────────────────────────────── */
+  .s-footer {
+    border-top: 1px solid #e5e5e5; background: #f9f9f9;
+    padding: 5px 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .s-url {
+    flex: 1; font-size: 9.5px; color: #bbb;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-style: italic; min-width: 0;
+  }
+  .s-url.live { color: #555; font-style: normal; }
+  .s-save-btn {
+    font-family: inherit; font-size: 10px; color: #888; cursor: pointer;
+    padding: 2px 8px; border-radius: 4px; border: 1px solid #e0e0e0;
+    background: #fff; flex-shrink: 0;
+  }
+  .s-save-btn:hover { border-color: #6366f1; color: #6366f1; }
+
+  /* ── Context menu ──────────────────────────────────────────────────────── */
+  .ctx {
+    position: fixed; z-index: 999; display: none;
+    background: #fff; border: 1px solid #d1d5db; border-radius: 7px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.13); min-width: 164px; padding: 4px 0;
+    font-size: 11.5px;
+  }
+  .ctx.on { display: block; }
+  .ctx-item {
+    padding: 7px 14px; cursor: pointer; color: #1c1c1e;
+    display: flex; align-items: center; gap: 8px; user-select: none;
+  }
+  .ctx-item:hover { background: #f4f4f5; }
+  .ctx-item.red:hover { background: #fef2f2; color: #dc2626; }
+  .ctx-sep { height: 1px; background: #e5e7eb; margin: 3px 0; }
+  .ci { width: 14px; text-align: center; font-size: 12px; opacity: 0.65; }
+
+  /* ── Toast ─────────────────────────────────────────────────────────────── */
+  .toast {
+    position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%);
+    background: #1c1c1e; color: #e5e7eb; font-size: 11px;
+    padding: 5px 14px; border-radius: 6px; white-space: nowrap;
+    opacity: 0; transition: opacity 0.15s; pointer-events: none; z-index: 1000;
+  }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- Browser toolbar -->
+<div class="browser-bar">
+  <div class="traffic">
+    <div class="dot dot-r"></div>
+    <div class="dot dot-y"></div>
+    <div class="dot dot-g"></div>
+  </div>
+  <div class="addr" id="addrBar">https://github.com/anthropics/claude-code</div>
+  <button class="ext-btn" id="extBtn">
+    ⊞
+    <span class="tip">Toggle sidebar (click)</span>
+  </button>
+</div>
+
+<!-- Content -->
+<div class="content-area">
+
+  <!-- Fake page -->
+  <div class="fake-page">
+    <div class="page-card">
+      <h2>Prototype A — All Features</h2>
+      <p>Interact with the sidebar →<br>All four features are wired up and clickable.</p>
+      <div style="margin-top:12px">
+        <span class="feature-pill">⊞ toggle panel</span>
+        <span class="feature-pill">⠿ drag &amp; drop</span>
+        <span class="feature-pill">url bar</span>
+        <span class="feature-pill">right-click menu</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="panel">
+    <div class="s-hdr">
+      <span class="s-title">tabs</span>
+      <span class="s-stats" id="statsEl"></span>
+      <button class="icon-btn" id="collapseBtn" title="Collapse all">⊟</button>
+    </div>
+    <div class="s-srch-row">
+      <input class="s-srch" id="srch" placeholder="/ filter…">
+    </div>
+    <div class="s-tree" id="treeEl"></div>
+    <div class="s-footer">
+      <div class="s-url" id="urlBar">hover a tab to see its URL</div>
+      <button class="s-save-btn">save</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Context menu -->
+<div class="ctx" id="ctxMenu">
+  <div class="ctx-item" id="ctxRename"><span class="ci">✎</span> Rename Tab</div>
+  <div class="ctx-item" id="ctxCopy"><span class="ci">⎘</span> Copy URL</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item red" id="ctxClose"><span class="ci">✕</span> Close Tab</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+const db = {
+  windows: [
+    { id: 1, name: 'Research', collapsed: false, tabs: [
+      { id: 1, title: 'anthropics/claude-code — GitHub', url: 'https://github.com/anthropics/claude-code', ch: 'G', bg: '#24292f', active: true,  del: false, coll: false, children: [
+        { id: 2, title: 'Pull requests · claude-code', url: 'https://github.com/anthropics/claude-code/pulls', ch: 'G', bg: '#24292f', active: false, del: false, coll: false, children: [] },
+        { id: 3, title: 'Issues · claude-code',        url: 'https://github.com/anthropics/claude-code/issues', ch: 'G', bg: '#24292f', active: false, del: false, coll: false, children: [] },
+      ]},
+      { id: 4, title: 'Google Scholar', url: 'https://scholar.google.com', ch: 'S', bg: '#4285f4', active: false, del: false, coll: false, children: [
+        { id: 5, title: 'Attention Is All You Need — arXiv', url: 'https://arxiv.org/abs/1706.03762', ch: 'A', bg: '#b31b1b', active: false, del: false, coll: false, children: [] },
+      ]},
+      { id: 6, title: 'Stack Overflow — JS async/await', url: 'https://stackoverflow.com/questions/14220321', ch: 'S', bg: '#f48024', active: false, del: false, coll: false, children: [] },
+    ]},
+    { id: 2, name: 'Work', collapsed: false, tabs: [
+      { id: 7, title: 'Project Roadmap — Notion', url: 'https://notion.so/workspace/project-roadmap-q1-2026', ch: 'N', bg: '#1c1c1e', active: false, del: false, coll: false, children: [
+        { id: 8, title: 'Sprint Planning Q1 2026', url: 'https://notion.so/workspace/sprint-q1-2026', ch: 'N', bg: '#1c1c1e', active: false, del: false, coll: false, children: [] },
+      ]},
+      { id: 9,  title: 'Slack — #engineering', url: 'https://app.slack.com/client/T01234/C56789', ch: 'S', bg: '#4a154b', active: false, del: false, coll: false, children: [] },
+      { id: 10, title: 'Gmail — Inbox (3 new)', url: 'https://mail.google.com/mail/u/0/#inbox',   ch: 'G', bg: '#ea4335', active: false, del: true,  coll: false, children: [] },
+    ]},
+  ]
+};
+
+// ── Drag state ────────────────────────────────────────────────────────────────
+let drag = { id: null, targetId: null, pos: null }; // pos: 'before'|'after'|'into'
+
+// ── Context menu state ────────────────────────────────────────────────────────
+let ctxTab = null;
+
+// ── Search query ──────────────────────────────────────────────────────────────
+let query = '';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function allWindows() { return db.windows; }
+
+function findTab(id, arr) {
+  if (!arr) { for (const w of db.windows) { const r = findTab(id, w.tabs); if (r) return r; } return null; }
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i].id === id) return { tab: arr[i], siblings: arr, idx: i };
+    const r = findTab(id, arr[i].children);
+    if (r) return r;
+  }
+  return null;
+}
+
+function pluck(id) {
+  const f = findTab(id);
+  if (!f) return null;
+  f.siblings.splice(f.idx, 1);
+  return f.tab;
+}
+
+function countOpen(tabs) {
+  let n = 0;
+  for (const t of tabs) { if (!t.del) n++; n += countOpen(t.children); }
+  return n;
+}
+
+function setActive(id) {
+  function markAll(tabs) { for (const t of tabs) { t.active = t.id === id; markAll(t.children); } }
+  for (const w of db.windows) markAll(w.tabs);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const c = document.getElementById('treeEl');
+  c.innerHTML = '';
+  let open = 0, total = 0;
+
+  for (const win of db.windows) {
+    const visCount = countOpen(win.tabs);
+    open += visCount;
+
+    // Window label
+    const lbl = document.createElement('div');
+    lbl.className = 'win-label' + (win.collapsed ? ' collapsed' : '');
+    lbl.dataset.wid = win.id;
+
+    const chev = document.createElement('span');
+    chev.className = 'win-chev'; chev.textContent = '▾';
+    const nm = document.createElement('span'); nm.textContent = win.name;
+    const ct = document.createElement('span'); ct.className = 'win-count'; ct.textContent = visCount;
+    lbl.appendChild(chev); lbl.appendChild(nm); lbl.appendChild(ct);
+
+    lbl.addEventListener('click', () => { win.collapsed = !win.collapsed; render(); });
+
+    // Drop onto window label = move to this window's top level
+    lbl.addEventListener('dragover', e => {
+      if (!drag.id) return;
+      e.preventDefault();
+      clearDZ();
+      lbl.classList.add('dz-win');
+      drag.targetId = 'win:' + win.id; drag.pos = 'win';
+    });
+    lbl.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!drag.id) return;
+      const tab = pluck(drag.id);
+      if (tab) win.tabs.unshift(tab);
+      endDrag(); render();
+    });
+
+    c.appendChild(lbl);
+
+    if (!win.collapsed) {
+      renderList(win.tabs, 0, [], c, true);
+    }
+    total += (function count(t) { let n = t.length; for (const x of t) n += count(x.children); return n; })(win.tabs);
+  }
+
+  document.getElementById('statsEl').textContent = open + ' open';
+}
+
+function renderList(tabs, depth, ancestors, container, isRoot) {
+  const vis = tabs.filter(t => {
+    if (!isRoot && t.del) return false; // hide closed children
+    if (t.del) return false; // always hide closed tabs for now (toggle later)
+    if (query && !(t.title + t.url).toLowerCase().includes(query)) return false;
+    return true;
+  });
+  for (let i = 0; i < vis.length; i++) {
+    const t = vis[i];
+    const last = i === vis.length - 1;
+    renderRow(t, depth, ancestors, last, container);
+    if (!t.coll && t.children.length) {
+      renderList(t.children, depth + 1, ancestors.concat([!last]), container, false);
+    }
+  }
+}
+
+function renderRow(tab, depth, ancestors, isLast, container) {
+  const row = document.createElement('div');
+  row.className = 'tab-row' +
+    (tab.active ? ' is-active' : '') +
+    (tab.del    ? ' is-closed' : '') +
+    (tab.id === drag.id ? ' dragging' : '') +
+    (tab.id === drag.targetId && drag.pos === 'before' ? ' dz-before' : '') +
+    (tab.id === drag.targetId && drag.pos === 'after'  ? ' dz-after'  : '') +
+    (tab.id === drag.targetId && drag.pos === 'into'   ? ' dz-into'   : '');
+  row.dataset.tid = tab.id;
+
+  // Active left bar
+  if (tab.active) { const bar = document.createElement('div'); bar.className = 'active-bar'; row.appendChild(bar); }
+
+  // Tree lines (depth > 0)
+  if (depth > 0) {
+    const lines = document.createElement('div'); lines.className = 'tree-lines';
+    for (let i = 0; i < depth - 1; i++) {
+      const s = document.createElement('span'); s.className = 'seg' + (ancestors[i] ? ' vert' : ''); lines.appendChild(s);
+    }
+    const br = document.createElement('span'); br.className = 'seg branch'; lines.appendChild(br);
+    row.appendChild(lines);
+  }
+
+  const inner = document.createElement('div'); inner.className = 'tab-inner';
+
+  // Drag handle (only draggable zone)
+  const h = document.createElement('span'); h.className = 'drag-h'; h.textContent = '⠿'; h.title = 'Drag to move';
+  h.draggable = true;
+  h.addEventListener('dragstart', e => {
+    drag.id = tab.id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(tab.id));
+    setTimeout(() => render(), 0); // show "dragging" state
+  });
+  inner.appendChild(h);
+
+  // Toggle
+  const hasCh = tab.children && tab.children.length > 0;
+  const tog = document.createElement('span'); tog.className = 'toggle' + (hasCh ? ' has-ch' : '');
+  if (hasCh) { tog.textContent = tab.coll ? '▶' : '▾'; tog.addEventListener('click', e => { e.stopPropagation(); tab.coll = !tab.coll; render(); }); }
+  inner.appendChild(tog);
+
+  // Favicon
+  const fav = document.createElement('span'); fav.className = 'favicon'; fav.style.background = tab.bg; fav.textContent = tab.ch;
+  inner.appendChild(fav);
+
+  // Title
+  const title = document.createElement('span'); title.className = 'tab-title'; title.textContent = tab.title;
+  inner.appendChild(title);
+
+  // Close ✕
+  const x = document.createElement('span'); x.className = 'tab-x'; x.textContent = '✕';
+  x.addEventListener('click', e => { e.stopPropagation(); tab.del = true; render(); });
+  inner.appendChild(x);
+
+  row.appendChild(inner);
+
+  // Click → activate
+  row.addEventListener('click', e => {
+    if ([h, tog, x].some(el => el.contains(e.target))) return;
+    setActive(tab.id); render();
+  });
+
+  // Hover → URL bar
+  row.addEventListener('mouseenter', () => {
+    const bar = document.getElementById('urlBar');
+    bar.textContent = tab.url || '';
+    bar.className = 's-url live';
+  });
+  row.addEventListener('mouseleave', () => {
+    const bar = document.getElementById('urlBar');
+    bar.textContent = 'hover a tab to see its URL';
+    bar.className = 's-url';
+  });
+
+  // Right-click → context menu
+  row.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    ctxTab = tab;
+    const m = document.getElementById('ctxMenu');
+    const x2 = Math.min(e.clientX, window.innerWidth - 180);
+    const y2 = Math.min(e.clientY, window.innerHeight - 130);
+    m.style.left = x2 + 'px'; m.style.top = y2 + 'px';
+    m.classList.add('on');
+  });
+
+  // Drag-over: determine position
+  row.addEventListener('dragover', e => {
+    if (!drag.id || drag.id === tab.id) return;
+    e.preventDefault();
+    clearDZ();
+    const rect = row.getBoundingClientRect();
+    const pct = (e.clientY - rect.top) / rect.height;
+    drag.targetId = tab.id;
+    drag.pos = pct < 0.3 ? 'before' : pct > 0.7 ? 'after' : 'into';
+    // Partial re-render: just add/remove classes rather than full re-render
+    document.querySelectorAll('.tab-row.dz-before, .tab-row.dz-after, .tab-row.dz-into').forEach(r => r.classList.remove('dz-before','dz-after','dz-into'));
+    row.classList.add('dz-' + drag.pos);
+  });
+
+  row.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!drag.id) return;
+    const dragged = pluck(drag.id);
+    if (!dragged) { endDrag(); return; }
+    const tf = findTab(tab.id);
+    if (!tf) { endDrag(); render(); return; }
+    if (drag.pos === 'before') { tf.siblings.splice(tf.idx, 0, dragged); }
+    else if (drag.pos === 'after') { tf.siblings.splice(tf.idx + 1, 0, dragged); }
+    else { tab.children.unshift(dragged); tab.coll = false; }
+    endDrag(); render();
+  });
+
+  container.appendChild(row);
+}
+
+function clearDZ() {
+  drag.targetId = null; drag.pos = null;
+  document.querySelectorAll('.dz-before,.dz-after,.dz-into,.dz-win').forEach(el => el.classList.remove('dz-before','dz-after','dz-into','dz-win'));
+}
+
+function endDrag() { drag.id = null; clearDZ(); }
+
+document.addEventListener('dragend', () => { endDrag(); render(); });
+
+// ── Panel toggle ──────────────────────────────────────────────────────────────
+const extBtn = document.getElementById('extBtn');
+const panel  = document.getElementById('panel');
+let panelOpen = true;
+extBtn.addEventListener('click', () => {
+  panelOpen = !panelOpen;
+  panel.classList.toggle('closed', !panelOpen);
+  extBtn.classList.toggle('closed', !panelOpen);
+  extBtn.title = panelOpen ? 'Close sidebar' : 'Open sidebar';
+});
+
+// ── Collapse all ──────────────────────────────────────────────────────────────
+document.getElementById('collapseBtn').addEventListener('click', () => {
+  function collapse(tabs) { for (const t of tabs) { t.coll = t.children.length > 0; collapse(t.children); } }
+  for (const w of db.windows) collapse(w.tabs);
+  render();
+});
+
+// ── Search ────────────────────────────────────────────────────────────────────
+document.getElementById('srch').addEventListener('input', function() { query = this.value.trim().toLowerCase(); render(); });
+
+// ── Context menu actions ──────────────────────────────────────────────────────
+document.getElementById('ctxRename').addEventListener('click', () => {
+  if (!ctxTab) return;
+  closeCtx();
+  const row = document.querySelector(`[data-tid="${ctxTab.id}"]`);
+  if (!row) return;
+  const titleEl = row.querySelector('.tab-title');
+  const savedTitle = ctxTab.title;
+  titleEl.contentEditable = 'true';
+  titleEl.focus();
+  const sel = window.getSelection(); const range = document.createRange();
+  range.selectNodeContents(titleEl); sel.removeAllRanges(); sel.addRange(range);
+  function done() {
+    titleEl.contentEditable = 'false';
+    const newTitle = titleEl.textContent.trim();
+    ctxTab.title = newTitle || savedTitle;
+    titleEl.textContent = ctxTab.title;
+    ctxTab = null;
+  }
+  titleEl.addEventListener('blur', done, { once: true });
+  titleEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+    if (e.key === 'Escape') { titleEl.textContent = savedTitle; titleEl.blur(); }
+    e.stopPropagation();
+  });
+});
+
+document.getElementById('ctxCopy').addEventListener('click', () => {
+  if (!ctxTab) return;
+  const url = ctxTab.url || '';
+  try { navigator.clipboard.writeText(url); } catch(e) {
+    const el = Object.assign(document.createElement('textarea'), { value: url });
+    document.body.appendChild(el); el.select(); document.execCommand('copy'); el.remove();
+  }
+  closeCtx();
+  showToast('URL copied to clipboard');
+});
+
+document.getElementById('ctxClose').addEventListener('click', () => {
+  if (!ctxTab) return;
+  ctxTab.del = true; closeCtx(); render();
+});
+
+function closeCtx() { document.getElementById('ctxMenu').classList.remove('on'); ctxTab = null; }
+document.addEventListener('click', e => { if (!document.getElementById('ctxMenu').contains(e.target)) closeCtx(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCtx(); });
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>

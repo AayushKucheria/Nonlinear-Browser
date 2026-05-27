@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<!--
+  Prototype: new-features-v1.html  (rev 2)
+  =========================================
+  Changes from rev 1:
+  - Pin strip: "pinned" label removed; 6 slots now stretch to fill the full width.
+  - Cross-window drag: dropping on a tab row in another window now uses the same
+    before / after / into zones as same-window drag. The window label is kept as a
+    fallback (drop to end of window) but individual row targeting is primary.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Nonlinear — New Features Prototype</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      background: #ffffff;
+      color: #1c1c1e;
+      width: 320px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 8px 10px;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: #aaa; flex: 1;
+    }
+    .header-stats { font-size: 10px; color: #ccc; }
+    .icon-btn {
+      width: 22px; height: 22px;
+      border: none; background: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; color: #bbb; font-size: 13px;
+    }
+    .icon-btn:hover { background: #eee; color: #444; }
+
+    /* ── Pinned Tabs Strip ── */
+    /*  No label. 6 slots stretch to fill the full width.  */
+    .pinned-strip {
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .pin-slots {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+    }
+    .pin-slot {
+      flex: 1;            /* slots stretch equally */
+      aspect-ratio: 1;   /* stay square */
+      max-height: 36px;  /* cap so they don't get too tall on wide panels */
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .pin-slot:hover { transform: scale(1.08); }
+
+    /* Filled */
+    .pin-slot.filled {
+      background: #fff;
+      box-shadow: 0 0 0 1.5px #e0e0e0;
+    }
+    .pin-slot.filled:hover { box-shadow: 0 0 0 1.5px #6366f1; }
+    .pin-slot.filled .pin-letter {
+      width: 60%; height: 60%; /* scales with slot */
+      border-radius: 4px;
+      font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+    }
+    /* Closed tab indicator — small red dot */
+    .pin-slot.filled.pin-closed { opacity: 0.55; }
+    .pin-slot.filled.pin-closed::after {
+      content: '';
+      position: absolute; bottom: 3px; right: 3px;
+      width: 7px; height: 7px;
+      background: #f87171; border-radius: 50%;
+      border: 1.5px solid #f9f9f9;
+    }
+
+    /* Empty */
+    .pin-slot.empty {
+      border: 1.5px dashed #ddd;
+      background: transparent;
+    }
+    .pin-slot.empty:hover { border-color: #6366f1; background: #f0f1ff; }
+    .pin-slot.empty .plus { font-size: 14px; color: #ddd; line-height: 1; }
+    .pin-slot.empty:hover .plus { color: #6366f1; }
+
+    /* Drop-active */
+    .pin-slot.drop-active {
+      border: 2px dashed #6366f1 !important;
+      background: #eef2ff !important;
+      box-shadow: none !important;
+      transform: scale(1.08);
+    }
+
+    /* Tooltip */
+    .pin-slot .pin-tooltip {
+      display: none;
+      position: absolute; bottom: calc(100% + 6px);
+      left: 50%; transform: translateX(-50%);
+      background: #1c1c1e; color: #fff;
+      font-size: 10px; padding: 4px 8px;
+      border-radius: 5px; white-space: nowrap;
+      z-index: 300; pointer-events: none;
+      max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pin-slot:hover .pin-tooltip { display: block; }
+
+    /* ── Search ── */
+    .search-row {
+      padding: 6px 8px; background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
+    }
+    .search {
+      width: 100%; padding: 5px 8px;
+      background: #fff; border: 1px solid #ddd; border-radius: 4px;
+      color: #111; font-family: inherit; font-size: 11px; outline: none;
+    }
+    .search::placeholder { color: #ccc; }
+    .search:focus { border-color: #6366f1; }
+
+    /* ── Scroll ── */
+    .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .tree::-webkit-scrollbar { width: 4px; }
+    .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+    /* ── Window label ── */
+    .win-label {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 8px 3px;
+      font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: #ccc; cursor: pointer; user-select: none;
+      border-left: 2px solid transparent;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .win-label:hover { color: #aaa; }
+    .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+    .win-chevron { font-size: 8px; flex-shrink: 0; }
+    .win-count {
+      font-size: 9px; color: #ccc; background: #f3f3f3;
+      padding: 1px 5px; border-radius: 3px; order: 10;
+    }
+    /* When drag is active and this window is a valid target */
+    .win-label.drag-target {
+      border-left-color: #6366f1; color: #6366f1;
+      background: #f5f5ff;
+    }
+    .win-label.drag-target::after { background: #c7d2fe; }
+    /* Accepting a drop directly onto the label (append to window) */
+    .win-label.dz-append {
+      border-left-color: #6366f1;
+      background: #eef2ff;
+    }
+
+    /* ── Tab row ── */
+    .tab-row {
+      display: flex; align-items: stretch;
+      min-height: 26px; cursor: default;
+      position: relative;
+      border-top: 2px solid transparent;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-row.dragging { opacity: 0.3; }
+    .tab-row.dz-before { border-top: 2px solid #6366f1; }
+    .tab-row.dz-after  { border-bottom: 2px solid #6366f1; }
+    .tab-row.dz-into .tab-inner { outline: 1.5px solid #6366f1; background: #eef2ff !important; }
+
+    .tab-row:hover .tab-inner { background: #f4f4f5; }
+    .tab-row.is-active .tab-inner { background: #eff6ff; }
+    .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+    .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; }
+    .tab-row.is-closed .favicon { opacity: 0.4; }
+
+    .active-bar {
+      width: 2px; align-self: stretch;
+      background: #2563eb; border-radius: 1px;
+      flex-shrink: 0; margin: 4px 0;
+    }
+
+    /* Tree connector lines */
+    .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
+    .seg { width: 16px; flex-shrink: 0; position: relative; }
+    .seg.vert::before {
+      content: ''; position: absolute;
+      left: 8px; top: 0; bottom: 0; width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::before {
+      content: ''; position: absolute;
+      left: 8px; top: 0; bottom: 50%; width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::after {
+      content: ''; position: absolute;
+      left: 8px; top: 50%; width: 8px; height: 1px; background: #e0e0e0;
+    }
+
+    .tab-inner {
+      flex: 1; display: flex; align-items: center; gap: 5px;
+      padding: 0 6px 0 4px; border-radius: 4px;
+      margin-right: 4px; min-width: 0;
+    }
+    .toggle {
+      width: 12px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 9px; color: #bbb;
+    }
+    .toggle.clickable { cursor: pointer; }
+    .toggle.clickable:hover { color: #555; }
+    .favicon {
+      width: 14px; height: 14px;
+      border-radius: 2px; flex-shrink: 0;
+      font-size: 7px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; user-select: none; overflow: hidden;
+    }
+    .tab-title {
+      flex: 1; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      font-size: 11.5px; color: #222; line-height: 26px;
+    }
+
+    /* ── Audio indicator ── */
+    .tab-audio {
+      flex-shrink: 0;
+      width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; cursor: pointer;
+      border-radius: 3px; opacity: 0;
+      transition: opacity 0.1s;
+    }
+    .tab-row.is-audible .tab-audio { opacity: 1; color: #6366f1; }
+    .tab-row.is-muted   .tab-audio { opacity: 1; color: #bbb; }
+    .tab-audio:hover { background: #eef2ff; color: #4338ca !important; }
+
+    .tab-close {
+      opacity: 0; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+    }
+    .tab-row:hover .tab-close { opacity: 1; }
+    .tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid #e5e5e5; background: #f9f9f9;
+      padding: 6px 10px; display: flex; align-items: center;
+      gap: 6px; flex-shrink: 0;
+    }
+    .footer-hint { font-size: 9.5px; color: #ccc; }
+    .kbd {
+      display: inline-block; background: #fff;
+      border: 1px solid #ddd; border-radius: 3px;
+      padding: 0 3px; font-size: 9px; color: #aaa; font-family: inherit;
+    }
+    .footer-btn {
+      font-family: inherit; font-size: 10px; color: #888; cursor: pointer;
+      padding: 3px 8px; border-radius: 4px;
+      border: 1px solid #e0e0e0; background: #fff;
+    }
+    .footer-btn:hover { border-color: #6366f1; color: #6366f1; }
+    .footer-url {
+      flex: 1; font-size: 9.5px; color: #aaa;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    }
+
+    /* ── Context menus ── */
+    .ctx-menu {
+      display: none; position: fixed; z-index: 999;
+      background: #fff; border: 1px solid #e0e0e0;
+      border-radius: 7px; box-shadow: 0 6px 20px rgba(0,0,0,.13);
+      min-width: 164px; padding: 4px 0;
+      font-size: 11.5px; font-family: inherit;
+    }
+    .ctx-item { padding: 7px 14px; cursor: pointer; color: #1c1c1e; }
+    .ctx-item:hover { background: #f4f4f5; }
+    .ctx-danger:hover { background: #fef2f2; color: #dc2626; }
+    .ctx-sep { height: 1px; background: #e5e7eb; margin: 3px 0; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 48px;
+      left: 50%; transform: translateX(-50%);
+      background: #1c1c1e; color: #fff;
+      font-size: 11px; padding: 7px 14px; border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.2);
+      z-index: 1000; opacity: 0; transition: opacity 0.2s;
+      pointer-events: none; white-space: nowrap;
+    }
+    .toast.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">tabs</span>
+  <span class="header-stats">12 / 15</span>
+  <button class="icon-btn" id="collapseAllBtn" title="Collapse all">⊟</button>
+  <button class="icon-btn" title="Close sidebar">✕</button>
+</div>
+
+<!-- Pin strip — no label, slots fill full width -->
+<div class="pinned-strip">
+  <div class="pin-slots" id="pinSlots"></div>
+</div>
+
+<div class="search-row">
+  <input class="search" placeholder="/ filter…">
+</div>
+
+<div class="tree" id="tree"></div>
+
+<div class="footer">
+  <span class="footer-hint"><kbd class="kbd">↑↓</kbd> nav</span>
+  <span class="footer-hint"><kbd class="kbd">⌫</kbd> close</span>
+  <span class="footer-hint"><kbd class="kbd">⌃Z</kbd> undo</span>
+  <span class="footer-url" id="footerUrl"></span>
+  <button class="footer-btn">save</button>
+</div>
+
+<!-- Tab context menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" id="ctxPin">📌 &nbsp;Pin to Top</div>
+  <div class="ctx-item" id="ctxBookmark">☆ &nbsp;Bookmark Tab</div>
+  <div class="ctx-item" id="ctxRename">✎ &nbsp;Rename Tab</div>
+  <div class="ctx-item" id="ctxCopy">⎘ &nbsp;Copy URL</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-danger" id="ctxClose">✕ &nbsp;Close Tab</div>
+</div>
+
+<!-- Pin slot context menu -->
+<div class="ctx-menu" id="pinCtxMenu">
+  <div class="ctx-item" id="ctxUnpin">✕ &nbsp;Unpin</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// Data
+// ─────────────────────────────────────────────────────────────
+var COLORS = ['#6366f1','#8b5cf6','#ec4899','#14b8a6','#f59e0b','#10b981'];
+function hc(s) { return COLORS[(s||'').charCodeAt(0) % COLORS.length]; }
+
+var windows = [
+  {
+    id: 1, name: 'Work',
+    tabs: [
+      { id: 101, title: 'Linear — Board', url: 'https://linear.app/board', favColor: '#6366f1', active: true },
+      { id: 102, title: 'GitHub — PR #842', url: 'https://github.com/pr/842', favColor: '#1c1c1e', audible: true,
+        children: [
+          { id: 1021, title: 'GitHub Actions run', url: 'https://github.com/actions', favColor: '#1c1c1e' },
+          { id: 1022, title: 'GitHub Diff view', url: 'https://github.com/diff', favColor: '#1c1c1e', deleted: true }
+        ]
+      },
+      { id: 103, title: 'Notion — Spec doc', url: 'https://notion.so/spec', favColor: '#111' },
+      { id: 104, title: 'Slack — #engineering', url: 'https://slack.com/eng', favColor: '#4a154b', muted: true }
+    ]
+  },
+  {
+    id: 2, name: 'Research',
+    tabs: [
+      { id: 201, title: 'Chrome Extensions Docs', url: 'https://developer.chrome.com/docs/extensions', favColor: '#1a73e8' },
+      { id: 202, title: 'MDN — Web APIs', url: 'https://developer.mozilla.org', favColor: '#1c1c1e',
+        children: [
+          { id: 2021, title: 'MDN — Drag and Drop', url: 'https://developer.mozilla.org/dnd', favColor: '#1c1c1e' },
+          { id: 2022, title: 'MDN — Web Audio', url: 'https://developer.mozilla.org/audio', favColor: '#1c1c1e' }
+        ]
+      },
+      { id: 203, title: 'Stack Overflow', url: 'https://stackoverflow.com', favColor: '#f48024' }
+    ]
+  },
+  {
+    id: 3, name: 'Personal',
+    tabs: [
+      { id: 301, title: 'YouTube — Lo-fi beats', url: 'https://youtube.com', favColor: '#ff0000', audible: true },
+      { id: 302, title: 'Gmail', url: 'https://gmail.com', favColor: '#ea4335' },
+      { id: 303, title: 'Hacker News', url: 'https://news.ycombinator.com', favColor: '#ff6600' }
+    ]
+  }
+];
+
+// 6 pin slots; null = empty
+var pinnedTabs = [
+  { url: 'https://linear.app/board', title: 'Linear — Board', favColor: '#6366f1', tabId: 101 },
+  { url: 'https://github.com', title: 'GitHub', favColor: '#1c1c1e', tabId: null },
+  null, null, null, null
+];
+
+var undoStack = [];    // [{ snapshot, parentList, index }]
+var draggingTabId  = null;
+var draggingWinId  = null;
+var ctxTab         = null;
+var ctxPinIndex    = null;
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('visible');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function() { el.classList.remove('visible'); }, 2200);
+}
+
+function countSubtree(tab) {
+  var n = 1;
+  if (tab.children) tab.children.forEach(function(c) { n += countSubtree(c); });
+  return n;
+}
+
+// Returns { tab, list, index, parent } where list is the array containing tab
+function findTabInList(id, list, parent) {
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].id === id) return { tab: list[i], list: list, index: i, parent: parent };
+    if (list[i].children) {
+      var r = findTabInList(id, list[i].children, list[i]);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+function findTabGlobal(id) {
+  for (var wi = 0; wi < windows.length; wi++) {
+    var r = findTabInList(id, windows[wi].tabs, windows[wi]);
+    if (r) { r.window = windows[wi]; return r; }
+  }
+  return null;
+}
+function findWindowOfTab(id) {
+  for (var wi = 0; wi < windows.length; wi++) {
+    if (findTabInList(id, windows[wi].tabs, windows[wi])) return windows[wi];
+  }
+  return null;
+}
+
+function clearActive(list) {
+  list.forEach(function(t) { t.active = false; if (t.children) clearActive(t.children); });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Move: works same-window or cross-window
+//   position: 'before' | 'after' | 'into'
+// ─────────────────────────────────────────────────────────────
+function moveTab(fromId, toId, position) {
+  var from = findTabGlobal(fromId);
+  if (!from) return;
+  var tab = JSON.parse(JSON.stringify(from.tab));  // clone
+
+  // Remove from source
+  from.list.splice(from.index, 1);
+
+  // Re-find target after removal (indices may have shifted)
+  var to = findTabGlobal(toId);
+  if (!to) { from.list.splice(from.index, 0, tab); return; }  // rollback
+
+  if (position === 'before') {
+    to.list.splice(to.index, 0, tab);
+  } else if (position === 'after') {
+    to.list.splice(to.index + 1, 0, tab);
+  } else {  // 'into'
+    if (!to.tab.children) to.tab.children = [];
+    to.tab.children.push(tab);
+  }
+  render();
+}
+
+function appendTabToWindow(fromId, targetWin) {
+  var from = findTabGlobal(fromId);
+  if (!from) return;
+  if (from.window === targetWin) return;
+  var tab = JSON.parse(JSON.stringify(from.tab));
+  from.list.splice(from.index, 1);
+  targetWin.tabs.push(tab);
+  toast('Moved "' + tab.title + '" to ' + targetWin.name);
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────
+// Close & Undo
+// ─────────────────────────────────────────────────────────────
+function closeTab(tab) {
+  var found = findTabGlobal(tab.id);
+  if (!found) return;
+  var snapshot = JSON.parse(JSON.stringify(found.tab));
+  undoStack.push({ snapshot: snapshot, list: found.list, index: found.index });
+  found.list.splice(found.index, 1);
+  var n = countSubtree(snapshot);
+  toast('Closed ' + (n > 1 ? n + ' tabs' : '"' + snapshot.title + '"') + ' — ⌃Z to undo');
+  render();
+}
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    if (!undoStack.length) return;
+    var entry = undoStack.pop();
+    // Re-find the list in case render happened (use same array reference)
+    entry.list.splice(entry.index, 0, entry.snapshot);
+    var n = countSubtree(entry.snapshot);
+    toast('Restored ' + n + ' tab' + (n > 1 ? 's' : ''));
+    render();
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Drag state helpers
+// ─────────────────────────────────────────────────────────────
+function clearDropZones() {
+  document.querySelectorAll('.dz-before,.dz-after,.dz-into,.dz-append').forEach(function(n) {
+    n.classList.remove('dz-before','dz-after','dz-into','dz-append');
+  });
+}
+function clearDragTargets() {
+  document.querySelectorAll('.win-label.drag-target').forEach(function(n) {
+    n.classList.remove('drag-target');
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Render: Pins
+// ─────────────────────────────────────────────────────────────
+function renderPins() {
+  var slots = document.getElementById('pinSlots');
+  slots.innerHTML = '';
+
+  pinnedTabs.forEach(function(pin, i) {
+    var slot = document.createElement('div');
+    slot.className = 'pin-slot ' + (pin ? 'filled' : 'empty');
+    slot.dataset.index = i;
+
+    if (pin) {
+      var isOpen = pin.tabId && findTabGlobal(pin.tabId);
+      if (!isOpen) slot.classList.add('pin-closed');
+
+      var letter = document.createElement('span');
+      letter.className = 'pin-letter';
+      letter.style.background = pin.favColor;
+      letter.textContent = (pin.title[0] || '?').toUpperCase();
+      slot.appendChild(letter);
+
+      var tip = document.createElement('span');
+      tip.className = 'pin-tooltip';
+      tip.textContent = isOpen ? pin.title : pin.title + ' — click to reopen';
+      slot.appendChild(tip);
+
+      slot.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isOpen) toast('Focused: ' + pin.title);
+        else        toast('Opening: ' + pin.url);
+      });
+
+      slot.addEventListener('contextmenu', (function(idx) {
+        return function(e) {
+          e.preventDefault();
+          ctxPinIndex = idx;
+          var m = document.getElementById('pinCtxMenu');
+          m.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
+          m.style.top  = e.clientY + 'px';
+          m.style.display = 'block';
+        };
+      }(i)));
+    } else {
+      var plus = document.createElement('span');
+      plus.className = 'plus';
+      plus.textContent = '+';
+      slot.appendChild(plus);
+
+      var tip2 = document.createElement('span');
+      tip2.className = 'pin-tooltip';
+      tip2.textContent = 'Drag a tab here to pin it';
+      slot.appendChild(tip2);
+    }
+
+    // Accept drops from tab rows
+    slot.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drop-active'); });
+    slot.addEventListener('dragleave', function() { this.classList.remove('drop-active'); });
+    slot.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.classList.remove('drop-active');
+      var tabId = parseInt(e.dataTransfer.getData('text/plain'));
+      var found = findTabGlobal(tabId);
+      if (!found) return;
+      var tab = found.tab;
+      var idx = parseInt(this.dataset.index);
+      pinnedTabs[idx] = { url: tab.url, title: tab.title, favColor: tab.favColor || hc(tab.title), tabId: tab.id };
+      toast('Pinned: ' + tab.title);
+      renderPins();
+    });
+
+    slots.appendChild(slot);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Render: Tree
+// ─────────────────────────────────────────────────────────────
+function renderTree() {
+  var container = document.getElementById('tree');
+  container.innerHTML = '';
+
+  windows.forEach(function(win) {
+    // Window label
+    var label = document.createElement('div');
+    label.className = 'win-label';
+    label.dataset.windowId = win.id;
+
+    var chev = document.createElement('span');
+    chev.className = 'win-chevron';
+    chev.textContent = '▾';
+
+    var nameEl = document.createElement('span');
+    nameEl.textContent = win.name;
+
+    var count = document.createElement('span');
+    count.className = 'win-count';
+    count.textContent = win.tabs.filter(function(t) { return !t.deleted; }).length;
+    count.style.order = '10';
+
+    label.appendChild(chev);
+    label.appendChild(nameEl);
+    label.appendChild(count);
+    container.appendChild(label);
+
+    // Window label drop zone — append to end of this window
+    label.addEventListener('dragover', function(e) {
+      if (draggingWinId !== win.id) {
+        e.preventDefault();
+        label.classList.add('dz-append');
+      }
+    });
+    label.addEventListener('dragleave', function() { label.classList.remove('dz-append'); });
+    label.addEventListener('drop', function(e) {
+      e.preventDefault();
+      label.classList.remove('dz-append');
+      if (draggingWinId !== win.id) {
+        appendTabToWindow(parseInt(e.dataTransfer.getData('text/plain')), win);
+      }
+    });
+
+    // Render tab rows for this window
+    var topLevel = win.tabs.filter(function(t) { return !t.deleted; });
+    topLevel.forEach(function(tab, ti) {
+      renderTabRow(tab, 0, container, [], ti === topLevel.length - 1, win);
+    });
+    // Render deleted (closed) rows too so they show with strikethrough
+    win.tabs.filter(function(t) { return t.deleted; }).forEach(function(tab, ti) {
+      renderTabRow(tab, 0, container, [], true, win);
+    });
+  });
+}
+
+function renderTabRow(tab, depth, container, ancestors, isLast, win) {
+  var row = document.createElement('div');
+  row.className = 'tab-row' +
+    (tab.active              ? ' is-active'  : '') +
+    (tab.deleted             ? ' is-closed'  : '') +
+    (tab.audible && !tab.muted ? ' is-audible' : '') +
+    (tab.muted               ? ' is-muted'   : '');
+  row.draggable = !tab.deleted;
+  row.dataset.tabId = tab.id;
+
+  // ── Drag ──
+  row.addEventListener('dragstart', function(e) {
+    if (tab.deleted) { e.preventDefault(); return; }
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(tab.id));
+    draggingTabId = tab.id;
+    draggingWinId = win.id;
+    row.classList.add('dragging');
+    // Light up other window labels
+    document.querySelectorAll('.win-label').forEach(function(l) {
+      if (parseInt(l.dataset.windowId) !== win.id) l.classList.add('drag-target');
+    });
+  });
+  row.addEventListener('dragend', function() {
+    draggingTabId = null;
+    draggingWinId = null;
+    row.classList.remove('dragging');
+    clearDropZones();
+    clearDragTargets();
+  });
+
+  // ── Drag over this row (works same-window OR cross-window) ──
+  row.addEventListener('dragover', function(e) {
+    if (!draggingTabId || draggingTabId === tab.id || tab.deleted) return;
+    e.preventDefault();
+    e.stopPropagation();  // don't bubble to win-label
+    clearDropZones();
+    var rect = row.getBoundingClientRect();
+    var pct  = (e.clientY - rect.top) / rect.height;
+    var zone = pct < 0.28 ? 'dz-before' : pct > 0.72 ? 'dz-after' : 'dz-into';
+    row.classList.add(zone);
+  });
+
+  row.addEventListener('drop', function(e) {
+    if (!draggingTabId || draggingTabId === tab.id || tab.deleted) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var rect = row.getBoundingClientRect();
+    var pct  = (e.clientY - rect.top) / rect.height;
+    var pos  = pct < 0.28 ? 'before' : pct > 0.72 ? 'after' : 'into';
+    var fromId = parseInt(e.dataTransfer.getData('text/plain'));
+    var fromWin = findWindowOfTab(fromId);
+    var crossWindow = fromWin && fromWin.id !== win.id;
+    clearDropZones();
+    clearDragTargets();
+    moveTab(fromId, tab.id, pos);
+    if (crossWindow) toast('Moved tab to ' + win.name);
+  });
+
+  // Active bar
+  if (tab.active) {
+    var bar = document.createElement('div');
+    bar.className = 'active-bar';
+    row.appendChild(bar);
+  }
+
+  // Tree lines
+  if (depth > 0) {
+    var lines = document.createElement('div');
+    lines.className = 'tree-lines';
+    for (var i = 0; i < depth - 1; i++) {
+      var seg = document.createElement('span');
+      seg.className = 'seg' + (ancestors[i] ? ' vert' : '');
+      lines.appendChild(seg);
+    }
+    var branch = document.createElement('span');
+    branch.className = 'seg branch';
+    lines.appendChild(branch);
+    row.appendChild(lines);
+  }
+
+  // Inner content
+  var inner = document.createElement('div');
+  inner.className = 'tab-inner';
+
+  var tog = document.createElement('span');
+  var hasKids = tab.children && tab.children.length > 0;
+  var isCollapsed = collapsedSet.has(tab.id);
+  tog.className = 'toggle' + (hasKids ? ' clickable' : '');
+  if (hasKids) {
+    tog.textContent = isCollapsed ? '▶' : '▾';
+    tog.addEventListener('click', (function(id) {
+      return function(e) {
+        e.stopPropagation();
+        if (collapsedSet.has(id)) collapsedSet.delete(id);
+        else collapsedSet.add(id);
+        render();
+      };
+    }(tab.id)));
+  }
+  inner.appendChild(tog);
+
+  var icon = document.createElement('span');
+  icon.className = 'favicon';
+  icon.style.background = tab.favColor || hc(tab.title);
+  icon.textContent = (tab.title[0] || '?').toUpperCase();
+  inner.appendChild(icon);
+
+  var titleEl = document.createElement('span');
+  titleEl.className = 'tab-title';
+  titleEl.textContent = tab.title;
+  inner.appendChild(titleEl);
+
+  // Audio toggle
+  var audio = document.createElement('span');
+  audio.className = 'tab-audio';
+  audio.title = tab.muted ? 'Unmute' : 'Mute';
+  audio.textContent = tab.muted ? '🔇' : '🔊';
+  audio.addEventListener('click', (function(t) {
+    return function(e) {
+      e.stopPropagation();
+      t.muted   = !t.muted;
+      t.audible = !t.muted && t.audible;
+      toast((t.muted ? 'Muted: ' : 'Unmuted: ') + t.title);
+      render();
+    };
+  }(tab)));
+  inner.appendChild(audio);
+
+  // Close button
+  var cls = document.createElement('span');
+  cls.className = 'tab-close';
+  cls.textContent = '✕';
+  cls.addEventListener('click', (function(t) {
+    return function(e) { e.stopPropagation(); closeTab(t); };
+  }(tab)));
+  inner.appendChild(cls);
+
+  row.appendChild(inner);
+
+  // Click to activate
+  if (!tab.deleted) {
+    row.addEventListener('click', function() {
+      windows.forEach(function(w) { clearActive(w.tabs); });
+      tab.active = true;
+      document.getElementById('footerUrl').textContent = tab.url || '';
+      render();
+    });
+  }
+
+  // Right-click
+  row.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    ctxTab = tab;
+    var m = document.getElementById('ctxMenu');
+    m.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
+    m.style.top  = Math.min(e.clientY, window.innerHeight - 180) + 'px';
+    m.style.display = 'block';
+  });
+
+  row.addEventListener('mouseenter', function() {
+    if (!draggingTabId) document.getElementById('footerUrl').textContent = tab.url || '';
+  });
+  row.addEventListener('mouseleave', function() {
+    if (!draggingTabId) document.getElementById('footerUrl').textContent = '';
+  });
+
+  container.appendChild(row);
+
+  // Recurse into children (skip if collapsed)
+  if (tab.children && !collapsedSet.has(tab.id)) {
+    tab.children.forEach(function(child, ci) {
+      renderTabRow(child, depth + 1, container, ancestors.concat([ci < tab.children.length - 1]), ci === tab.children.length - 1, win);
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Context menu
+// ─────────────────────────────────────────────────────────────
+document.getElementById('ctxPin').addEventListener('click', function() {
+  if (!ctxTab) return;
+  var emptyIdx = pinnedTabs.findIndex(function(p) { return !p; });
+  if (emptyIdx === -1) { toast('All pin slots are full — unpin one first'); return; }
+  pinnedTabs[emptyIdx] = { url: ctxTab.url, title: ctxTab.title, favColor: ctxTab.favColor || hc(ctxTab.title), tabId: ctxTab.id };
+  toast('Pinned: ' + ctxTab.title);
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxTab = null;
+  renderPins();
+});
+document.getElementById('ctxBookmark').addEventListener('click', function() {
+  if (!ctxTab) return;
+  toast('Bookmarked: ' + ctxTab.title);
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxTab = null;
+});
+document.getElementById('ctxRename').addEventListener('click', function() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxTab = null;
+});
+document.getElementById('ctxCopy').addEventListener('click', function() {
+  if (!ctxTab) return;
+  toast('Copied URL: ' + ctxTab.url);
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxTab = null;
+});
+document.getElementById('ctxClose').addEventListener('click', function() {
+  if (!ctxTab) return;
+  var t = ctxTab;
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxTab = null;
+  closeTab(t);
+});
+document.getElementById('ctxUnpin').addEventListener('click', function() {
+  if (ctxPinIndex === null) return;
+  pinnedTabs[ctxPinIndex] = null;
+  toast('Unpinned');
+  ctxPinIndex = null;
+  document.getElementById('pinCtxMenu').style.display = 'none';
+  renderPins();
+});
+
+document.addEventListener('click', function() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  document.getElementById('pinCtxMenu').style.display = 'none';
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.getElementById('ctxMenu').style.display = 'none';
+    document.getElementById('pinCtxMenu').style.display = 'none';
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Collapse / Expand all toggle
+// ─────────────────────────────────────────────────────────────
+var allCollapsed = false;
+var collapsedSet = new Set();
+
+function getAllParentIds(list) {
+  var ids = [];
+  list.forEach(function(t) {
+    if (t.children && t.children.length) {
+      ids.push(t.id);
+      ids = ids.concat(getAllParentIds(t.children));
+    }
+  });
+  return ids;
+}
+
+document.getElementById('collapseAllBtn').addEventListener('click', function() {
+  if (!allCollapsed) {
+    // Collapse all — collect every parent id across all windows
+    var ids = [];
+    windows.forEach(function(w) { ids = ids.concat(getAllParentIds(w.tabs)); });
+    ids.forEach(function(id) { collapsedSet.add(id); });
+    allCollapsed = true;
+    this.title = 'Expand all';
+    this.textContent = '⊞';
+  } else {
+    // Expand all
+    collapsedSet.clear();
+    allCollapsed = false;
+    this.title = 'Collapse all';
+    this.textContent = '⊟';
+  }
+  render();
+});
+
+// ─────────────────────────────────────────────────────────────
+function render() { renderPins(); renderTree(); }
+render();
+</script>
+</body>
+</html>

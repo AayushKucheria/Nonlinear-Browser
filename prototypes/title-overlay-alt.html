@@ -1,0 +1,349 @@
+<!--
+  title-overlay-alt.html
+  Explores three alternatives to the current "show title below hovered row" overlay.
+  The current behaviour pushes down the row below and hides it, which is disorienting.
+
+  A — FOOTER: Hover shows the full title in the footer URL bar (swaps URL text).
+      Pro: zero new UI; uses existing space; never obscures the tab list.
+      Con: footer is far from where your eye is; you have to look away.
+
+  B — RIGHT-EDGE CHIP: Small tooltip anchored to the RIGHT inside the panel,
+      vertically aligned to the hovered row. Slides in with a subtle animation.
+      Pro: close to where your eye is; never covers adjacent tabs.
+      Con: overlaps the close button / audio icon area on very long titles.
+
+  C — ABOVE THE ROW: Same overlay as today but positioned ABOVE the row
+      instead of below it, so it covers already-seen content, not the next tab.
+      Pro: familiar to current users; minimal change.
+      Con: still hides a row; can be cut off at the top of the list.
+
+  Hover over any tab row in each panel to try the mode.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title Overlay Alternatives</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #f0f0f0;
+      font-family: system-ui, sans-serif;
+      padding: 24px 16px;
+      display: flex; flex-direction: column; align-items: center; gap: 24px;
+    }
+
+    h1 { font-size: 16px; color: #333; font-weight: 600; }
+    .subtitle { font-size: 13px; color: #777; text-align: center; max-width: 560px; }
+
+    .panels {
+      display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+    }
+
+    .panel-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .panel-label { font-size: 11px; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+    .panel-desc { font-size: 11px; color: #aaa; max-width: 240px; text-align: center; line-height: 1.5; }
+
+    /* ── Sidebar shell ── */
+    .sidebar {
+      width: 240px; height: 520px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px; background: #fff; color: #1c1c1e;
+      display: flex; flex-direction: column; overflow: hidden;
+      border-radius: 10px; box-shadow: 0 4px 24px rgba(0,0,0,.13);
+      position: relative;
+    }
+
+    .header {
+      background: #f9f9f9; border-bottom: 1px solid #e5e5e5;
+      padding: 8px 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+    .header-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #aaa; flex: 1; }
+    .icon-btn {
+      width: 22px; height: 22px; border: none; background: none;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; color: #bbb; font-size: 13px; flex-shrink: 0;
+    }
+
+    .search-row { padding: 6px 8px; background: #f9f9f9; border-bottom: 1px solid #e5e5e5; flex-shrink: 0; }
+    .search { width: 100%; padding: 5px 8px; background: #fff; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; font-family: inherit; }
+
+    .tree { flex: 1; overflow-y: auto; padding: 4px 0; position: relative; }
+    .tree::-webkit-scrollbar { width: 4px; }
+    .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+    .win-label {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 8px 3px; font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em; color: #ccc;
+    }
+    .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+    .win-count { font-size: 9px; color: #ccc; background: #f3f3f3; padding: 1px 5px; border-radius: 3px; order: 10; }
+
+    .tab-row {
+      display: flex; align-items: stretch; min-height: 26px;
+      cursor: default; position: relative;
+    }
+    .tab-row:hover .tab-inner { background: #f4f4f5; }
+    .tab-row.is-active .tab-inner { background: #eff6ff; }
+    .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+
+    .active-bar { width: 2px; align-self: stretch; background: #2563eb; border-radius: 1px; flex-shrink: 0; margin: 4px 0; }
+
+    .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
+    .seg { width: 16px; flex-shrink: 0; position: relative; }
+    .seg.vert::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 1px; background: #e0e0e0; }
+    .seg.branch::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 50%; width: 1px; background: #e0e0e0; }
+    .seg.branch::after { content: ''; position: absolute; left: 8px; top: 50%; width: 8px; height: 1px; background: #e0e0e0; }
+
+    .tab-inner { flex: 1; display: flex; align-items: center; gap: 5px; padding: 0 6px 0 4px; border-radius: 4px; margin-right: 4px; min-width: 0; }
+    .toggle { width: 12px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 9px; color: #bbb; }
+    .favicon { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; font-size: 7px; font-weight: 800; display: flex; align-items: center; justify-content: center; color: #fff; overflow: hidden; }
+    .tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; color: #222; line-height: 20px; flex: 1; min-width: 0; }
+    .tab-close { opacity: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0; }
+    .tab-row:hover .tab-close { opacity: 1; }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid #e5e5e5; background: #f9f9f9;
+      padding: 6px 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+    }
+    .footer-url { flex: 1; font-size: 9.5px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .1s; }
+    .footer-url.showing-title { color: #333; }
+    .footer-btn { font-family: inherit; font-size: 10px; color: #888; padding: 3px 8px; border-radius: 4px; border: 1px solid #e0e0e0; background: #fff; flex-shrink: 0; }
+
+    /* ── MODE A: footer ── nothing extra, JS swaps text */
+
+    /* ── MODE B: right-edge chip ── */
+    .right-chip {
+      position: absolute;
+      right: 4px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.10);
+      padding: 4px 8px;
+      font-size: 11px;
+      color: #333;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      max-width: 200px;
+      word-break: break-word;
+      line-height: 1.45;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(4px);
+      transition: opacity .1s, transform .1s;
+    }
+    .right-chip.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* ── MODE C: above overlay ── */
+    .above-overlay {
+      position: absolute;
+      left: 0; right: 0;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.10);
+      padding: 5px 8px;
+      font-size: 11.5px;
+      color: #222;
+      line-height: 1.5;
+      word-break: break-word;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .07s;
+    }
+    .above-overlay.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<h1>Title display — three alternatives</h1>
+<p class="subtitle">Hover over any tab row to see how each mode handles long titles. The current mode (below-row overlay) is not shown here.</p>
+
+<div class="panels" id="panels"></div>
+
+<script>
+  var TABS = [
+    { id: 1, title: 'GitHub — Pull Requests · org/repo · review queue for sprint 14', url: 'github.com/org/repo/pulls', color: '#1c1c1e', letter: 'G', active: true, depth: 0, ancestors: [], isLast: false },
+    { id: 11, title: 'PR #412: Refactor auth middleware — large diff', url: 'github.com/org/repo/pull/412', color: '#1c1c1e', letter: 'G', depth: 1, ancestors: [true], isLast: false },
+    { id: 12, title: 'PR #398: Fix login redirect loop on mobile Safari', url: 'github.com/org/repo/pull/398', color: '#1c1c1e', letter: 'G', depth: 1, ancestors: [false], isLast: true },
+    { id: 2, title: 'Linear — Sprint Board', url: 'linear.app/team/board', color: '#8b5cf6', letter: 'L', depth: 0, ancestors: [], isLast: false },
+    { id: 3, title: 'Figma — Design System v2 — Component Library', url: 'figma.com/file/abc123/Design-System', color: '#ec4899', letter: 'F', depth: 0, ancestors: [], isLast: false },
+    { id: 4, title: 'Stack Overflow — async/await in for…of loops: unexpected behavior with promises and microtasks', url: 'stackoverflow.com/questions/37576685', color: '#f59e0b', letter: 'S', depth: 0, ancestors: [], isLast: false },
+    { id: 5, title: 'Notion — Q1 Roadmap', url: 'notion.so/team/q1-roadmap-2025', color: '#1c1c1e', letter: 'N', depth: 0, ancestors: [], isLast: true },
+  ];
+
+  var MODES = [
+    {
+      key: 'footer',
+      label: 'A — Footer bar',
+      desc: 'Hover swaps the URL display in the footer with the full title. Eye has to travel to the bottom.'
+    },
+    {
+      key: 'chip',
+      label: 'B — Right-edge chip',
+      desc: 'Tooltip slides in from the right edge, vertically aligned to the hovered row. Never covers adjacent tabs.'
+    },
+    {
+      key: 'above',
+      label: 'C — Above the row',
+      desc: 'Same popup as today, but appears above the row instead of below. Covers already-seen content.'
+    }
+  ];
+
+  function buildSidebar(mode) {
+    var sb = document.createElement('div');
+    sb.className = 'sidebar';
+
+    // Header
+    var hdr = document.createElement('div'); hdr.className = 'header';
+    var ht = document.createElement('span'); ht.className = 'header-title'; ht.textContent = 'nonlinear browser';
+    var hb = document.createElement('button'); hb.className = 'icon-btn'; hb.textContent = '—'; hb.style.fontWeight = '300';
+    hdr.appendChild(ht); hdr.appendChild(hb); sb.appendChild(hdr);
+
+    // Search
+    var sr = document.createElement('div'); sr.className = 'search-row';
+    var si = document.createElement('input'); si.className = 'search'; si.placeholder = '/ filter…';
+    sr.appendChild(si); sb.appendChild(sr);
+
+    // Tree
+    var tree = document.createElement('div'); tree.className = 'tree';
+
+    // Window label
+    var wl = document.createElement('div'); wl.className = 'win-label';
+    var wch = document.createElement('span'); wch.textContent = '▾'; wch.style.fontSize = '8px';
+    var wn = document.createElement('span'); wn.textContent = 'Window 1';
+    var wc = document.createElement('span'); wc.className = 'win-count'; wc.textContent = TABS.length;
+    wl.appendChild(wch); wl.appendChild(wn); wl.appendChild(wc); tree.appendChild(wl);
+
+    // Right-edge chip (mode B) — single chip element repositioned on hover
+    var chip = null;
+    if (mode === 'chip') {
+      chip = document.createElement('div');
+      chip.className = 'right-chip';
+      tree.appendChild(chip);
+    }
+
+    // Above overlay (mode C)
+    var aboveOv = null;
+    if (mode === 'above') {
+      aboveOv = document.createElement('div');
+      aboveOv.className = 'above-overlay';
+      tree.appendChild(aboveOv);
+    }
+
+    TABS.forEach(function (tab) {
+      var row = document.createElement('div');
+      row.className = 'tab-row' + (tab.active ? ' is-active' : '');
+
+      if (tab.active) {
+        var bar = document.createElement('div'); bar.className = 'active-bar'; row.appendChild(bar);
+      }
+
+      if (tab.depth > 0) {
+        var lines = document.createElement('div'); lines.className = 'tree-lines';
+        for (var i = 0; i < tab.depth - 1; i++) {
+          var seg = document.createElement('span');
+          seg.className = 'seg' + (tab.ancestors[i] ? ' vert' : '');
+          lines.appendChild(seg);
+        }
+        var br = document.createElement('span'); br.className = 'seg branch';
+        lines.appendChild(br); row.appendChild(lines);
+      }
+
+      var inner = document.createElement('div'); inner.className = 'tab-inner';
+      var tog = document.createElement('span'); tog.className = 'toggle'; inner.appendChild(tog);
+
+      var icon = document.createElement('span'); icon.className = 'favicon';
+      icon.style.background = tab.color; icon.textContent = tab.letter;
+      inner.appendChild(icon);
+
+      var titleEl = document.createElement('span'); titleEl.className = 'tab-title';
+      titleEl.textContent = tab.title;
+      inner.appendChild(titleEl);
+
+      var cls = document.createElement('span'); cls.className = 'tab-close'; cls.textContent = '🗑';
+      inner.appendChild(cls);
+
+      row.appendChild(inner);
+      tree.appendChild(row);
+
+      // ── Hover behaviour per mode ──────────────────────────────────────────
+      row.addEventListener('mouseenter', function () {
+        var isTruncated = titleEl.scrollWidth > titleEl.clientWidth + 1;
+
+        if (mode === 'footer') {
+          var footerUrl = sb.querySelector('.footer-url');
+          if (footerUrl) {
+            footerUrl.textContent = isTruncated ? tab.title : (tab.url || '');
+            footerUrl.classList.toggle('showing-title', isTruncated);
+          }
+        }
+
+        if (mode === 'chip' && chip) {
+          if (isTruncated) {
+            var rr = row.getBoundingClientRect();
+            var tr2 = tree.getBoundingClientRect();
+            chip.textContent = tab.title;
+            // Position chip vertically centred to the row, within the tree
+            chip.style.top = (rr.top - tr2.top + rr.height / 2 - 12) + 'px';
+            chip.classList.add('visible');
+          }
+        }
+
+        if (mode === 'above' && aboveOv) {
+          if (isTruncated) {
+            var rr2 = row.getBoundingClientRect();
+            var tr3 = tree.getBoundingClientRect();
+            aboveOv.textContent = tab.title;
+            var topInTree = rr2.top - tr3.top;
+            var ovH = aboveOv.offsetHeight || 28;
+            aboveOv.style.top = Math.max(0, topInTree - ovH - 2) + 'px';
+            aboveOv.style.margin = '0 4px';
+            aboveOv.style.width = 'calc(100% - 8px)';
+            aboveOv.classList.add('visible');
+          }
+        }
+      });
+
+      row.addEventListener('mouseleave', function () {
+        if (mode === 'footer') {
+          var footerUrl = sb.querySelector('.footer-url');
+          if (footerUrl) { footerUrl.textContent = tab.url || ''; footerUrl.classList.remove('showing-title'); }
+        }
+        if (mode === 'chip' && chip) chip.classList.remove('visible');
+        if (mode === 'above' && aboveOv) aboveOv.classList.remove('visible');
+      });
+    });
+
+    sb.appendChild(tree);
+
+    // Footer
+    var footer = document.createElement('div'); footer.className = 'footer';
+    var fu = document.createElement('span'); fu.className = 'footer-url'; fu.textContent = '';
+    var fb = document.createElement('button'); fb.className = 'footer-btn'; fb.textContent = 'save';
+    footer.appendChild(fu); footer.appendChild(fb); sb.appendChild(footer);
+
+    return sb;
+  }
+
+  var panels = document.getElementById('panels');
+  MODES.forEach(function (m) {
+    var wrapper = document.createElement('div'); wrapper.className = 'panel-wrapper';
+    var lbl = document.createElement('div'); lbl.className = 'panel-label'; lbl.textContent = m.label;
+    var desc = document.createElement('div'); desc.className = 'panel-desc'; desc.textContent = m.desc;
+    wrapper.appendChild(lbl);
+    wrapper.appendChild(buildSidebar(m.key));
+    wrapper.appendChild(desc);
+    panels.appendChild(wrapper);
+  });
+</script>
+</body>
+</html>

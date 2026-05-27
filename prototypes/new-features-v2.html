@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<!--
+  Prototype: new-features-v2.html (iteration 3)
+  -----------------------------------------------
+  Changes from previous iteration:
+  - Title overlay now anchors to BOTTOM of the hovered row (no longer covers it)
+  - Light tabs (<150MB) show no RAM number — only heavy tabs show the badge
+  - Tabs sorted newest-first by default (siblings sorted by openedAt desc)
+  - "+ New tab" ghost row at the top of each window's tab list
+  - Pin slots: full drag-to-reorder; user-select:none prevents accidental text selection
+  - Header stats ("7 open") removed
+  - Sidebar close button changed from ✕ to ⊳ (put away / hide)
+  - Header title changed from "tabs" to "nonlinear browser"
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Nonlinear Browser — Prototype</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      background: #ffffff;
+      color: #1c1c1e;
+      width: 320px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 8px 10px;
+      display: flex; align-items: center; gap: 6px;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: #aaa; flex: 1; cursor: pointer; user-select: none;
+    }
+    .header-title:hover { color: #888; }
+    /* no .header-stats — removed */
+    .icon-btn {
+      width: 22px; height: 22px; border: none; background: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; color: #bbb; font-size: 13px;
+    }
+    .icon-btn:hover { background: #eee; color: #444; }
+
+    /* Free RAM button */
+    .ram-free-btn {
+      font-family: inherit; font-size: 9.5px; color: #d97706;
+      padding: 2px 7px; border-radius: 4px;
+      border: 1px solid #fde68a; background: #fffbeb;
+      cursor: pointer; white-space: nowrap; display: none;
+    }
+    .ram-free-btn.visible { display: inline-flex; align-items: center; gap: 3px; }
+    .ram-free-btn:hover { background: #fef3c7; border-color: #f59e0b; }
+
+    /* ── Pinned strip ── */
+    .pinned-strip {
+      background: #f9f9f9; border-bottom: 1px solid #e5e5e5;
+      padding: 7px 10px; display: flex; flex-shrink: 0;
+      user-select: none; /* prevent accidental text selection during drag */
+    }
+    .pin-slots { display: flex; gap: 6px; width: 100%; }
+    .pin-slot {
+      flex: 1; aspect-ratio: 1; max-height: 36px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: grab; transition: transform 0.1s, box-shadow 0.1s;
+      user-select: none;
+    }
+    .pin-slot:active { cursor: grabbing; }
+    .pin-slot.filled { background: #fff; box-shadow: 0 0 0 1.5px #e0e0e0; }
+    .pin-slot.filled:hover { transform: scale(1.08); box-shadow: 0 0 0 1.5px #6366f1; }
+    .pin-letter {
+      width: 60%; height: 60%; border-radius: 4px;
+      font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; color: #fff;
+      pointer-events: none; /* don't interfere with drag events */
+    }
+    .pin-slot.empty { border: 1.5px dashed #ddd; cursor: default; }
+    .pin-slot.empty:hover { border-color: #6366f1; background: #f0f1ff; }
+    .pin-slot.empty .plus { font-size: 14px; color: #ddd; pointer-events: none; }
+    .pin-slot.empty:hover .plus { color: #6366f1; }
+    /* Drag states */
+    .pin-slot.pin-dragging { opacity: 0.35; transform: scale(0.9); }
+    .pin-slot.pin-drag-over { box-shadow: 0 0 0 2px #6366f1 !important; transform: scale(1.1); background: #eef2ff !important; }
+
+    /* ── Search ── */
+    .search-row {
+      padding: 6px 8px; background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
+    }
+    .search {
+      width: 100%; padding: 5px 8px;
+      background: #fff; border: 1px solid #ddd; border-radius: 4px;
+      color: #111; font-family: inherit; font-size: 11px; outline: none;
+    }
+    .search::placeholder { color: #ccc; }
+    .search:focus { border-color: #6366f1; }
+
+    /* ── Tree ── */
+    .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .tree::-webkit-scrollbar { width: 4px; }
+    .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+    /* ── Window label ── */
+    .win-label {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 8px 3px;
+      font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: #ccc; cursor: pointer; user-select: none;
+    }
+    .win-label:hover { color: #aaa; }
+    .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+    .win-count {
+      font-size: 9px; color: #ccc; background: #f3f3f3;
+      padding: 1px 5px; border-radius: 3px; order: 10;
+    }
+
+    /* ── + New tab row ── */
+    .new-tab-row {
+      display: flex; align-items: center;
+      min-height: 24px; cursor: pointer;
+    }
+    .new-tab-row:hover .new-tab-inner { background: #f4f4f5; }
+    .new-tab-inner {
+      flex: 1; display: flex; align-items: center; gap: 6px;
+      padding: 0 8px 0 22px; /* indent to align with tab titles */
+      border-radius: 4px; margin-right: 4px; min-height: 22px;
+    }
+    .new-tab-plus {
+      width: 14px; height: 14px; border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: #d0d0d0; flex-shrink: 0; line-height: 1;
+    }
+    .new-tab-text { font-size: 11px; color: #d0d0d0; }
+    .new-tab-row:hover .new-tab-plus,
+    .new-tab-row:hover .new-tab-text { color: #aaa; }
+
+    /* ── Tab row ── */
+    .tab-row {
+      display: flex; align-items: center;
+      min-height: 26px; cursor: default; position: relative;
+      border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    }
+    .tab-row:hover .tab-inner { background: #f4f4f5; }
+    .tab-row.is-active .tab-inner { background: #eff6ff; }
+    .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+    .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; }
+
+    /* Suspended — amber accent, grayed content, no extra icon */
+    .tab-row.is-suspended .tab-inner {
+      background: #fefce8;
+      border-left: 2px solid #fbbf24;
+      border-radius: 0 4px 4px 0;
+      margin-left: 1px;
+    }
+    .tab-row.is-suspended:hover .tab-inner { background: #fef9c3; }
+    .tab-row.is-suspended .tab-title { color: #92400e; font-size: 10.5px; }
+    .tab-row.is-suspended .favicon { opacity: 0.4; filter: grayscale(0.7); }
+    .tab-row.is-suspended .tab-close { display: none; }
+
+    /* Active left bar */
+    .active-bar {
+      width: 2px; align-self: stretch;
+      background: #2563eb; border-radius: 1px;
+      flex-shrink: 0; margin: 4px 0;
+    }
+
+    /* Tree connector lines */
+    .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
+    .seg { width: 16px; flex-shrink: 0; position: relative; }
+    .seg.vert::before {
+      content: ''; position: absolute; left: 8px; top: 0; bottom: 0;
+      width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::before {
+      content: ''; position: absolute; left: 8px; top: 0; bottom: 50%;
+      width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::after {
+      content: ''; position: absolute; left: 8px; top: 50%;
+      width: 8px; height: 1px; background: #e0e0e0;
+    }
+
+    /* Inner row */
+    .tab-inner {
+      flex: 1; display: flex; align-items: center; gap: 5px;
+      padding: 0 6px 0 4px; border-radius: 4px;
+      margin-right: 4px; min-width: 0;
+    }
+
+    .toggle {
+      width: 12px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 9px; color: #bbb;
+    }
+    .toggle.clickable { cursor: pointer; }
+    .toggle.clickable:hover { color: #555; }
+
+    .favicon {
+      width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0;
+      font-size: 7px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; user-select: none; letter-spacing: -0.5px; overflow: hidden;
+    }
+
+    .tab-title {
+      flex: 1; font-size: 11.5px; color: #222; line-height: 26px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* RAM badge — heavy tabs only, always visible */
+    .tab-ram-badge {
+      font-size: 9px; font-weight: 600; white-space: nowrap;
+      flex-shrink: 0; color: #d97706;
+    }
+
+    /* Close button */
+    .tab-close {
+      opacity: 0; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 3px; font-size: 11px; flex-shrink: 0;
+      cursor: pointer;
+    }
+    .tab-row:hover .tab-close { opacity: 1; }
+    .tab-close:hover { background: #fee2e2; }
+
+    /* ── Footer: URL + save only ── */
+    .footer {
+      border-top: 1px solid #e5e5e5; background: #f9f9f9;
+      padding: 6px 10px; display: flex; align-items: center;
+      gap: 6px; flex-shrink: 0;
+    }
+    .footer-url {
+      flex: 1; font-size: 9.5px; color: #aaa;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    }
+    .footer-btn {
+      font-family: inherit; font-size: 10px; color: #888; cursor: pointer;
+      padding: 3px 8px; border-radius: 4px;
+      border: 1px solid #e0e0e0; background: #fff;
+    }
+    .footer-btn:hover { border-color: #6366f1; color: #6366f1; }
+
+    /* ── Title overlay: floats BELOW the hovered row ── */
+    .title-overlay {
+      position: fixed;
+      z-index: 500;
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06);
+      padding: 5px 8px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 11.5px; color: #222; line-height: 1.55;
+      word-break: break-word;
+      pointer-events: none;
+      animation: overlay-in 0.07s ease;
+    }
+    @keyframes overlay-in {
+      from { opacity: 0; transform: translateY(-3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Skeleton ── */
+    .skel-win-label {
+      display: flex; align-items: center; gap: 6px; padding: 8px 10px 3px;
+    }
+    .skel-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px; min-height: 26px;
+    }
+    .skel {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e6e6e6 50%, #f0f0f0 75%);
+      background-size: 400% 100%;
+      animation: shimmer 1.4s infinite ease-in-out;
+      border-radius: 3px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+    .skel-circle { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+    .skel-line   { height: 9px; }
+    .skel-win-line { height: 8px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 48px; left: 50%; transform: translateX(-50%);
+      background: #1c1c1e; color: #fff; font-size: 10.5px;
+      padding: 6px 14px; border-radius: 6px;
+      opacity: 0; transition: opacity 0.2s;
+      pointer-events: none; white-space: nowrap; z-index: 9999; font-family: inherit;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ── Context menu ── */
+    #ctxMenu {
+      display: none; position: fixed; z-index: 999;
+      background: #fff; border: 1px solid #e0e0e0; border-radius: 7px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.13);
+      min-width: 170px; padding: 4px 0; font-size: 11.5px; font-family: inherit;
+    }
+    .ctx-item { padding: 7px 14px; cursor: pointer; color: #1c1c1e; }
+    .ctx-item:hover { background: #f4f4f5; }
+    .ctx-danger:hover { background: #fef2f2; color: #dc2626; }
+    .ctx-sep { height: 1px; background: #e5e7eb; margin: 3px 0; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <!-- "nonlinear browser" instead of "tabs"; click to replay skeleton -->
+  <span class="header-title" id="headerTitle" title="Click to replay skeleton">nonlinear browser</span>
+  <!-- stats ("N open") removed -->
+  <button class="ram-free-btn" id="freeRamBtn">🔥 Free RAM</button>
+  <button class="icon-btn" title="Collapse all">⊟</button>
+  <!-- — = minimize/hide (non-directional, works regardless of which side the panel is on) -->
+  <button class="icon-btn" title="Hide sidebar" style="font-size:16px; color:#ccc; font-weight:300; letter-spacing:0;">—</button>
+</div>
+
+<div class="pinned-strip">
+  <div class="pin-slots" id="pinSlots"></div>
+</div>
+
+<div class="search-row">
+  <input class="search" id="search" placeholder="/ filter…">
+</div>
+
+<div class="tree" id="tree"></div>
+
+<div class="footer">
+  <span class="footer-url" id="footerUrl">hover a tab to preview URL</span>
+  <button class="footer-btn">save</button>
+</div>
+
+<div id="ctxMenu">
+  <div class="ctx-item">📌 &nbsp;Pin to Top</div>
+  <div class="ctx-item">✎ &nbsp;Rename Tab</div>
+  <div class="ctx-item">⎘ &nbsp;Copy URL</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxSuspend">💤 &nbsp;Suspend Tab</div>
+  <div class="ctx-item" id="ctxResume" style="display:none">▶ &nbsp;Resume Tab</div>
+  <div class="ctx-sep" id="ctxSep2"></div>
+  <div class="ctx-item ctx-danger" id="ctxClose">✕ &nbsp;Close Tab</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Constants ────────────────────────────────────────────────────────────────
+const HEAVY_MB = 150;
+
+// ── Tab data — openedAt: higher = more recently opened ────────────────────────
+// Siblings are sorted newest-first before rendering.
+const windows = [
+  {
+    id: 1, name: 'Main',
+    tabs: [
+      {
+        id: 6, title: 'Notion — Engineering workspace', url: 'notion.so/team/engineering',
+        favicon: 'NO', color: '#1c1c1e', active: false, suspended: false,
+        memory: 291, openedAt: 1000,
+        children: [
+          {
+            id: 7, title: 'Notion — Sprint planning: Q1 2026 goals and key results for the Nonlinear Browser team',
+            url: 'notion.so/team/sprint-q1-2026',
+            favicon: 'NO', color: '#1c1c1e', active: false, suspended: false,
+            memory: 204, openedAt: 1001, children: []
+          },
+        ]
+      },
+      {
+        id: 5, title: 'MDN Web Docs: Intersection Observer API — Browser compatibility and full usage guide',
+        url: 'developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API',
+        favicon: 'MD', color: '#6667ab', active: false, suspended: true,
+        memory: 0, openedAt: 900, children: []
+      },
+      {
+        id: 4, title: 'Figma — Nonlinear Browser Design System v3: Sidebar Components, Tab Rows, Context Menus, Pinned Strip',
+        url: 'figma.com/file/abc123/nonlinear-design-system-v3',
+        favicon: 'FG', color: '#0acf83', active: false, suspended: false,
+        memory: 318, openedAt: 1100, children: []
+      },
+      {
+        id: 2, title: 'feat/nonlinear-sidebar-v2 — Pull request #87 — nonlinear/browser',
+        url: 'github.com/nonlinear/browser/pull/87',
+        favicon: 'GH', color: '#24292e', active: false, suspended: false,
+        memory: 61, openedAt: 800,
+        children: [
+          {
+            id: 3, title: 'Files changed · 14 files — feat/nonlinear-sidebar-v2',
+            url: 'github.com/nonlinear/browser/pull/87/files',
+            favicon: 'GH', color: '#24292e', active: false, suspended: false,
+            memory: 34, openedAt: 820, children: []
+          },
+        ]
+      },
+      {
+        id: 1, title: 'GitHub — Your repositories and activity feed',
+        url: 'github.com', favicon: 'GH', color: '#24292e',
+        active: true, suspended: false, memory: 48, openedAt: 700, children: []
+      },
+    ]
+  },
+  {
+    id: 2, name: 'Research',
+    tabs: [
+      {
+        id: 11, title: 'Linear — Nonlinear Browser backlog: Q1 issues, in-progress, and completed milestones',
+        url: 'linear.app/nonlinear/issues?filter=q1-2026',
+        favicon: 'LN', color: '#5e6ad2', active: false, suspended: false,
+        memory: 247, openedAt: 1200, children: []
+      },
+      {
+        id: 9, title: 'Memory-saving strategies for React SPAs — CSS-Tricks',
+        url: 'css-tricks.com/memory-saving-strategies-for-spas',
+        favicon: 'CT', color: '#ff6b6b', active: false, suspended: false,
+        memory: 93, openedAt: 600,
+        children: [
+          {
+            id: 10, title: 'Using requestIdleCallback for deferred work — CSS-Tricks',
+            url: 'css-tricks.com/using-requestidlecallback',
+            favicon: 'CT', color: '#ff6b6b', active: false, suspended: false,
+            memory: 55, openedAt: 620, children: []
+          },
+        ]
+      },
+      {
+        id: 8, title: 'Tab Discarding in Chrome: Memory management strategies for MV3 extensions — web.dev',
+        url: 'web.dev/articles/tab-discarding-memory-management',
+        favicon: 'WD', color: '#1a73e8', active: false, suspended: false,
+        memory: 79, openedAt: 500, children: []
+      },
+    ]
+  }
+];
+
+const tabMap = {};
+function flatten(tabs) { tabs.forEach(t => { tabMap[t.id] = t; flatten(t.children); }); }
+windows.forEach(w => flatten(w.tabs));
+
+// Sort siblings newest-first (descending openedAt), recursively
+function sortNewestFirst(tabs) {
+  tabs.sort((a, b) => b.openedAt - a.openedAt);
+  tabs.forEach(t => { if (t.children.length) sortNewestFirst(t.children); });
+}
+windows.forEach(w => sortNewestFirst(w.tabs));
+
+// ── Pin slots ────────────────────────────────────────────────────────────────
+let pins = [
+  { label: 'GH', color: '#24292e', title: 'GitHub' },
+  { label: 'GO', color: '#1a73e8', title: 'Google' },
+  { label: 'FG', color: '#0acf83', title: 'Figma' },
+  null, null, null
+];
+let pinDragSrc = null;
+
+function renderPins() {
+  const container = document.getElementById('pinSlots');
+  container.innerHTML = '';
+
+  pins.forEach((pin, i) => {
+    const slot = document.createElement('div');
+    slot.dataset.idx = i;
+
+    if (pin) {
+      slot.className = 'pin-slot filled';
+      slot.draggable = true;
+      slot.title = pin.title;
+
+      const letter = document.createElement('div');
+      letter.className = 'pin-letter';
+      letter.style.background = pin.color;
+      letter.textContent = pin.label;
+      slot.appendChild(letter);
+
+      slot.addEventListener('dragstart', e => {
+        pinDragSrc = i;
+        slot.classList.add('pin-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(i));
+      });
+      slot.addEventListener('dragend', () => {
+        pinDragSrc = null;
+        container.querySelectorAll('.pin-dragging,.pin-drag-over').forEach(el => {
+          el.classList.remove('pin-dragging', 'pin-drag-over');
+        });
+      });
+
+    } else {
+      slot.className = 'pin-slot empty';
+      const plus = document.createElement('span');
+      plus.className = 'plus';
+      plus.textContent = '+';
+      slot.appendChild(plus);
+    }
+
+    // Every slot is a drop target
+    slot.addEventListener('dragover', e => {
+      if (pinDragSrc === null || pinDragSrc === i) return;
+      e.preventDefault();
+      container.querySelectorAll('.pin-drag-over').forEach(el => el.classList.remove('pin-drag-over'));
+      slot.classList.add('pin-drag-over');
+    });
+    slot.addEventListener('dragleave', () => slot.classList.remove('pin-drag-over'));
+    slot.addEventListener('drop', e => {
+      e.preventDefault();
+      slot.classList.remove('pin-drag-over');
+      const srcIdx = parseInt(e.dataTransfer.getData('text/plain'));
+      if (isNaN(srcIdx) || srcIdx === i) return;
+      // Swap the two pin slots
+      const tmp = pins[i];
+      pins[i] = pins[srcIdx];
+      pins[srcIdx] = tmp;
+      renderPins();
+    });
+
+    container.appendChild(slot);
+  });
+}
+
+// ── Title overlay ─────────────────────────────────────────────────────────────
+let activeOverlay = null;
+
+function showTitleOverlay(titleEl, rowEl, fullText) {
+  removeOverlay();
+  // Only show if title is actually truncated
+  if (titleEl.scrollWidth <= titleEl.clientWidth + 1) return;
+
+  const rowRect   = rowEl.getBoundingClientRect();
+  const titleRect = titleEl.getBoundingClientRect();
+
+  const ov = document.createElement('div');
+  ov.className = 'title-overlay';
+  ov.textContent = fullText;
+
+  // Anchor left to the title's left edge; width fills to row's right edge
+  const overlayLeft  = titleRect.left;
+  const overlayWidth = rowRect.right - titleRect.left - 4;
+  ov.style.left  = overlayLeft  + 'px';
+  ov.style.width = overlayWidth + 'px';
+
+  // Position BELOW the row; if near the bottom of the viewport, flip above
+  const spaceBelow = window.innerHeight - rowRect.bottom;
+  if (spaceBelow >= 48) {
+    ov.style.top = (rowRect.bottom + 2) + 'px'; // 2px gap below the row
+  } else {
+    ov.style.bottom = (window.innerHeight - rowRect.top + 2) + 'px';
+  }
+
+  document.body.appendChild(ov);
+  activeOverlay = ov;
+}
+
+function removeOverlay() {
+  if (activeOverlay) { activeOverlay.remove(); activeOverlay = null; }
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function showSkeleton() {
+  removeOverlay();
+  const tree = document.getElementById('tree');
+  tree.innerHTML = '';
+
+  function skelWinLabel() {
+    const d = document.createElement('div');
+    d.className = 'skel-win-label';
+    d.innerHTML = `<div class="skel skel-win-line" style="width:8px"></div>
+      <div class="skel skel-win-line" style="width:48px"></div>
+      <div style="flex:1"></div>
+      <div class="skel skel-win-line" style="width:28px;border-radius:3px"></div>`;
+    return d;
+  }
+  function skelRow(indent, width) {
+    const d = document.createElement('div');
+    d.className = 'skel-row';
+    d.style.paddingLeft = (10 + indent) + 'px';
+    d.innerHTML = `<div class="skel skel-circle"></div>
+      <div class="skel skel-line" style="width:${width}px;flex-shrink:0"></div>`;
+    return d;
+  }
+
+  const frag = document.createDocumentFragment();
+  frag.appendChild(skelWinLabel());
+  [[0,112],[0,138],[16,96],[0,148],[0,68],[0,122],[16,104]].forEach(([i,w]) => frag.appendChild(skelRow(i,w)));
+  frag.appendChild(skelWinLabel());
+  [[0,130],[0,116],[16,88],[0,142]].forEach(([i,w]) => frag.appendChild(skelRow(i,w)));
+  tree.appendChild(frag);
+}
+
+// ── + New tab row ─────────────────────────────────────────────────────────────
+function makeNewTabRow() {
+  const row = document.createElement('div');
+  row.className = 'new-tab-row';
+  row.title = 'Open new tab';
+
+  const inner = document.createElement('div');
+  inner.className = 'new-tab-inner';
+
+  const plus = document.createElement('span');
+  plus.className = 'new-tab-plus';
+  plus.textContent = '+';
+
+  const label = document.createElement('span');
+  label.className = 'new-tab-text';
+  label.textContent = 'New tab';
+
+  inner.appendChild(plus);
+  inner.appendChild(label);
+  row.appendChild(inner);
+  row.addEventListener('click', () => showToast('Opening new tab…'));
+  return row;
+}
+
+// ── Tab row builder ───────────────────────────────────────────────────────────
+function makeRow(tab, depth, ancestorLines) {
+  const row = document.createElement('div');
+  row.className = 'tab-row' +
+    (tab.active    ? ' is-active'    : '') +
+    (tab.suspended ? ' is-suspended' : '');
+  row.dataset.id = tab.id;
+
+  if (tab.active) {
+    const bar = document.createElement('div');
+    bar.className = 'active-bar';
+    row.appendChild(bar);
+  }
+
+  if (depth > 0) {
+    const lines = document.createElement('div');
+    lines.className = 'tree-lines';
+    for (let i = 0; i < depth - 1; i++) {
+      const s = document.createElement('span');
+      s.className = 'seg' + (ancestorLines[i] ? ' vert' : '');
+      lines.appendChild(s);
+    }
+    const b = document.createElement('span');
+    b.className = 'seg branch';
+    lines.appendChild(b);
+    row.appendChild(lines);
+  }
+
+  const inner = document.createElement('div');
+  inner.className = 'tab-inner';
+
+  const tog = document.createElement('div');
+  tog.className = 'toggle' + (tab.children.length ? ' clickable' : '');
+  tog.textContent = tab.children.length ? '▾' : '';
+  inner.appendChild(tog);
+
+  const fav = document.createElement('div');
+  fav.className = 'favicon';
+  fav.style.background = tab.color;
+  fav.textContent = tab.favicon;
+  inner.appendChild(fav);
+
+  const title = document.createElement('span');
+  title.className = 'tab-title';
+  title.textContent = tab.title;
+  inner.appendChild(title);
+
+  // RAM badge — heavy tabs only, always visible
+  if (!tab.suspended && tab.memory >= HEAVY_MB) {
+    const badge = document.createElement('span');
+    badge.className = 'tab-ram-badge';
+    badge.textContent = '↑ ' + tab.memory + 'MB';
+    inner.appendChild(badge);
+  }
+
+  // Close button (normal tabs only)
+  if (!tab.suspended) {
+    const cls = document.createElement('span');
+    cls.className = 'tab-close';
+    cls.textContent = '🗑';
+    cls.addEventListener('click', e => { e.stopPropagation(); showToast('Tab closed'); });
+    inner.appendChild(cls);
+  }
+
+  row.appendChild(inner);
+
+  // Hover: URL + title overlay below the row
+  row.addEventListener('mouseenter', () => {
+    document.getElementById('footerUrl').textContent = tab.url;
+    showTitleOverlay(title, row, tab.title);
+  });
+  row.addEventListener('mouseleave', () => {
+    document.getElementById('footerUrl').textContent = 'hover a tab to preview URL';
+    removeOverlay();
+  });
+
+  // Click: activate or resume
+  row.addEventListener('click', () => {
+    if (tab.suspended) {
+      tab.suspended = false;
+      showToast('▶ Resumed tab');
+      renderTree();
+    } else {
+      Object.values(tabMap).forEach(t => t.active = false);
+      tab.active = true;
+      renderTree();
+    }
+  });
+
+  // Context menu
+  row.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(tab, e.clientX, e.clientY); });
+
+  return row;
+}
+
+function renderTabs(frag, tabs, depth, ancestorLines) {
+  tabs.forEach((tab, i) => {
+    const isLast = i === tabs.length - 1;
+    frag.appendChild(makeRow(tab, depth, ancestorLines));
+    if (tab.children.length) {
+      renderTabs(frag, tab.children, depth + 1, [...ancestorLines, !isLast]);
+    }
+  });
+}
+
+// ── Full render ───────────────────────────────────────────────────────────────
+function renderTree() {
+  removeOverlay();
+  const frag = document.createDocumentFragment();
+  let heavyCount = 0;
+
+  windows.forEach(w => {
+    // Window label
+    const label = document.createElement('div');
+    label.className = 'win-label';
+    const open = w.tabs.filter(t => !t.suspended).length;
+    label.innerHTML = `<span style="font-size:8px">▾</span><span>${w.name}</span><span class="win-count">${open} open</span>`;
+    frag.appendChild(label);
+
+    // "+ New tab" at top of each window's list
+    frag.appendChild(makeNewTabRow());
+
+    // Tabs (already sorted newest-first from initial sort)
+    renderTabs(frag, w.tabs, 0, []);
+  });
+
+  const tree = document.getElementById('tree');
+  tree.innerHTML = '';
+  tree.appendChild(frag);
+
+  Object.values(tabMap).forEach(t => {
+    if (!t.suspended && t.memory >= HEAVY_MB) heavyCount++;
+  });
+
+  const btn = document.getElementById('freeRamBtn');
+  if (heavyCount > 0) {
+    btn.classList.add('visible');
+    btn.textContent = `🔥 Free RAM (${heavyCount})`;
+  } else {
+    btn.classList.remove('visible');
+  }
+}
+
+// ── Context menu ──────────────────────────────────────────────────────────────
+let ctxTab = null;
+function showCtx(tab, x, y) {
+  ctxTab = tab;
+  const m = document.getElementById('ctxMenu');
+  document.getElementById('ctxSuspend').style.display = tab.suspended ? 'none' : '';
+  document.getElementById('ctxResume').style.display  = tab.suspended ? ''     : 'none';
+  document.getElementById('ctxSep2').style.display    = tab.suspended ? 'none' : '';
+  document.getElementById('ctxClose').style.display   = tab.suspended ? 'none' : '';
+  m.style.left    = Math.min(x, 290) + 'px';
+  m.style.top     = Math.min(y, window.innerHeight - 160) + 'px';
+  m.style.display = 'block';
+}
+function hideCtx() { document.getElementById('ctxMenu').style.display = 'none'; ctxTab = null; }
+document.getElementById('ctxSuspend').addEventListener('click', () => {
+  if (!ctxTab) return;
+  ctxTab.suspended = true; ctxTab.memory = 0;
+  showToast('Tab suspended'); hideCtx(); renderTree();
+});
+document.getElementById('ctxResume').addEventListener('click', () => {
+  if (!ctxTab) return;
+  ctxTab.suspended = false; showToast('▶ Resumed'); hideCtx(); renderTree();
+});
+document.getElementById('ctxClose').addEventListener('click', () => { showToast('Tab closed'); hideCtx(); });
+document.addEventListener('click', e => {
+  if (!document.getElementById('ctxMenu').contains(e.target)) hideCtx();
+});
+
+// ── Free RAM ──────────────────────────────────────────────────────────────────
+document.getElementById('freeRamBtn').addEventListener('click', () => {
+  let freed = 0, count = 0;
+  Object.values(tabMap).forEach(t => {
+    if (!t.active && !t.suspended && t.memory >= HEAVY_MB) {
+      freed += t.memory; count++;
+      t.suspended = true; t.memory = 0;
+    }
+  });
+  showToast(`Freed ~${freed}MB across ${count} tab${count !== 1 ? 's' : ''}`);
+  renderTree();
+});
+
+// ── Replay skeleton (click header title) ─────────────────────────────────────
+document.getElementById('headerTitle').addEventListener('click', () => {
+  showSkeleton();
+  setTimeout(() => renderTree(), 1600);
+});
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+renderPins();
+showSkeleton();
+setTimeout(() => renderTree(), 1600);
+</script>
+</body>
+</html>

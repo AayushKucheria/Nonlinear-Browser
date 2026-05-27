@@ -1,0 +1,552 @@
+<!--
+  sidebar-width.html
+  Explores sidebar width at 200px, 240px, and 280px.
+  Use the buttons at the top to switch between widths, or drag the slider.
+  Same realistic content in all three — notice how titles truncate and tree
+  lines consume proportionally more space at narrower widths.
+
+  Design choices explored:
+  - Standard segment width (16px per depth level) — same as production
+  - Compact mode toggle (12px segments) — shows how much space is recovered
+  - The 240px sweet spot seems to be the best trade-off
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sidebar Width Explorer</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f0f0f0;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .controls label { font-size: 13px; color: #555; }
+    .btn {
+      padding: 6px 16px; border-radius: 6px; border: 1.5px solid #ccc;
+      background: #fff; font-size: 13px; cursor: pointer; color: #333;
+      font-family: inherit; transition: all .12s;
+    }
+    .btn.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+    .btn:hover:not(.active) { border-color: #999; }
+
+    .compact-toggle {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: #666; padding: 4px 10px;
+      background: #fff; border: 1.5px solid #ccc; border-radius: 6px;
+      cursor: pointer; user-select: none;
+    }
+    .compact-toggle input { cursor: pointer; }
+
+    .panels {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .panel-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-wrapper.hidden { display: none; }
+    .panel-label {
+      font-size: 11px; color: #888; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+    .panel-highlight { color: #6366f1; }
+
+    /* ── The actual sidebar panel ── */
+    .sidebar {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      background: #ffffff;
+      color: #1c1c1e;
+      height: 560px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.13);
+    }
+
+    .header {
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 8px 10px;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .12em;
+      color: #aaa; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .icon-btn {
+      width: 22px; height: 22px; border: none; background: none;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; color: #bbb; font-size: 13px; flex-shrink: 0;
+    }
+    .icon-btn:hover { background: #eee; color: #444; }
+
+    .pinned-strip {
+      background: #f9f9f9; border-bottom: 1px solid #e5e5e5;
+      padding: 7px 10px; display: flex; flex-shrink: 0;
+    }
+    .pin-slots { display: flex; gap: 6px; width: 100%; }
+    .pin-slot {
+      flex: 1; aspect-ratio: 1; max-height: 36px;
+      border-radius: 7px; display: flex; align-items: center;
+      justify-content: center; cursor: pointer;
+    }
+    .pin-slot.filled { background: #fff; box-shadow: 0 0 0 1.5px #e0e0e0; }
+    .pin-slot.filled:hover { box-shadow: 0 0 0 1.5px #6366f1; }
+    .pin-slot.empty { border: 1.5px dashed #ddd; }
+    .pin-slot.empty:hover { border-color: #6366f1; background: #f0f1ff; }
+    .pin-letter {
+      width: 60%; height: 60%; border-radius: 4px;
+      font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; color: #fff;
+    }
+
+    .search-row {
+      padding: 6px 8px; background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
+    }
+    .search {
+      width: 100%; padding: 5px 8px;
+      background: #fff; border: 1px solid #ddd; border-radius: 4px;
+      color: #111; font-family: inherit; font-size: 11px; box-sizing: border-box;
+    }
+
+    .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .tree::-webkit-scrollbar { width: 4px; }
+    .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+    .win-label {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 8px 3px;
+      font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em;
+      color: #ccc;
+    }
+    .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+    .win-count {
+      font-size: 9px; color: #ccc; background: #f3f3f3;
+      padding: 1px 5px; border-radius: 3px; order: 10;
+    }
+
+    .tab-row {
+      display: flex; align-items: stretch;
+      min-height: 26px; position: relative;
+    }
+    .tab-row:hover .tab-inner { background: #f4f4f5; }
+    .tab-row.is-active .tab-inner { background: #eff6ff; }
+    .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+    .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; }
+
+    .active-bar {
+      width: 2px; align-self: stretch;
+      background: #2563eb; border-radius: 1px;
+      flex-shrink: 0; margin: 4px 0;
+    }
+
+    .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
+    .seg { position: relative; flex-shrink: 0; }
+    .seg.vert::before {
+      content: ''; position: absolute;
+      left: 50%; top: 0; bottom: 0;
+      width: 1px; background: #e0e0e0;
+      transform: translateX(-50%);
+    }
+    .seg.branch::before {
+      content: ''; position: absolute;
+      left: 50%; top: 0; bottom: 50%;
+      width: 1px; background: #e0e0e0;
+      transform: translateX(-50%);
+    }
+    .seg.branch::after {
+      content: ''; position: absolute;
+      left: 50%; top: 50%; width: 50%; height: 1px; background: #e0e0e0;
+    }
+
+    .tab-inner {
+      flex: 1; display: flex; align-items: center; gap: 5px;
+      padding: 0 6px 0 4px; border-radius: 4px;
+      margin-right: 4px; min-width: 0;
+    }
+    .toggle {
+      width: 12px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 9px; color: #bbb;
+    }
+    .favicon {
+      width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0;
+      font-size: 7px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; letter-spacing: -.5px; overflow: hidden;
+    }
+    .favicon img { width: 14px; height: 14px; border-radius: 2px; }
+    .tab-title {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: 11.5px; color: #222; line-height: 20px; flex: 1; min-width: 0;
+    }
+    .tab-audio {
+      flex-shrink: 0; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: #6366f1;
+    }
+    .tab-ram { font-size: 9px; font-weight: 600; color: #d97706; flex-shrink: 0; white-space: nowrap; }
+    .tab-close {
+      opacity: 0; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+    }
+    .tab-row:hover .tab-close { opacity: 1; }
+
+    .new-tab-row { display: flex; align-items: center; min-height: 22px; cursor: pointer; }
+    .new-tab-row:hover .new-tab-inner { background: #f4f4f5; }
+    .new-tab-inner { flex: 1; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 22px; border-radius: 4px; margin-right: 4px; }
+    .new-tab-plus  { font-size: 13px; color: #d0d0d0; width: 14px; text-align: center; flex-shrink: 0; }
+    .new-tab-label { font-size: 11px; color: #d0d0d0; }
+    .new-tab-row:hover .new-tab-plus,
+    .new-tab-row:hover .new-tab-label { color: #aaa; }
+
+    .footer {
+      border-top: 1px solid #e5e5e5; background: #f9f9f9;
+      padding: 6px 10px; display: flex; align-items: center;
+      gap: 6px; flex-shrink: 0;
+    }
+    .footer-url {
+      flex: 1; font-size: 9.5px; color: #aaa;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .footer-btn {
+      font-family: inherit; font-size: 10px; color: #888; cursor: pointer;
+      padding: 3px 8px; border-radius: 4px;
+      border: 1px solid #e0e0e0; background: #fff; flex-shrink: 0;
+    }
+
+    /* Compact mode: narrower tree segments */
+    .compact .seg { /* overridden by JS */ }
+  </style>
+</head>
+<body>
+
+<div class="controls">
+  <label>Width:</label>
+  <button class="btn" data-width="200" onclick="setWidth(200, this)">200px — very narrow</button>
+  <button class="btn active" data-width="240" onclick="setWidth(240, this)">240px — narrow</button>
+  <button class="btn" data-width="280" onclick="setWidth(280, this)">280px — current</button>
+
+  <label class="compact-toggle" title="Reduces tree-line segments from 16px → 12px, recovering ~4px per depth level">
+    <input type="checkbox" id="compactLines" onchange="toggleCompact()"> compact tree lines
+  </label>
+</div>
+
+<div class="panels" id="panels"></div>
+
+<script>
+  var SEG_W    = 16;   // standard segment width (matches production)
+  var COMPACT  = false;
+
+  // Realistic tab data
+  var WINDOWS = [
+    {
+      name: 'Window 1', id: 1, tabs: [
+        { id: 1, title: 'GitHub — Pull Requests', url: 'github.com/org/repo/pulls', favicon: 'https://github.com/favicon.ico', active: true, children: [
+          { id: 11, title: 'PR #412: Refactor auth middleware', url: 'github.com/org/repo/pull/412', favicon: 'https://github.com/favicon.ico', children: [
+            { id: 111, title: 'Conversation · PR #412', url: 'github.com/org/repo/pull/412#discussion', favicon: 'https://github.com/favicon.ico', children: [] }
+          ]},
+          { id: 12, title: 'PR #398: Fix login redirect loop', url: 'github.com/org/repo/pull/398', favicon: 'https://github.com/favicon.ico', children: [] }
+        ]},
+        { id: 2, title: 'Linear — Sprint Board', url: 'linear.app/team/board', color: '#8b5cf6', letter: 'L', audible: true, children: [
+          { id: 21, title: 'ENG-204: Add dark mode support', url: 'linear.app/issue/ENG-204', color: '#8b5cf6', letter: 'L', children: [] }
+        ]},
+        { id: 3, title: 'Figma — Design System v2', url: 'figma.com/file/abc/Design-System', color: '#ec4899', letter: 'F', ram: '218MB', children: [] },
+        { id: 4, title: 'Notion — Q1 Roadmap', url: 'notion.so/team/q1-roadmap-2025', color: '#1c1c1e', letter: 'N', children: [
+          { id: 41, title: 'Engineering Initiatives', url: 'notion.so/team/q1-roadmap-2025/engineering', color: '#1c1c1e', letter: 'N', children: [] },
+        ]},
+        { id: 5, title: 'Stack Overflow — async/await in for…of loops: unexpected behavior with promises', url: 'stackoverflow.com/questions/37576685', color: '#f59e0b', letter: 'S', children: [] },
+      ]
+    },
+    {
+      name: 'Window 2', id: 2, tabs: [
+        { id: 6, title: 'YouTube — React Conf 2024 Keynote', url: 'youtube.com/watch?v=T8TZQ6k4SLE', color: '#ef4444', letter: 'Y', children: [
+          { id: 61, title: 'React 19 — What\'s new?', url: 'react.dev/blog/react-19', color: '#61dafb', letter: 'R', children: [] }
+        ]},
+        { id: 7, title: 'Google Calendar', url: 'calendar.google.com', color: '#4285f4', letter: 'G', children: [] },
+      ]
+    }
+  ];
+
+  function makeFavicon(tab, size) {
+    if (tab.favicon) {
+      var img = document.createElement('img');
+      img.src = tab.favicon;
+      img.width = size || 14; img.height = size || 14;
+      img.style.borderRadius = '2px';
+      img.onerror = function () {
+        this.style.display = 'none';
+        this.parentNode.textContent = tab.letter || (tab.title||'?')[0].toUpperCase();
+        this.parentNode.style.background = tab.color || '#6366f1';
+      };
+      return img;
+    }
+    return null;
+  }
+
+  function renderTree(container, tabs, depth, ancestors, compact) {
+    var segW = compact ? 12 : 16;
+    tabs.forEach(function (tab, idx) {
+      var isLast = idx === tabs.length - 1;
+
+      var row = document.createElement('div');
+      row.className = 'tab-row' + (tab.active ? ' is-active' : '');
+
+      if (tab.active) {
+        var bar = document.createElement('div'); bar.className = 'active-bar';
+        row.appendChild(bar);
+      }
+
+      if (depth > 0) {
+        var lines = document.createElement('div');
+        lines.className = 'tree-lines';
+        for (var i = 0; i < depth - 1; i++) {
+          var seg = document.createElement('span');
+          seg.className = 'seg' + (ancestors[i] ? ' vert' : '');
+          seg.style.width = segW + 'px';
+          lines.appendChild(seg);
+        }
+        var branch = document.createElement('span');
+        branch.className = 'seg branch';
+        branch.style.width = segW + 'px';
+        lines.appendChild(branch);
+        row.appendChild(lines);
+      }
+
+      var inner = document.createElement('div'); inner.className = 'tab-inner';
+
+      // Toggle
+      var tog = document.createElement('span'); tog.className = 'toggle';
+      if (tab.children && tab.children.length) { tog.textContent = '▾'; tog.className += ' clickable'; }
+      inner.appendChild(tog);
+
+      // Favicon
+      var icon = document.createElement('span'); icon.className = 'favicon';
+      var img = makeFavicon(tab);
+      if (img) { icon.appendChild(img); }
+      else { icon.style.background = tab.color || '#6366f1'; icon.textContent = (tab.letter || (tab.title||'?')[0].toUpperCase()); }
+      inner.appendChild(icon);
+
+      // Title
+      var titleEl = document.createElement('span'); titleEl.className = 'tab-title';
+      titleEl.textContent = tab.title;
+      inner.appendChild(titleEl);
+
+      // RAM badge
+      if (tab.ram) {
+        var badge = document.createElement('span'); badge.className = 'tab-ram';
+        badge.textContent = '↑ ' + tab.ram;
+        inner.appendChild(badge);
+      }
+
+      // Audio
+      if (tab.audible) {
+        var audio = document.createElement('span'); audio.className = 'tab-audio';
+        audio.textContent = '🔊';
+        inner.appendChild(audio);
+      }
+
+      // Close
+      var cls = document.createElement('span'); cls.className = 'tab-close'; cls.textContent = '🗑';
+      inner.appendChild(cls);
+
+      row.appendChild(inner);
+      container.appendChild(row);
+
+      if (tab.children && tab.children.length) {
+        renderTree(container, tab.children, depth + 1, ancestors.concat([!isLast]), compact);
+      }
+    });
+  }
+
+  function makeSidebar(width, compact) {
+    var sb = document.createElement('div');
+    sb.className = 'sidebar';
+    sb.style.width = width + 'px';
+
+    // Header
+    var header = document.createElement('div'); header.className = 'header';
+    var title = document.createElement('span'); title.className = 'header-title'; title.textContent = 'nonlinear browser';
+    var colBtn = document.createElement('button'); colBtn.className = 'icon-btn'; colBtn.textContent = '⊟';
+    var closeBtn = document.createElement('button'); closeBtn.className = 'icon-btn'; closeBtn.textContent = '—'; closeBtn.style.fontWeight = '300';
+    header.appendChild(title); header.appendChild(colBtn); header.appendChild(closeBtn);
+    sb.appendChild(header);
+
+    // Pin strip
+    var strip = document.createElement('div'); strip.className = 'pinned-strip';
+    var slots = document.createElement('div'); slots.className = 'pin-slots';
+    var pinData = [
+      { color: '#4285f4', letter: 'G', title: 'Gmail' },
+      { color: '#8b5cf6', letter: 'L', title: 'Linear' },
+      { color: '#ec4899', letter: 'F', title: 'Figma' },
+      null, null, null
+    ];
+    pinData.forEach(function (p) {
+      var slot = document.createElement('div');
+      if (p) {
+        slot.className = 'pin-slot filled';
+        var pl = document.createElement('div'); pl.className = 'pin-letter';
+        pl.style.background = p.color; pl.textContent = p.letter;
+        slot.appendChild(pl);
+      } else {
+        slot.className = 'pin-slot empty';
+        var plus = document.createElement('span'); plus.textContent = '+'; plus.style.fontSize = '14px'; plus.style.color = '#ddd';
+        slot.appendChild(plus);
+      }
+      slots.appendChild(slot);
+    });
+    strip.appendChild(slots); sb.appendChild(strip);
+
+    // Search
+    var sr = document.createElement('div'); sr.className = 'search-row';
+    var inp = document.createElement('input'); inp.className = 'search'; inp.placeholder = '/ filter…';
+    sr.appendChild(inp); sb.appendChild(sr);
+
+    // Tree
+    var tree = document.createElement('div'); tree.className = 'tree';
+    WINDOWS.forEach(function (win) {
+      var lbl = document.createElement('div'); lbl.className = 'win-label';
+      var chev = document.createElement('span'); chev.textContent = '▾'; chev.style.fontSize = '8px';
+      var name = document.createElement('span'); name.textContent = win.name;
+      var cnt = document.createElement('span'); cnt.className = 'win-count';
+      var count = 0;
+      function countAll(tabs) { tabs.forEach(function (t) { count++; if (t.children) countAll(t.children); }); }
+      countAll(win.tabs);
+      cnt.textContent = count;
+      lbl.appendChild(chev); lbl.appendChild(name); lbl.appendChild(cnt);
+      tree.appendChild(lbl);
+
+      // New tab row
+      var ntr = document.createElement('div'); ntr.className = 'new-tab-row';
+      var nti = document.createElement('div'); nti.className = 'new-tab-inner';
+      var ntp = document.createElement('span'); ntp.className = 'new-tab-plus'; ntp.textContent = '+';
+      var ntl = document.createElement('span'); ntl.className = 'new-tab-label'; ntl.textContent = 'New tab';
+      nti.appendChild(ntp); nti.appendChild(ntl); ntr.appendChild(nti); tree.appendChild(ntr);
+
+      renderTree(tree, win.tabs, 0, [], compact);
+    });
+    sb.appendChild(tree);
+
+    // Footer
+    var footer = document.createElement('div'); footer.className = 'footer';
+    var url = document.createElement('span'); url.className = 'footer-url'; url.textContent = 'github.com/org/repo/pull/412';
+    var saveBtn = document.createElement('button'); saveBtn.className = 'footer-btn'; saveBtn.textContent = 'save';
+    footer.appendChild(url); footer.appendChild(saveBtn);
+    sb.appendChild(footer);
+
+    return sb;
+  }
+
+  var currentWidth = 240;
+  var WIDTHS = [200, 240, 280];
+
+  function setWidth(w, btn) {
+    currentWidth = w;
+    document.querySelectorAll('.btn[data-width]').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    redraw();
+  }
+
+  function toggleCompact() {
+    COMPACT = document.getElementById('compactLines').checked;
+    redraw();
+  }
+
+  function redraw() {
+    var panels = document.getElementById('panels');
+    panels.innerHTML = '';
+    WIDTHS.forEach(function (w) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'panel-wrapper' + (w !== currentWidth ? ' hidden' : '');
+      var lbl = document.createElement('div');
+      lbl.className = 'panel-label' + (w === 240 ? ' panel-highlight' : '');
+      lbl.textContent = w + 'px' + (w === 240 ? ' ← try this' : '');
+      wrapper.appendChild(lbl);
+      wrapper.appendChild(makeSidebar(w, COMPACT));
+      panels.appendChild(wrapper);
+    });
+  }
+
+  // Show all three side by side on load
+  function showAll() {
+    var panels = document.getElementById('panels');
+    panels.innerHTML = '';
+    WIDTHS.forEach(function (w) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'panel-wrapper';
+      var lbl = document.createElement('div');
+      lbl.className = 'panel-label' + (w === 240 ? ' panel-highlight' : '');
+      lbl.textContent = w + 'px' + (w === 240 ? ' ← sweet spot?' : '');
+      wrapper.appendChild(lbl);
+      wrapper.appendChild(makeSidebar(w, COMPACT));
+      panels.appendChild(wrapper);
+    });
+  }
+
+  // Override setWidth to show all when "all" is selected
+  // On load show all three
+  showAll();
+
+  // Override buttons to show single vs all
+  document.querySelectorAll('.btn[data-width]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var w = parseInt(this.dataset.width);
+      document.querySelectorAll('.btn[data-width]').forEach(function (b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      currentWidth = w;
+
+      var panels = document.getElementById('panels');
+      panels.innerHTML = '';
+      WIDTHS.forEach(function (pw) {
+        var wrapper = document.createElement('div');
+        wrapper.className = 'panel-wrapper' + (pw !== currentWidth ? ' hidden' : '');
+        var lbl = document.createElement('div');
+        lbl.className = 'panel-label' + (pw === 240 ? ' panel-highlight' : '');
+        lbl.textContent = pw + 'px';
+        wrapper.appendChild(lbl);
+        wrapper.appendChild(makeSidebar(pw, COMPACT));
+        panels.appendChild(wrapper);
+      });
+    });
+  });
+
+  document.getElementById('compactLines').addEventListener('change', function () {
+    COMPACT = this.checked;
+    showAll();
+  });
+
+  // Reset buttons to "show all" state
+  document.querySelectorAll('.btn[data-width]').forEach(function (b) { b.classList.remove('active'); });
+</script>
+</body>
+</html>

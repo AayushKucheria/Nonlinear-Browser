@@ -1,0 +1,588 @@
+<!--
+  PROTOTYPE: Forgiving Zone-Based Drag & Drop
+  ============================================
+  Key design choices:
+  - Space headers are LARGE drop targets — drag any tab onto a space name
+    and it moves there as a top-level sibling. No precision needed.
+  - Within a space, the drop indicator snaps to nearest gap (above/below midpoint).
+    No child vs sibling distinction — always inserts as sibling at the nearest slot.
+  - Drop indicator is a bold 2px line with a circle, hard to miss.
+  - Dragging shows a ghost with the tab title (not blank).
+  - The entire space zone lights up when you drag over it (not just individual rows).
+
+  Tradeoff: You can't create children via drag. Children are created some other way
+  (right-click > Move under..., or maybe a separate indent button).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Drag: Forgiving Zones</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px;
+    gap: 32px;
+  }
+
+  .label {
+    font-size: 11px;
+    color: #888;
+    text-align: center;
+    margin-bottom: 8px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Sidebar shell ── */
+  .sidebar {
+    width: 220px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .sidebar-header {
+    padding: 8px 10px 6px;
+    border-bottom: 1px solid #efefef;
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ── Space group ── */
+  .space {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.1s;
+  }
+
+  .space.drag-over {
+    background: #f0f7ff;
+  }
+
+  /* ── Space header — large drop target ── */
+  .space-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    cursor: default;
+    position: relative;
+  }
+
+  .space-header .chevron {
+    font-size: 9px;
+    color: #ccc;
+    flex-shrink: 0;
+    transition: transform 0.15s;
+  }
+
+  .space-header .space-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    letter-spacing: 0.02em;
+    flex: 1;
+  }
+
+  .space-header .tab-count {
+    font-size: 10px;
+    color: #bbb;
+  }
+
+  /* Drop-on-header highlight */
+  .space.drag-over .space-header {
+    background: #dbeafe;
+    border-radius: 4px;
+  }
+
+  .space-drop-label {
+    display: none;
+    position: absolute;
+    right: 8px;
+    font-size: 9px;
+    font-weight: 600;
+    color: #3b82f6;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .space.drag-over .space-drop-label { display: block; }
+  .space.drag-over .tab-count { display: none; }
+
+  /* ── Tab rows ── */
+  .tabs-container {
+    position: relative;
+  }
+
+  .tab-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 10px 4px 10px;
+    gap: 6px;
+    cursor: grab;
+    border-radius: 3px;
+    margin: 0 3px;
+    position: relative;
+    transition: background 0.08s;
+  }
+
+  .tab-row:hover { background: #f5f5f5; }
+  .tab-row.active { background: #eff6ff; }
+  .tab-row.active .tab-title { color: #2563eb; font-weight: 500; }
+
+  .tab-row.dragging {
+    opacity: 0.35;
+  }
+
+  .tab-row.is-child {
+    padding-left: 24px;
+  }
+
+  .favicon {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    background: #e8e8e8;
+    color: #666;
+  }
+
+  .favicon img { width: 14px; height: 14px; border-radius: 2px; }
+
+  .tab-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #333;
+    font-size: 12px;
+  }
+
+  /* ── Drop indicator ── */
+  .drop-indicator {
+    position: absolute;
+    left: 10px; right: 10px;
+    height: 2px;
+    background: #3b82f6;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10;
+    display: none;
+  }
+
+  .drop-indicator::before {
+    content: '';
+    position: absolute;
+    left: -4px; top: -3px;
+    width: 8px; height: 8px;
+    background: #3b82f6;
+    border-radius: 50%;
+  }
+
+  /* ── Ghost label shown during drag ── */
+  #drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #c7d2fe;
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #333;
+    box-shadow: 0 4px 16px rgba(59,130,246,0.2);
+    display: none;
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Info panel ── */
+  .info {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    width: 220px;
+    font-size: 12px;
+    color: #555;
+    line-height: 1.6;
+  }
+
+  .info h3 {
+    font-size: 13px;
+    color: #222;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  .info .rule {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border-radius: 5px;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .info .rule strong {
+    display: block;
+    color: #222;
+    margin-bottom: 2px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="label">Forgiving Zone-Based Drag</div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">Nonlinear Browser</div>
+    <!-- spaces injected by JS -->
+  </div>
+</div>
+
+<div class="info">
+  <h3>How it works</h3>
+  <div class="rule">
+    <strong>Cross-space move</strong>
+    Drag any tab over a space name — the whole row lights up. Drop to move the tab there as a top-level tab. No precision needed.
+  </div>
+  <div class="rule">
+    <strong>Reorder within space</strong>
+    Drop anywhere on a tab row — snaps above or below based on midpoint. Always inserts as sibling, never child.
+  </div>
+  <div class="rule">
+    <strong>No nesting via drag</strong>
+    Children are created via right-click → Move under. Keeps drag simple and predictable.
+  </div>
+</div>
+
+<div id="drag-ghost"></div>
+
+<script>
+// ── Data ─────────────────────────────────────────────────────────────────────
+var spaces = [
+  {
+    id: 'w1', name: 'Work', color: '#3b82f6',
+    tabs: [
+      { id: 't1', title: 'Linear – Issues', favicon: '📋', active: true },
+      { id: 't2', title: 'Figma – Design System', favicon: '🎨', child: false },
+      { id: 't3', title: 'Notion – Sprint notes', favicon: '📝', child: true },
+      { id: 't4', title: 'GitHub – nonlinear-browser', favicon: '🐙', child: false },
+    ]
+  },
+  {
+    id: 'w2', name: 'Research', color: '#8b5cf6',
+    tabs: [
+      { id: 't5', title: 'Tree-based UX – Smashing Mag', favicon: '🌳' },
+      { id: 't6', title: 'Arc Browser teardown', favicon: '🔬' },
+      { id: 't7', title: 'Workona comparison', favicon: '📊', child: true },
+    ]
+  },
+  {
+    id: 'w3', name: 'Personal', color: '#10b981',
+    tabs: [
+      { id: 't8', title: 'Gmail', favicon: '✉️' },
+      { id: 't9', title: 'Google Calendar', favicon: '📅' },
+      { id: 't10', title: 'Hacker News', favicon: '🧡' },
+      { id: 't11', title: 'YouTube – lofi playlist', favicon: '▶️', child: true },
+    ]
+  }
+];
+
+// ── Drag state ────────────────────────────────────────────────────────────────
+var drag = {
+  tabId: null,
+  fromSpaceId: null,
+  ghost: document.getElementById('drag-ghost'),
+  indicator: null,       // current active drop-indicator el
+  overSpaceId: null,     // space being hovered for cross-space drop
+  insertBefore: null,    // tab id to insert before (null = end of space)
+  insertSpaceId: null,   // which space the indicator is in
+};
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  var sidebar = document.getElementById('sidebar');
+  // preserve header
+  var header = sidebar.querySelector('.sidebar-header');
+  sidebar.innerHTML = '';
+  sidebar.appendChild(header);
+
+  spaces.forEach(function(space) {
+    var spaceEl = document.createElement('div');
+    spaceEl.className = 'space';
+    spaceEl.dataset.spaceId = space.id;
+
+    // Header — drop target for cross-space
+    var hdr = document.createElement('div');
+    hdr.className = 'space-header';
+    hdr.innerHTML =
+      '<span class="chevron">▾</span>' +
+      '<span class="space-name">' + space.name + '</span>' +
+      '<span class="tab-count">' + space.tabs.length + '</span>' +
+      '<span class="space-drop-label">Drop here</span>';
+
+    hdr.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setSpaceOver(space.id);
+      clearIndicator();
+    });
+
+    hdr.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropOnSpace(space.id);
+    });
+
+    spaceEl.appendChild(hdr);
+
+    // Tabs container
+    var container = document.createElement('div');
+    container.className = 'tabs-container';
+    container.dataset.spaceId = space.id;
+
+    space.tabs.forEach(function(tab, idx) {
+      // Drop indicator before this tab
+      var ind = document.createElement('div');
+      ind.className = 'drop-indicator';
+      ind.dataset.before = tab.id;
+      ind.dataset.spaceId = space.id;
+      container.appendChild(ind);
+
+      var row = document.createElement('div');
+      row.className = 'tab-row' + (tab.active ? ' active' : '') + (tab.child ? ' is-child' : '');
+      row.draggable = true;
+      row.dataset.tabId = tab.id;
+      row.dataset.spaceId = space.id;
+
+      var fav = document.createElement('span');
+      fav.className = 'favicon';
+      fav.textContent = tab.favicon;
+      row.appendChild(fav);
+
+      var title = document.createElement('span');
+      title.className = 'tab-title';
+      title.textContent = tab.title;
+      row.appendChild(title);
+
+      // Drag events
+      row.addEventListener('dragstart', function(e) {
+        drag.tabId = tab.id;
+        drag.fromSpaceId = space.id;
+        drag.ghost.textContent = tab.favicon + '  ' + tab.title;
+        drag.ghost.style.display = 'block';
+        setTimeout(function() { row.classList.add('dragging'); }, 0);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setDragImage(drag.ghost, -20, -10);
+      });
+
+      row.addEventListener('dragend', function() {
+        row.classList.remove('dragging');
+        drag.tabId = null;
+        drag.fromSpaceId = null;
+        drag.ghost.style.display = 'none';
+        clearAllOver();
+        clearIndicator();
+      });
+
+      // Dragover on a tab row — show indicator above or below
+      row.addEventListener('dragover', function(e) {
+        if (!drag.tabId || drag.tabId === tab.id) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        clearSpaceOver();
+
+        var rect = row.getBoundingClientRect();
+        var mid = rect.top + rect.height / 2;
+        var before = e.clientY < mid ? tab.id : getTabAfter(space, idx);
+        showIndicator(space.id, before, container);
+      });
+
+      row.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (!drag.tabId || drag.tabId === tab.id) return;
+        var rect = row.getBoundingClientRect();
+        var mid = rect.top + rect.height / 2;
+        var before = e.clientY < mid ? tab.id : getTabAfter(space, idx);
+        dropInSpace(space.id, before);
+      });
+
+      container.appendChild(row);
+    });
+
+    // Drop indicator at end
+    var endInd = document.createElement('div');
+    endInd.className = 'drop-indicator';
+    endInd.dataset.before = '';
+    endInd.dataset.spaceId = space.id;
+    endInd.style.bottom = '4px';
+    container.appendChild(endInd);
+
+    // Dragover on container (gaps between rows)
+    container.addEventListener('dragover', function(e) {
+      if (!drag.tabId) return;
+      e.preventDefault();
+      clearSpaceOver();
+      // Find nearest row
+      var rows = Array.from(container.querySelectorAll('.tab-row'));
+      if (!rows.length) {
+        showIndicator(space.id, null, container);
+        return;
+      }
+      // Find the gap the cursor is in
+      var best = null;
+      for (var i = 0; i < rows.length; i++) {
+        var rect = rows[i].getBoundingClientRect();
+        var mid = rect.top + rect.height / 2;
+        if (e.clientY < mid) {
+          best = rows[i].dataset.tabId;
+          break;
+        }
+      }
+      showIndicator(space.id, best, container);
+    });
+
+    container.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!drag.tabId) return;
+      dropInSpace(space.id, drag.insertBefore);
+    });
+
+    spaceEl.appendChild(container);
+    sidebar.appendChild(spaceEl);
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getTabAfter(space, idx) {
+  return idx + 1 < space.tabs.length ? space.tabs[idx + 1].id : null;
+}
+
+function showIndicator(spaceId, beforeId, container) {
+  clearIndicator();
+  drag.insertSpaceId = spaceId;
+  drag.insertBefore = beforeId;
+
+  var sel = beforeId
+    ? container.querySelector('.drop-indicator[data-before="' + beforeId + '"]')
+    : container.querySelector('.drop-indicator[data-before=""]');
+  if (sel) {
+    sel.style.display = 'block';
+    drag.indicator = sel;
+  }
+}
+
+function clearIndicator() {
+  if (drag.indicator) {
+    drag.indicator.style.display = 'none';
+    drag.indicator = null;
+  }
+}
+
+function setSpaceOver(spaceId) {
+  clearAllOver();
+  drag.overSpaceId = spaceId;
+  var el = document.querySelector('.space[data-space-id="' + spaceId + '"]');
+  if (el) el.classList.add('drag-over');
+}
+
+function clearSpaceOver() {
+  if (drag.overSpaceId) {
+    var el = document.querySelector('.space[data-space-id="' + drag.overSpaceId + '"]');
+    if (el) el.classList.remove('drag-over');
+    drag.overSpaceId = null;
+  }
+}
+
+function clearAllOver() {
+  document.querySelectorAll('.space.drag-over').forEach(function(el) {
+    el.classList.remove('drag-over');
+  });
+  drag.overSpaceId = null;
+}
+
+function findTab(tabId) {
+  for (var i = 0; i < spaces.length; i++) {
+    for (var j = 0; j < spaces[i].tabs.length; j++) {
+      if (spaces[i].tabs[j].id === tabId) {
+        return { space: spaces[i], tab: spaces[i].tabs[j], idx: j };
+      }
+    }
+  }
+  return null;
+}
+
+function removeTab(tabId) {
+  var found = findTab(tabId);
+  if (!found) return null;
+  found.space.tabs.splice(found.idx, 1);
+  return found.tab;
+}
+
+function dropOnSpace(targetSpaceId) {
+  if (!drag.tabId) return;
+  var found = findTab(drag.tabId);
+  if (!found) return;
+  if (found.space.id === targetSpaceId) { clearAllOver(); clearIndicator(); return; }
+
+  var tab = removeTab(drag.tabId);
+  tab.child = false; // top-level in new space
+  var targetSpace = spaces.find(function(s) { return s.id === targetSpaceId; });
+  if (targetSpace) targetSpace.tabs.unshift(tab);
+
+  clearAllOver(); clearIndicator();
+  render();
+}
+
+function dropInSpace(targetSpaceId, beforeId) {
+  if (!drag.tabId) return;
+  var found = findTab(drag.tabId);
+  if (!found) return;
+
+  var tab = removeTab(drag.tabId);
+  var targetSpace = spaces.find(function(s) { return s.id === targetSpaceId; });
+  if (!targetSpace) { clearAllOver(); clearIndicator(); render(); return; }
+
+  if (beforeId) {
+    var idx = targetSpace.tabs.findIndex(function(t) { return t.id === beforeId; });
+    if (idx >= 0) {
+      targetSpace.tabs.splice(idx, 0, tab);
+    } else {
+      targetSpace.tabs.push(tab);
+    }
+  } else {
+    targetSpace.tabs.push(tab);
+  }
+
+  clearAllOver(); clearIndicator();
+  render();
+}
+
+// Ghost follows mouse (backup for browsers that ignore setDragImage offset)
+document.addEventListener('dragover', function(e) {
+  drag.ghost.style.left = (e.clientX + 16) + 'px';
+  drag.ghost.style.top  = (e.clientY + 8) + 'px';
+});
+
+render();
+</script>
+</body>
+</html>

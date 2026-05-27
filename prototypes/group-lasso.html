@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE: group-lasso.html
+  ═══════════════════════════════════════════════════════════════════
+  TAB GROUPING — Drag-to-lasso selection + right-click to group
+
+  Design choices:
+  - Rubber-band lasso: drag on empty space → translucent selection rect
+    sweeps over rows; anything it touches turns selected (blue highlight)
+  - Ctrl/Cmd+Click: toggle individual tabs in/out of selection
+  - Selection bar under header shows count + "esc to clear" hint
+  - Right-click any selected tab: context menu contains "Group N tabs…"
+  - Group creation: inline popover (not alert), name input + 6 color swatches
+  - Group node appearance: 3px colored left bar, folder icon (coloured box),
+    bold name, count badge, collapse toggle ▶/▾
+  - Groups are collapsible; right-click group → Rename / Ungroup / Delete+Tabs
+  - Ungroup promotes children back to parent level in place
+  ═══════════════════════════════════════════════════════════════════
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nonlinear — Groups: Lasso</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px; background: #fff; color: #1c1c1e;
+  width: 300px; height: 600px;
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid #ddd; border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.10);
+}
+
+/* ── Header ── */
+.header { background: #f9f9f9; border-bottom: 1px solid #e5e5e5; padding: 8px 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.header-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #aaa; flex: 1; }
+.icon-btn { width: 22px; height: 22px; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: #bbb; font-size: 13px; }
+.icon-btn:hover { background: #eee; color: #444; }
+
+/* ── Selection bar ── */
+#selBar { background: #eef2ff; border-bottom: 1px solid #c7d2fe; padding: 5px 10px; font-size: 10.5px; color: #4f46e5; display: none; flex-shrink: 0; align-items: center; gap: 6px; }
+#selBar.visible { display: flex; }
+#selBar strong { font-weight: 700; }
+.sel-hint { color: #818cf8; font-size: 9.5px; flex: 1; }
+.sel-group-btn { font-size: 10px; font-family: inherit; padding: 2px 8px; border-radius: 4px; border: 1px solid #818cf8; background: #fff; color: #4f46e5; cursor: pointer; white-space: nowrap; }
+.sel-group-btn:hover { background: #eef2ff; }
+.sel-clear { font-size: 11px; color: #aaa; cursor: pointer; padding: 2px 4px; border-radius: 3px; }
+.sel-clear:hover { background: #e0e7ff; color: #4f46e5; }
+
+/* ── Search ── */
+.search-row { padding: 6px 8px; background: #f9f9f9; border-bottom: 1px solid #e5e5e5; flex-shrink: 0; }
+.search { width: 100%; padding: 5px 8px; background: #fff; border: 1px solid #ddd; border-radius: 4px; color: #111; font-family: inherit; font-size: 11px; outline: none; }
+.search::placeholder { color: #ccc; }
+.search:focus { border-color: #6366f1; }
+
+/* ── Tree ── */
+.tree { flex: 1; overflow-y: auto; padding: 4px 0; position: relative; }
+.tree::-webkit-scrollbar { width: 4px; }
+.tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+/* ── Window label ── */
+.win-label { display: flex; align-items: center; gap: 5px; padding: 8px 8px 3px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #ccc; user-select: none; }
+.win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+.win-count { font-size: 9px; color: #ccc; background: #f3f3f3; padding: 1px 5px; border-radius: 3px; order: 10; }
+
+/* ── Tab row ── */
+.tab-row { display: flex; align-items: stretch; min-height: 24px; cursor: default; position: relative; border-top: 2px solid transparent; border-bottom: 2px solid transparent; }
+.tab-row:hover .tab-inner { background: #f4f4f5; }
+.tab-row.is-active .tab-inner { background: #eff6ff; }
+.tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+/* SELECTION */
+.tab-row.is-selected .tab-inner { background: #dbeafe !important; outline: 1px solid #93c5fd; outline-offset: -1px; border-radius: 4px; }
+.tab-row.is-selected .tab-title { color: #1d4ed8 !important; }
+
+.active-bar { width: 2px; align-self: stretch; background: #2563eb; border-radius: 1px; flex-shrink: 0; margin: 4px 0; }
+.indent-wrap { flex: 1; display: flex; align-items: stretch; min-width: 0; }
+.tab-inner { flex: 1; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px; border-radius: 4px; margin-right: 4px; min-width: 0; }
+.toggle { width: 10px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 9px; color: #bbb; }
+.toggle.clickable { cursor: pointer; }
+.toggle.clickable:hover { color: #555; }
+.favicon { width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0; font-size: 6.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; color: #fff; user-select: none; overflow: hidden; }
+.tab-title-wrap { flex: 1; min-width: 0; overflow: hidden; }
+.tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; color: #222; line-height: 24px; }
+.tab-close { opacity: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0; cursor: pointer; }
+.tab-row:hover .tab-close { opacity: 1; }
+.tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+/* ── Group row ── */
+.group-row { display: flex; align-items: stretch; min-height: 26px; cursor: default; border-top: 2px solid transparent; border-bottom: 2px solid transparent; }
+.group-row:hover .group-inner { background: #fafafa; }
+.group-row.is-selected .group-inner { background: #dbeafe !important; outline: 1px solid #93c5fd; outline-offset: -1px; border-radius: 4px; }
+.group-color-bar { width: 3px; align-self: stretch; border-radius: 0 1.5px 1.5px 0; flex-shrink: 0; margin: 3px 3px 3px 0; }
+.group-indent { flex: 1; display: flex; align-items: stretch; min-width: 0; }
+.group-inner { flex: 1; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px; border-radius: 4px; margin-right: 4px; min-width: 0; }
+.group-toggle { width: 10px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #bbb; cursor: pointer; flex-shrink: 0; }
+.group-toggle:hover { color: #555; }
+.group-icon { width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; color: #fff; }
+.group-name { flex: 1; font-size: 11.5px; font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.group-count { font-size: 9px; color: #999; background: #f0f0f0; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+.group-close { opacity: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0; cursor: pointer; }
+.group-row:hover .group-close { opacity: 1; }
+.group-close:hover { background: #fee2e2; color: #dc2626; }
+
+/* ── New tab row ── */
+.new-tab-row { display: flex; align-items: center; min-height: 22px; cursor: pointer; }
+.new-tab-row:hover .new-tab-inner { background: #f4f4f5; }
+.new-tab-inner { flex: 1; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 22px; border-radius: 4px; margin-right: 4px; }
+.new-tab-plus { font-size: 13px; color: #d0d0d0; width: 14px; text-align: center; flex-shrink: 0; }
+.new-tab-label { font-size: 11px; color: #d0d0d0; }
+.new-tab-row:hover .new-tab-plus, .new-tab-row:hover .new-tab-label { color: #aaa; }
+
+/* ── Footer ── */
+.footer { border-top: 1px solid #e5e5e5; background: #f9f9f9; padding: 6px 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.footer-url { flex: 1; font-size: 9.5px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.footer-btn { font-family: inherit; font-size: 10px; color: #888; cursor: pointer; padding: 3px 8px; border-radius: 4px; border: 1px solid #e0e0e0; background: #fff; }
+.footer-btn:hover { border-color: #6366f1; color: #6366f1; }
+
+/* ── Context menu ── */
+#ctxMenu { display: none; position: fixed; z-index: 999; background: #fff; border: 1px solid #e0e0e0; border-radius: 7px; box-shadow: 0 6px 20px rgba(0,0,0,.13); min-width: 178px; padding: 4px 0; font-size: 11.5px; font-family: inherit; }
+.ctx-item { padding: 7px 14px; cursor: pointer; color: #1c1c1e; white-space: nowrap; }
+.ctx-item:hover { background: #f4f4f5; }
+.ctx-danger:hover { background: #fef2f2; color: #dc2626; }
+.ctx-sep { height: 1px; background: #e5e7eb; margin: 3px 0; }
+.ctx-highlight { color: #4f46e5; font-weight: 600; }
+.ctx-highlight:hover { background: #eef2ff; }
+
+/* ── Group creation popover ── */
+#groupPopover { display: none; position: fixed; z-index: 1001; background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.15); padding: 12px 14px; width: 210px; font-family: inherit; }
+#groupPopover h4 { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #bbb; margin-bottom: 8px; }
+#groupNameInput { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit; font-size: 11.5px; outline: none; color: #111; margin-bottom: 8px; }
+#groupNameInput:focus { border-color: #6366f1; }
+.color-swatches { display: flex; gap: 5px; margin-bottom: 10px; }
+.swatch { width: 16px; height: 16px; border-radius: 50%; cursor: pointer; border: 2.5px solid transparent; transition: transform 0.1s; }
+.swatch:hover { transform: scale(1.2); }
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #999; }
+.popover-footer { display: flex; gap: 6px; justify-content: flex-end; }
+.btn-sm { padding: 4px 10px; border-radius: 5px; font-family: inherit; font-size: 11px; cursor: pointer; border: none; }
+.btn-cancel { background: #f4f4f5; color: #666; }
+.btn-cancel:hover { background: #e8e8e8; }
+.btn-create { background: #6366f1; color: #fff; }
+.btn-create:hover { background: #4f46e5; }
+
+/* ── Rename popover ── */
+#renamePopover { display: none; position: fixed; z-index: 1001; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.12); padding: 10px 12px; width: 190px; font-family: inherit; }
+#renameInput { width: 100%; padding: 5px 7px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit; font-size: 11.5px; outline: none; color: #111; }
+#renameInput:focus { border-color: #6366f1; }
+
+/* ── Lasso rubber band ── */
+#lasso { position: fixed; pointer-events: none; z-index: 998; background: rgba(99,102,241,0.07); border: 1.5px solid rgba(99,102,241,0.45); border-radius: 3px; display: none; }
+
+/* ── Usage hint ── */
+#usageHint { padding: 8px 12px; background: #fffbeb; border-bottom: 1px solid #fde68a; font-size: 10px; color: #92400e; flex-shrink: 0; line-height: 1.5; }
+#usageHint span { opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<div id="usageHint">
+  <strong>Try it:</strong> drag on empty space to lasso·select tabs,<br>
+  <span>or Ctrl+click individual tabs, then right-click → Group</span>
+</div>
+
+<div class="header">
+  <span class="header-title">nonlinear browser</span>
+  <button class="icon-btn" title="Collapse all">⊟</button>
+  <button class="icon-btn" style="font-weight:300" title="Close">—</button>
+</div>
+
+<div id="selBar">
+  <strong id="selCount">0</strong>&nbsp;selected
+  <span class="sel-hint">· right-click to group</span>
+  <button class="sel-group-btn" id="selGroupBtn">📁 Group…</button>
+  <span class="sel-clear" title="Clear (Esc)">✕</span>
+</div>
+
+<div class="search-row">
+  <input class="search" placeholder="/ filter…">
+</div>
+
+<div class="tree" id="tree"></div>
+
+<div class="footer">
+  <span class="footer-url" id="footerUrl">hover a tab to see URL</span>
+  <button class="footer-btn">save</button>
+</div>
+
+<!-- Context menu -->
+<div id="ctxMenu">
+  <div class="ctx-item" id="ctxGroup">📁 &nbsp;Group N tabs…</div>
+  <div class="ctx-sep" id="ctxGroupSep"></div>
+  <div class="ctx-item" id="ctxRename">✎ &nbsp;Rename Tab</div>
+  <div class="ctx-item" id="ctxCopy">⎘ &nbsp;Copy URL</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-danger" id="ctxClose">✕ &nbsp;Close Tab</div>
+  <!-- Group-specific items (shown only when right-clicking a group) -->
+  <div class="ctx-item" id="ctxRenameGroup" style="display:none">✎ &nbsp;Rename Group</div>
+  <div class="ctx-item" id="ctxUngroup" style="display:none">↑ &nbsp;Ungroup</div>
+  <div class="ctx-sep" id="ctxGroupActionSep" style="display:none"></div>
+  <div class="ctx-item ctx-danger" id="ctxDeleteGroup" style="display:none">🗑 &nbsp;Delete Group + Tabs</div>
+</div>
+
+<!-- Group creation popover -->
+<div id="groupPopover">
+  <h4>New Group</h4>
+  <input id="groupNameInput" placeholder="Group name…" autocomplete="off" spellcheck="false">
+  <div class="color-swatches" id="colorSwatches"></div>
+  <div class="popover-footer">
+    <button class="btn-sm btn-cancel" id="popoverCancel">Cancel</button>
+    <button class="btn-sm btn-create" id="popoverCreate">Create</button>
+  </div>
+</div>
+
+<!-- Rename popover -->
+<div id="renamePopover">
+  <input id="renameInput" placeholder="Group name…" autocomplete="off" spellcheck="false">
+</div>
+
+<!-- Lasso rubber band -->
+<div id="lasso"></div>
+
+<script>
+'use strict';
+
+// ─── Data model ───────────────────────────────────────────────────────────────
+// Each item: { id, title?, type?, name?, fav?, bg?, active?, url?, color?, children[] }
+// type === 'group' → rendered as group row
+// otherwise → rendered as tab row
+
+let tree = {
+  windows: [
+    {
+      id: 1, name: 'Work',
+      items: [
+        { id: 't1', title: 'Nonlinear Browser — PR #42', fav: 'G', bg: '#24292f', active: true, url: 'github.com/user/nonlinear/pull/42', children: [
+            { id: 't2', title: 'renderer.js · 3 changes', fav: 'G', bg: '#24292f', url: 'github.com/user/nonlinear/blob/renderer.js', children: [] }
+          ]
+        },
+        { id: 'group1', type: 'group', name: 'Sprint Planning', color: '#8b5cf6', url: '',
+          children: [
+            { id: 't3', title: 'Linear — Sprint 23 board', fav: 'L', bg: '#5e6ad2', url: 'linear.app/team/sprint-23', children: [] },
+            { id: 't4', title: 'Notion — Architecture notes', fav: 'N', bg: '#191919', url: 'notion.so/arch-notes', children: [] }
+          ]
+        },
+        { id: 't5', title: 'Figma — Sidebar redesign', fav: 'F', bg: '#f24e1e', url: 'figma.com/file/sidebar', children: [] },
+        { id: 't6', title: 'Slack — #dev-frontend', fav: 'S', bg: '#4a154b', url: 'app.slack.com/dev-frontend', children: [] }
+      ]
+    },
+    {
+      id: 2, name: 'Personal',
+      items: [
+        { id: 't7', title: 'YouTube — Lo-fi study mix', fav: 'Y', bg: '#ff0000', url: 'youtube.com/watch?v=lofi', children: [] },
+        { id: 't8', title: 'Gmail — Inbox (3 unread)', fav: 'G', bg: '#ea4335', url: 'mail.google.com/inbox', children: [] },
+        { id: 't9', title: 'Twitter / X — Home', fav: 'X', bg: '#000', url: 'x.com/home', children: [] },
+        { id: 't10', title: 'Hacker News', fav: 'Y', bg: '#ff6600', url: 'news.ycombinator.com', children: [] }
+      ]
+    }
+  ]
+};
+
+let selectedIds = new Set();
+let collapsedIds = new Set();
+let ctxTarget = null;   // { type: 'tab'|'group', item, parentItems }
+
+// ─── Colors ──────────────────────────────────────────────────────────────────
+const GROUP_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981'];
+let pendingGroupColor = GROUP_COLORS[0];
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderAll() {
+  const container = document.getElementById('tree');
+  container.innerHTML = '';
+  for (const win of tree.windows) {
+    renderWindow(win, container);
+  }
+  updateSelBar();
+}
+
+function renderWindow(win, container) {
+  // Window label
+  const label = document.createElement('div');
+  label.className = 'win-label';
+  label.innerHTML = `<span style="font-size:8px;color:#ddd">▾</span>&nbsp;${win.name}<span class="win-count">${countOpenInList(win.items)}</span>`;
+  container.appendChild(label);
+
+  // New tab row
+  const newRow = document.createElement('div');
+  newRow.className = 'new-tab-row';
+  newRow.innerHTML = '<div class="new-tab-inner"><span class="new-tab-plus">+</span><span class="new-tab-label">New tab</span></div>';
+  container.appendChild(newRow);
+
+  // Items
+  for (const item of win.items) {
+    renderItem(item, 0, win.items, container);
+  }
+}
+
+function countOpenInList(items) {
+  let n = 0;
+  for (const item of items) {
+    if (item.type === 'group') n += countOpenInList(item.children);
+    else n++;
+    if (item.children && item.type !== 'group') n += countOpenInList(item.children);
+  }
+  return n;
+}
+
+function renderItem(item, depth, siblingList, container) {
+  if (item.type === 'group') {
+    renderGroup(item, depth, siblingList, container);
+  } else {
+    renderTab(item, depth, siblingList, container);
+  }
+}
+
+function renderTab(tab, depth, siblingList, container) {
+  const row = document.createElement('div');
+  row.className = 'tab-row' + (tab.active ? ' is-active' : '') + (selectedIds.has(tab.id) ? ' is-selected' : '');
+  row.dataset.id = tab.id;
+
+  if (tab.active) {
+    const bar = document.createElement('div'); bar.className = 'active-bar';
+    row.appendChild(bar);
+  }
+
+  const indentWrap = document.createElement('div');
+  indentWrap.className = 'indent-wrap';
+  if (depth > 0) {
+    indentWrap.style.paddingLeft = (depth * 10) + 'px';
+    indentWrap.style.borderLeft = '1px solid #e8e8e8';
+    indentWrap.style.marginLeft = ((depth - 1) * 10 + 2) + 'px';
+  }
+
+  const inner = document.createElement('div'); inner.className = 'tab-inner';
+
+  // Toggle
+  const tog = document.createElement('span');
+  tog.className = 'toggle' + (tab.children && tab.children.length ? ' clickable' : '');
+  if (tab.children && tab.children.length) {
+    tog.textContent = collapsedIds.has(tab.id) ? '▶' : '▾';
+    tog.addEventListener('click', e => { e.stopPropagation(); collapsedIds.has(tab.id) ? collapsedIds.delete(tab.id) : collapsedIds.add(tab.id); renderAll(); });
+  }
+  inner.appendChild(tog);
+
+  // Favicon
+  const fav = document.createElement('span'); fav.className = 'favicon';
+  fav.style.background = tab.bg; fav.textContent = tab.fav;
+  inner.appendChild(fav);
+
+  // Title
+  const tw = document.createElement('span'); tw.className = 'tab-title-wrap';
+  const tl = document.createElement('span'); tl.className = 'tab-title'; tl.textContent = tab.title;
+  tw.appendChild(tl); inner.appendChild(tw);
+
+  // Close
+  const cls = document.createElement('span'); cls.className = 'tab-close'; cls.textContent = '🗑';
+  cls.addEventListener('click', e => { e.stopPropagation(); removeItem(tab.id); });
+  inner.appendChild(cls);
+
+  indentWrap.appendChild(inner);
+  row.appendChild(indentWrap);
+
+  // Click → toggle active (or add to selection if others selected)
+  row.addEventListener('click', e => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      toggleSelect(tab.id);
+    } else if (selectedIds.size > 0) {
+      toggleSelect(tab.id);
+    } else {
+      activateTab(tab.id);
+    }
+  });
+
+  row.addEventListener('mouseenter', () => { document.getElementById('footerUrl').textContent = tab.url || ''; });
+  row.addEventListener('mouseleave', () => { document.getElementById('footerUrl').textContent = ''; });
+
+  row.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    showCtxMenu(e, { type: 'tab', item: tab, parentItems: siblingList });
+  });
+
+  container.appendChild(row);
+
+  // Children
+  if (!collapsedIds.has(tab.id) && tab.children && tab.children.length) {
+    for (const child of tab.children) {
+      renderItem(child, depth + 1, tab.children, container);
+    }
+  }
+}
+
+function renderGroup(group, depth, siblingList, container) {
+  const row = document.createElement('div');
+  row.className = 'group-row';
+  row.dataset.id = group.id;
+
+  // Color bar
+  const bar = document.createElement('div'); bar.className = 'group-color-bar'; bar.style.background = group.color;
+  row.appendChild(bar);
+
+  const indentWrap = document.createElement('div');
+  indentWrap.className = 'group-indent';
+  if (depth > 0) {
+    indentWrap.style.paddingLeft = (depth * 10) + 'px';
+    indentWrap.style.borderLeft = '1px solid #e8e8e8';
+    indentWrap.style.marginLeft = ((depth - 1) * 10 + 2) + 'px';
+  }
+
+  const inner = document.createElement('div'); inner.className = 'group-inner';
+
+  // Toggle
+  const tog = document.createElement('span'); tog.className = 'group-toggle';
+  tog.textContent = collapsedIds.has(group.id) ? '▶' : '▾';
+  tog.addEventListener('click', e => { e.stopPropagation(); collapsedIds.has(group.id) ? collapsedIds.delete(group.id) : collapsedIds.add(group.id); renderAll(); });
+  inner.appendChild(tog);
+
+  // Icon
+  const icon = document.createElement('span'); icon.className = 'group-icon';
+  icon.style.background = group.color; icon.textContent = '▤';
+  inner.appendChild(icon);
+
+  // Name
+  const name = document.createElement('span'); name.className = 'group-name'; name.textContent = group.name;
+  inner.appendChild(name);
+
+  // Count
+  const count = document.createElement('span'); count.className = 'group-count'; count.textContent = group.children.length;
+  inner.appendChild(count);
+
+  // Close
+  const cls = document.createElement('span'); cls.className = 'group-close'; cls.textContent = '🗑';
+  cls.addEventListener('click', e => { e.stopPropagation(); removeItem(group.id); });
+  inner.appendChild(cls);
+
+  indentWrap.appendChild(inner);
+  row.appendChild(indentWrap);
+
+  row.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    showCtxMenu(e, { type: 'group', item: group, parentItems: siblingList });
+  });
+
+  container.appendChild(row);
+
+  // Children (indented +1)
+  if (!collapsedIds.has(group.id)) {
+    for (const child of group.children) {
+      renderItem(child, depth + 1, group.children, container);
+    }
+  }
+}
+
+// ─── Selection ────────────────────────────────────────────────────────────────
+function toggleSelect(id) {
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  renderAll();
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  renderAll();
+}
+
+function updateSelBar() {
+  const bar = document.getElementById('selBar');
+  const n = selectedIds.size;
+  if (n > 0) {
+    bar.classList.add('visible');
+    document.getElementById('selCount').textContent = n;
+    document.getElementById('selGroupBtn').textContent = `📁 Group ${n}…`;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+document.querySelector('.sel-clear').addEventListener('click', clearSelection);
+document.getElementById('selGroupBtn').addEventListener('click', () => {
+  if (selectedIds.size < 1) return;
+  showGroupPopover(null);
+});
+
+// ─── Context menu ─────────────────────────────────────────────────────────────
+function showCtxMenu(e, target) {
+  ctxTarget = target;
+  const menu = document.getElementById('ctxMenu');
+  const isGroup = target.type === 'group';
+  const hasSelection = selectedIds.size >= 2;
+
+  // Toggle tab vs group items
+  document.getElementById('ctxRename').style.display = isGroup ? 'none' : '';
+  document.getElementById('ctxCopy').style.display = isGroup ? 'none' : '';
+  document.getElementById('ctxClose').style.display = isGroup ? 'none' : '';
+  document.getElementById('ctxRenameGroup').style.display = isGroup ? '' : 'none';
+  document.getElementById('ctxUngroup').style.display = isGroup ? '' : 'none';
+  document.getElementById('ctxGroupActionSep').style.display = isGroup ? '' : 'none';
+  document.getElementById('ctxDeleteGroup').style.display = isGroup ? '' : 'none';
+
+  // Show "Group N tabs" only when selection has ≥2 items and we right-clicked a tab
+  const groupItem = document.getElementById('ctxGroup');
+  const groupSep = document.getElementById('ctxGroupSep');
+  if (!isGroup && hasSelection) {
+    groupItem.style.display = '';
+    groupSep.style.display = '';
+    groupItem.innerHTML = `📁 &nbsp;<span style="color:#4f46e5;font-weight:600">Group ${selectedIds.size} tabs…</span>`;
+    groupItem.className = 'ctx-item ctx-highlight';
+  } else {
+    groupItem.style.display = 'none';
+    groupSep.style.display = 'none';
+  }
+
+  // Position
+  menu.style.display = 'block';
+  const mw = 180, mh = 200;
+  let x = e.clientX, y = e.clientY;
+  if (x + mw > window.innerWidth) x = window.innerWidth - mw - 4;
+  if (y + mh > window.innerHeight) y = window.innerHeight - mh - 4;
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+}
+
+function hideCtxMenu() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxTarget = null;
+}
+
+document.getElementById('ctxGroup').addEventListener('click', () => {
+  hideCtxMenu();
+  showGroupPopover(null);
+});
+document.getElementById('ctxRename').addEventListener('click', () => {
+  if (!ctxTarget) return;
+  const item = ctxTarget.item;
+  hideCtxMenu();
+  // Simple inline rename
+  const row = document.querySelector(`[data-id="${item.id}"] .tab-title`);
+  if (!row) return;
+  row.contentEditable = 'true'; row.focus();
+  const range = document.createRange(); range.selectNodeContents(row);
+  window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+  row.addEventListener('blur', () => { row.contentEditable = 'false'; item.title = row.textContent; renderAll(); }, { once: true });
+  row.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); row.blur(); } }, { once: true });
+});
+document.getElementById('ctxCopy').addEventListener('click', () => { hideCtxMenu(); });
+document.getElementById('ctxClose').addEventListener('click', () => {
+  const target = ctxTarget; hideCtxMenu();
+  if (target) removeItem(target.item.id);
+});
+document.getElementById('ctxRenameGroup').addEventListener('click', () => {
+  if (!ctxTarget) return;
+  const group = ctxTarget.item;
+  hideCtxMenu();
+  showRenamePopover(group);
+});
+document.getElementById('ctxUngroup').addEventListener('click', () => {
+  const target = ctxTarget; hideCtxMenu();
+  if (target) ungroupGroup(target.item, target.parentItems);
+});
+document.getElementById('ctxDeleteGroup').addEventListener('click', () => {
+  const target = ctxTarget; hideCtxMenu();
+  if (target) removeItem(target.item.id);
+});
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('ctxMenu').contains(e.target)) hideCtxMenu();
+  if (!document.getElementById('groupPopover').contains(e.target) &&
+      e.target.id !== 'selGroupBtn' && !document.getElementById('ctxGroup').contains(e.target)) {
+    hideGroupPopover();
+  }
+  if (!document.getElementById('renamePopover').contains(e.target)) {
+    document.getElementById('renamePopover').style.display = 'none';
+  }
+});
+
+// ─── Group popover ────────────────────────────────────────────────────────────
+function showGroupPopover(anchorEl) {
+  if (selectedIds.size === 0) return;
+  const pop = document.getElementById('groupPopover');
+  document.getElementById('groupNameInput').value = '';
+
+  // Build color swatches
+  const sw = document.getElementById('colorSwatches');
+  sw.innerHTML = '';
+  pendingGroupColor = GROUP_COLORS[0];
+  for (const c of GROUP_COLORS) {
+    const s = document.createElement('div');
+    s.className = 'swatch' + (c === pendingGroupColor ? ' active' : '');
+    s.style.background = c;
+    s.addEventListener('click', () => {
+      sw.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+      s.classList.add('active');
+      pendingGroupColor = c;
+    });
+    sw.appendChild(s);
+  }
+
+  // Position: center-ish under selection bar
+  const selBar = document.getElementById('selBar');
+  const rect = selBar.getBoundingClientRect();
+  pop.style.display = 'block';
+  pop.style.left = rect.left + 'px';
+  pop.style.top = (rect.bottom + 4) + 'px';
+  document.getElementById('groupNameInput').focus();
+}
+
+function hideGroupPopover() {
+  document.getElementById('groupPopover').style.display = 'none';
+}
+
+document.getElementById('popoverCancel').addEventListener('click', hideGroupPopover);
+document.getElementById('popoverCreate').addEventListener('click', commitCreateGroup);
+document.getElementById('groupNameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') commitCreateGroup();
+  if (e.key === 'Escape') hideGroupPopover();
+});
+
+function commitCreateGroup() {
+  const name = document.getElementById('groupNameInput').value.trim() || 'Group';
+  hideGroupPopover();
+  createGroupFromSelection(name, pendingGroupColor);
+}
+
+// ─── Group creation logic ──────────────────────────────────────────────────────
+function createGroupFromSelection(name, color) {
+  if (selectedIds.size === 0) return;
+
+  // Find the parent list and collect selected items with their indices
+  // For this prototype: find items from any window's top-level list
+  let insertionList = null;
+  let firstIndex = Infinity;
+  let selectedItems = [];
+
+  function search(items) {
+    for (let i = 0; i < items.length; i++) {
+      if (selectedIds.has(items[i].id)) {
+        if (!insertionList) insertionList = items;
+        if (insertionList === items) {
+          firstIndex = Math.min(firstIndex, i);
+          selectedItems.push({ item: items[i], list: items, index: i });
+        }
+      }
+      if (items[i].children) search(items[i].children);
+    }
+  }
+  for (const win of tree.windows) search(win.items);
+
+  if (!insertionList || selectedItems.length === 0) return;
+
+  // Create group
+  const group = {
+    id: 'group_' + Date.now(),
+    type: 'group',
+    name,
+    color,
+    url: '',
+    children: selectedItems.map(s => s.item)
+  };
+
+  // Remove selected items from their lists (reverse order to preserve indices)
+  const toRemove = selectedItems.slice().sort((a, b) => b.index - a.index);
+  for (const s of toRemove) {
+    const idx = s.list.indexOf(s.item);
+    if (idx !== -1) s.list.splice(idx, 1);
+  }
+
+  // Insert group at firstIndex (after removals, index may have shifted slightly)
+  const insertIdx = Math.min(firstIndex, insertionList.length);
+  insertionList.splice(insertIdx, 0, group);
+
+  selectedIds.clear();
+  renderAll();
+
+  // Brief flash of the new group row
+  setTimeout(() => {
+    const el = document.querySelector(`[data-id="${group.id}"]`);
+    if (el) {
+      el.style.transition = 'background 0.3s';
+      el.querySelector('.group-inner').style.background = '#eef2ff';
+      setTimeout(() => { el.querySelector('.group-inner').style.background = ''; }, 500);
+    }
+  }, 20);
+}
+
+// ─── Ungroup ──────────────────────────────────────────────────────────────────
+function ungroupGroup(group, parentList) {
+  const idx = parentList.indexOf(group);
+  if (idx === -1) return;
+  parentList.splice(idx, 1, ...group.children);
+  renderAll();
+}
+
+// ─── Remove item ──────────────────────────────────────────────────────────────
+function removeItem(id) {
+  function removeFrom(items) {
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].id === id) { items.splice(i, 1); return true; }
+      if (items[i].children && removeFrom(items[i].children)) return true;
+    }
+    return false;
+  }
+  for (const win of tree.windows) removeFrom(win.items);
+  renderAll();
+}
+
+// ─── Activate tab ─────────────────────────────────────────────────────────────
+function activateTab(id) {
+  function walk(items) {
+    for (const item of items) {
+      if (item.type !== 'group') item.active = (item.id === id);
+      if (item.children) walk(item.children);
+    }
+  }
+  for (const win of tree.windows) walk(win.items);
+  renderAll();
+}
+
+// ─── Rename popover ───────────────────────────────────────────────────────────
+function showRenamePopover(group) {
+  const pop = document.getElementById('renamePopover');
+  const input = document.getElementById('renameInput');
+  input.value = group.name;
+  const row = document.querySelector(`[data-id="${group.id}"]`);
+  if (!row) return;
+  const rect = row.getBoundingClientRect();
+  pop.style.display = 'block';
+  pop.style.left = rect.left + 'px';
+  pop.style.top = (rect.bottom + 2) + 'px';
+  input.focus(); input.select();
+  function commit() {
+    const val = input.value.trim();
+    if (val) group.name = val;
+    pop.style.display = 'none';
+    renderAll();
+  }
+  input.onkeydown = e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') pop.style.display = 'none'; };
+  input.onblur = commit;
+}
+
+// ─── Lasso rubber band selection ──────────────────────────────────────────────
+const lasso = document.getElementById('lasso');
+let lassoing = false;
+let lassoStart = { x: 0, y: 0 };
+let lassoRect = null;
+
+document.getElementById('tree').addEventListener('mousedown', e => {
+  // Only start lasso when clicking on empty tree space (not on a tab/group row content)
+  if (e.target.closest('.tab-inner') || e.target.closest('.group-inner') ||
+      e.target.closest('.win-label') || e.target.closest('.new-tab-row') ||
+      e.target.closest('#ctxMenu') || e.target.closest('#groupPopover')) return;
+  if (e.button !== 0) return;
+
+  lassoing = true;
+  lassoStart = { x: e.clientX, y: e.clientY };
+  lasso.style.display = 'block';
+  lasso.style.left = e.clientX + 'px';
+  lasso.style.top = e.clientY + 'px';
+  lasso.style.width = '0';
+  lasso.style.height = '0';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!lassoing) return;
+  const x = Math.min(e.clientX, lassoStart.x);
+  const y = Math.min(e.clientY, lassoStart.y);
+  const w = Math.abs(e.clientX - lassoStart.x);
+  const h = Math.abs(e.clientY - lassoStart.y);
+  lasso.style.left = x + 'px'; lasso.style.top = y + 'px';
+  lasso.style.width = w + 'px'; lasso.style.height = h + 'px';
+  lassoRect = { left: x, top: y, right: x + w, bottom: y + h };
+
+  // Highlight intersecting tab rows
+  document.querySelectorAll('.tab-row[data-id]').forEach(row => {
+    if (!row.dataset.id) return;
+    const r = row.getBoundingClientRect();
+    const hits = !(r.right < lassoRect.left || r.left > lassoRect.right ||
+                   r.bottom < lassoRect.top || r.top > lassoRect.bottom);
+    if (hits && w > 4 && h > 4) selectedIds.add(row.dataset.id);
+  });
+
+  updateSelBar();
+  // Re-render selection classes without full rebuild
+  document.querySelectorAll('.tab-row[data-id]').forEach(row => {
+    row.classList.toggle('is-selected', selectedIds.has(row.dataset.id));
+  });
+});
+
+document.addEventListener('mouseup', () => {
+  if (!lassoing) return;
+  lassoing = false;
+  lasso.style.display = 'none';
+  renderAll();
+});
+
+// ─── Keyboard ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { clearSelection(); hideCtxMenu(); hideGroupPopover(); }
+});
+
+// ─── Initial render ───────────────────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>

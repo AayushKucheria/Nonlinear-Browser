@@ -2,13 +2,24 @@
   "name": "Nonlinear Browser",
   "description": "Representing browser tabs in a tree for contextual thought",
   "version": "0.5.0",
-  "permissions": ["tabs", "storage", "sidePanel", "bookmarks", "processes", "alarms"],
+  "permissions": ["tabs", "sidePanel", "bookmarks", "processes", "alarms"],
   "host_permissions": ["file:///*"],
   "background": {
     "service_worker": "background.js"
   },
+  "icons": {
+    "16": "res/icons/icon16.png",
+    "32": "res/icons/icon32.png",
+    "48": "res/icons/icon48.png",
+    "128": "res/icons/icon128.png"
+  },
   "action": {
-    "default_icon": "res/logo/favicon.png",
+    "default_icon": {
+      "16": "res/icons/icon16.png",
+      "32": "res/icons/icon32.png",
+      "48": "res/icons/icon48.png",
+      "128": "res/icons/icon128.png"
+    },
     "default_title": "Open Nonlinear Browser"
   },
   "side_panel": {

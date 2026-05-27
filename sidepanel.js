@@ -7,12 +7,6 @@
 //   crudApi.js          — window.localRoot, window.data, addNewTab, updateTab, removeSubtree
 //   renderer.js         — buildSidebarTree, countOpen
 
-// Path to the local todos file — opened by the 📝 button via VS Code URL scheme.
-// Chrome passes unknown schemes to the OS (xdg-open on Linux), so VS Code opens the file
-// and the side panel stays open. Change the scheme prefix for other editors if needed.
-var TODOS_FILE_PATH = '/home/aayush/Documents/Nonlinear-Browser/todos.md';
-var TODOS_FILE_URL  = 'file://' + TODOS_FILE_PATH;  // kept for chrome.tabs.query check
-
 // ── Drag state ────────────────────────────────────────────────────────────────
 var dragState = { draggedId: null };
 
@@ -288,7 +282,15 @@ var sidebarState = {
       pendingResume[url].push(tab);
     }
 
-    BrowserApi.createTab(url, tab.windowId);
+    // After a browser restart Chrome reassigns window IDs, so tab.windowId may
+    // be stale. Validate by checking if any live tab still uses that window ID.
+    var windowId = tab.windowId;
+    var windowIsLive = windowId && Object.keys(window.data || {}).some(function (k) {
+      var t = window.data[k];
+      return !t.deleted && !t.suspended && t.windowId === windowId;
+    });
+
+    BrowserApi.createTab(url, windowIsLive ? windowId : null);
   },
 
   onNewTab: function (windowId) {
@@ -851,13 +853,6 @@ document.addEventListener('DOMContentLoaded', function () {
   // Close panel button
   document.getElementById('closePanel').addEventListener('click', function () {
     chrome.runtime.sendMessage({ type: 'closePanel' });
-  });
-
-  // Todos button — open file in VS Code via vscode:// URL scheme.
-  // Chrome passes the unknown scheme to the OS (xdg-open on Linux) so VS Code
-  // opens the file and the side panel remains intact.
-  document.getElementById('openTodos').addEventListener('click', function () {
-    window.open('vscode://file/' + TODOS_FILE_PATH);
   });
 
   // ── Tab context menu ──────────────────────────────────────────────────────

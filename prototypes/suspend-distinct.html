@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<!--
+  Prototype: suspend-distinct.html
+  =================================
+  Design direction: "Parked card" — suspended tabs get a more visually distinct
+  treatment that makes the "sleeping" state unmistakable at a glance. The row
+  collapses to a compact single line with a left accent in muted amber, and the
+  URL replaces the title as the primary text (shorter, more useful for resuming).
+
+  Key design choices:
+  - Suspended rows have a subtle amber/sand left border accent (distinguishes from
+    active=blue, closed=gray)
+  - Title becomes dimmed; a tiny URL slug shows next to it (e.g. "css-tricks.com")
+  - A "⏸" badge on the right, not 💤 — feels more intentional / less comic
+  - Hovering a suspended row shows a "▶ Resume" chip instead of the close button
+  - Suspending a branch: all child rows get the same treatment
+  - A "suspend all" button in the header for quick RAM nuke
+  - Suspended count shown in header stats
+
+  Tradeoffs:
+  - Pro: Immediately obvious which tabs are suspended vs normal
+  - Con: More visual weight; might feel noisy if many tabs are suspended
+  - Pro: Domain slug is useful for recognizing the tab without reading full title
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Suspend — Distinct Parked Style</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      background: #ffffff;
+      color: #1c1c1e;
+      width: 320px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 8px 10px;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: #aaa; flex: 1;
+    }
+    .header-stats { font-size: 10px; color: #ccc; }
+    .icon-btn {
+      width: 22px; height: 22px;
+      border: none; background: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; color: #bbb; font-size: 13px;
+    }
+    .icon-btn:hover { background: #eee; color: #444; }
+
+    /* Suspend-all button */
+    .suspend-btn {
+      font-family: inherit; font-size: 9.5px; color: #6366f1;
+      padding: 2px 7px; border-radius: 4px;
+      border: 1px solid #c7d2fe; background: #eef2ff;
+      cursor: pointer; white-space: nowrap;
+    }
+    .suspend-btn:hover { background: #e0e7ff; border-color: #6366f1; }
+
+    /* ── Search ── */
+    .search-row {
+      padding: 6px 8px; background: #f9f9f9;
+      border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
+    }
+    .search {
+      width: 100%; padding: 5px 8px;
+      background: #fff; border: 1px solid #ddd; border-radius: 4px;
+      color: #111; font-family: inherit; font-size: 11px; outline: none;
+    }
+    .search::placeholder { color: #ccc; }
+
+    /* ── Tree ── */
+    .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .tree::-webkit-scrollbar { width: 4px; }
+    .tree::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
+
+    /* ── Window label ── */
+    .win-label {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 8px 3px;
+      font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: #ccc; cursor: pointer; user-select: none;
+    }
+    .win-label:hover { color: #aaa; }
+    .win-label::after { content: ''; flex: 1; height: 1px; background: #ececec; }
+    .win-count {
+      font-size: 9px; color: #ccc; background: #f3f3f3;
+      padding: 1px 5px; border-radius: 3px; order: 10;
+    }
+
+    /* ── Tab row — base ── */
+    .tab-row {
+      display: flex; align-items: stretch;
+      min-height: 26px; cursor: default;
+      position: relative;
+    }
+    .tab-row:hover .tab-inner { background: #f4f4f5; }
+    .tab-row.is-active .tab-inner { background: #eff6ff; }
+    .tab-row.is-active .tab-title { color: #2563eb; font-weight: 600; }
+    .tab-row.is-closed .tab-title { color: #ccc; text-decoration: line-through; }
+
+    /* ── SUSPENDED state ── */
+    /*  Amber left accent, washed-out background, compact height  */
+    .tab-row.is-suspended {
+      min-height: 24px;
+    }
+    .tab-row.is-suspended .tab-inner {
+      background: #fefce8; /* very pale yellow */
+      border-left: 2px solid #fbbf24; /* amber accent */
+      border-radius: 0 4px 4px 0;
+      margin-left: 1px;
+    }
+    .tab-row.is-suspended:hover .tab-inner {
+      background: #fef9c3;
+    }
+    .tab-row.is-suspended .favicon {
+      opacity: 0.4;
+      filter: grayscale(0.8);
+    }
+    .tab-row.is-suspended .tab-title {
+      color: #92400e;
+      font-size: 10.5px;
+    }
+    /* domain slug inline */
+    .tab-row.is-suspended .tab-domain {
+      display: inline;
+    }
+    .tab-row.is-suspended .tab-close {
+      display: none;
+    }
+
+    /* Active left bar */
+    .active-bar {
+      width: 2px; align-self: stretch;
+      background: #2563eb; border-radius: 1px;
+      flex-shrink: 0; margin: 4px 0;
+    }
+
+    /* Tree connector lines */
+    .tree-lines { display: flex; flex-shrink: 0; align-items: stretch; }
+    .seg { width: 16px; flex-shrink: 0; position: relative; }
+    .seg.vert::before {
+      content: ''; position: absolute; left: 8px; top: 0; bottom: 0;
+      width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::before {
+      content: ''; position: absolute; left: 8px; top: 0; bottom: 50%;
+      width: 1px; background: #e0e0e0;
+    }
+    .seg.branch::after {
+      content: ''; position: absolute; left: 8px; top: 50%;
+      width: 8px; height: 1px; background: #e0e0e0;
+    }
+
+    /* Inner row */
+    .tab-inner {
+      flex: 1; display: flex; align-items: center; gap: 5px;
+      padding: 0 6px 0 4px; border-radius: 4px;
+      margin-right: 4px; min-width: 0;
+      transition: background 0.1s;
+    }
+
+    .toggle {
+      width: 12px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 9px; color: #bbb;
+    }
+    .toggle.clickable { cursor: pointer; }
+    .toggle.clickable:hover { color: #555; }
+
+    .favicon {
+      width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0;
+      font-size: 7px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; user-select: none; letter-spacing: -0.5px;
+      overflow: hidden; transition: opacity 0.2s, filter 0.2s;
+    }
+
+    .tab-title {
+      flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: 11.5px; color: #222; line-height: 24px;
+      transition: color 0.15s;
+    }
+    /* Domain slug — hidden on normal tabs, shown on suspended */
+    .tab-domain {
+      display: none;
+      font-size: 9px; color: #b45309; font-weight: 400;
+      margin-left: 4px; flex-shrink: 0;
+    }
+
+    /* Pause badge */
+    .tab-pause {
+      flex-shrink: 0; font-size: 10px;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 3px; color: #d97706; opacity: 0;
+      transition: opacity 0.15s;
+      font-weight: 700;
+    }
+    .tab-row.is-suspended .tab-pause { opacity: 1; }
+
+    /* Resume chip — appears on hover of suspended rows */
+    .tab-resume {
+      display: none; align-items: center; gap: 3px;
+      font-size: 9px; color: #059669; font-weight: 700;
+      background: #d1fae5; border-radius: 3px;
+      padding: 2px 6px; flex-shrink: 0; cursor: pointer;
+      border: 1px solid #6ee7b7;
+    }
+    .tab-row.is-suspended:hover .tab-resume { display: flex; }
+    .tab-row.is-suspended:hover .tab-pause { display: none; }
+    .tab-resume:hover { background: #a7f3d0; }
+
+    /* Close button */
+    .tab-close {
+      opacity: 0; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 3px; font-size: 10px; color: #aaa; flex-shrink: 0;
+    }
+    .tab-row:hover .tab-close { opacity: 1; }
+    .tab-close:hover { background: #fee2e2; color: #dc2626; }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid #e5e5e5; background: #f9f9f9;
+      padding: 6px 10px; display: flex; align-items: center;
+      gap: 6px; flex-shrink: 0;
+    }
+    .footer-hint { font-size: 9.5px; color: #ccc; }
+    .kbd {
+      display: inline-block; background: #fff;
+      border: 1px solid #ddd; border-radius: 3px;
+      padding: 0 3px; font-size: 9px; color: #aaa; font-family: inherit;
+    }
+    .footer-url {
+      flex: 1; font-size: 9.5px; color: #aaa;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ── Context menu ── */
+    #ctxMenu {
+      display: none; position: fixed; z-index: 999;
+      background: #fff; border: 1px solid #e0e0e0;
+      border-radius: 7px; box-shadow: 0 6px 20px rgba(0,0,0,.13);
+      min-width: 188px; padding: 4px 0;
+      font-size: 11.5px; font-family: inherit;
+    }
+    .ctx-item { padding: 7px 14px; cursor: pointer; color: #1c1c1e; display: flex; align-items: center; gap: 6px; }
+    .ctx-item:hover { background: #f4f4f5; }
+    .ctx-danger { color: #dc2626; }
+    .ctx-danger:hover { background: #fef2f2; }
+    .ctx-sep { height: 1px; background: #e5e7eb; margin: 3px 0; }
+    .ctx-suspend { color: #d97706; }
+    .ctx-suspend:hover { background: #fffbeb !important; }
+    .ctx-resume-item { color: #059669; }
+    .ctx-resume-item:hover { background: #ecfdf5 !important; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 48px; left: 50%; transform: translateX(-50%);
+      background: #1c1c1e; color: #fff; font-size: 10.5px;
+      padding: 6px 14px; border-radius: 6px;
+      opacity: 0; transition: opacity 0.2s;
+      pointer-events: none; white-space: nowrap; z-index: 9999;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ── Suspended section header (optional grouping) ── */
+    .sleep-divider {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 8px 3px 10px;
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: #d97706;
+    }
+    .sleep-divider::after { content: ''; flex: 1; height: 1px; background: #fde68a; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">tabs</span>
+  <span class="header-stats" id="stats">12 open</span>
+  <button class="suspend-btn" id="suspendAllBtn" title="Suspend all background tabs">⏸ Suspend all</button>
+  <button class="icon-btn" title="Close sidebar">✕</button>
+</div>
+
+<div class="search-row">
+  <input class="search" placeholder="/ filter…">
+</div>
+
+<div class="tree" id="tree"></div>
+
+<div class="footer">
+  <span class="footer-hint"><kbd class="kbd">↑↓</kbd> nav</span>
+  <span class="footer-hint"><kbd class="kbd">⏎</kbd> focus</span>
+  <span class="footer-url" id="footerUrl">hover a tab to see URL</span>
+</div>
+
+<div id="ctxMenu">
+  <div class="ctx-item ctx-suspend" id="ctxSuspend">⏸ <span>Suspend Tab</span></div>
+  <div class="ctx-item ctx-suspend" id="ctxSuspendBranch">⏸ <span>Suspend Branch</span></div>
+  <div class="ctx-item ctx-resume-item" id="ctxResume">▶ <span>Resume Tab</span></div>
+  <div class="ctx-item ctx-resume-item" id="ctxResumeBranch">▶ <span>Resume Branch</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxRename">✎ <span>Rename Tab</span></div>
+  <div class="ctx-item" id="ctxCopy">⎘ <span>Copy URL</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-danger" id="ctxClose">✕ <span>Close Tab</span></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Tab data ──
+const windows = [
+  {
+    id: 1, name: 'Window 1',
+    tabs: [
+      { id: 1, title: 'GitHub — Your repositories', url: 'github.com', domain: 'github.com', favicon: 'GH', color: '#24292e', active: true, suspended: false, children: [] },
+      { id: 2, title: 'Pull request: feat/suspend-tabs', url: 'github.com/nonlinear/browser/pull/42', domain: 'github.com', favicon: 'GH', color: '#24292e', active: false, suspended: false, children: [
+        { id: 3, title: 'Files changed · 14', url: 'github.com/nonlinear/browser/pull/42/files', domain: 'github.com', favicon: 'GH', color: '#24292e', active: false, suspended: false, children: [] },
+        { id: 4, title: 'CI checks · passing', url: 'github.com/nonlinear/browser/pull/42/checks', domain: 'github.com', favicon: 'GH', color: '#24292e', active: false, suspended: false, children: [] },
+      ]},
+      { id: 5, title: 'How V8 manages memory — Figma blog', url: 'figma.com/blog/v8-memory-management', domain: 'figma.com', favicon: 'FG', color: '#0acf83', active: false, suspended: true, children: [] },
+      { id: 6, title: 'MDN: Intersection Observer API', url: 'developer.mozilla.org/en-US/docs/Web/API', domain: 'mdn.io', favicon: 'MD', color: '#6667ab', active: false, suspended: true, children: [
+        { id: 7, title: 'IntersectionObserver() Constructor', url: 'developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/IntersectionObserver', domain: 'mdn.io', favicon: 'MD', color: '#6667ab', active: false, suspended: true, children: [] },
+      ]},
+    ]
+  },
+  {
+    id: 2, name: 'Research',
+    tabs: [
+      { id: 8, title: 'Tab Discarding in Chrome — web.dev', url: 'web.dev/articles/tab-discarding', domain: 'web.dev', favicon: 'WD', color: '#1a73e8', active: false, suspended: false, children: [] },
+      { id: 9, title: 'Memory-saving strategies · CSS-Tricks', url: 'css-tricks.com/memory-saving-strategies', domain: 'css-tricks.com', favicon: 'CT', color: '#ff6b6b', active: false, suspended: false, children: [
+        { id: 10, title: 'requestIdleCallback use cases', url: 'css-tricks.com/using-requestidlecallback', domain: 'css-tricks.com', favicon: 'CT', color: '#ff6b6b', active: false, suspended: false, children: [] },
+        { id: 11, title: 'Web Workers memory model', url: 'css-tricks.com/web-workers-memory', domain: 'css-tricks.com', favicon: 'CT', color: '#ff6b6b', active: false, suspended: false, children: [] },
+      ]},
+      { id: 12, title: 'Chrome Extension Memory Best Practices', url: 'developer.chrome.com/docs/extensions/memory', domain: 'developer.chrome.com', favicon: 'CR', color: '#4285f4', active: false, suspended: false, children: [] },
+    ]
+  }
+];
+
+const tabMap = {};
+function flattenTabs(tabs) { tabs.forEach(t => { tabMap[t.id] = t; flattenTabs(t.children); }); }
+windows.forEach(w => flattenTabs(w.tabs));
+
+// ── Render ──
+function makeRow(tab, depth, ancestorLines) {
+  const row = document.createElement('div');
+  row.className = 'tab-row' +
+    (tab.active ? ' is-active' : '') +
+    (tab.suspended ? ' is-suspended' : '');
+  row.dataset.id = tab.id;
+
+  if (tab.active) {
+    const bar = document.createElement('div');
+    bar.className = 'active-bar';
+    row.appendChild(bar);
+  }
+
+  const lines = document.createElement('div');
+  lines.className = 'tree-lines';
+  for (let i = 0; i < depth; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'seg ' + (i === depth - 1 ? 'branch' : (ancestorLines[i] ? 'vert' : ''));
+    lines.appendChild(seg);
+  }
+  row.appendChild(lines);
+
+  const inner = document.createElement('div');
+  inner.className = 'tab-inner';
+
+  const toggle = document.createElement('div');
+  toggle.className = 'toggle' + (tab.children.length ? ' clickable' : '');
+  toggle.textContent = tab.children.length ? '▾' : '';
+  inner.appendChild(toggle);
+
+  const fav = document.createElement('div');
+  fav.className = 'favicon';
+  fav.style.background = tab.color;
+  fav.textContent = tab.favicon;
+  inner.appendChild(fav);
+
+  const title = document.createElement('div');
+  title.className = 'tab-title';
+  title.textContent = tab.title;
+  inner.appendChild(title);
+
+  const domain = document.createElement('div');
+  domain.className = 'tab-domain';
+  domain.textContent = tab.domain;
+  inner.appendChild(domain);
+
+  // Pause badge
+  const pauseBadge = document.createElement('div');
+  pauseBadge.className = 'tab-pause';
+  pauseBadge.textContent = '⏸';
+  inner.appendChild(pauseBadge);
+
+  // Resume chip (hover on suspended)
+  const resumeChip = document.createElement('div');
+  resumeChip.className = 'tab-resume';
+  resumeChip.textContent = '▶ Resume';
+  resumeChip.addEventListener('click', (e) => {
+    e.stopPropagation();
+    tab.suspended = false;
+    showToast(`▶ Resumed: ${tab.title.slice(0, 35)}`);
+    renderTree();
+  });
+  inner.appendChild(resumeChip);
+
+  // Close button
+  const close = document.createElement('div');
+  close.className = 'tab-close';
+  close.textContent = '✕';
+  inner.appendChild(close);
+
+  row.appendChild(inner);
+
+  row.addEventListener('mouseenter', () => {
+    document.getElementById('footerUrl').textContent = tab.url;
+  });
+  row.addEventListener('mouseleave', () => {
+    document.getElementById('footerUrl').textContent = 'hover a tab to see URL';
+  });
+
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showCtx(e, tab);
+  });
+
+  return row;
+}
+
+function renderTabs(container, tabs, depth, ancestorLines) {
+  tabs.forEach((tab, i) => {
+    const isLast = i === tabs.length - 1;
+    const newAncestors = [...ancestorLines, !isLast];
+    container.appendChild(makeRow(tab, depth, ancestorLines));
+    if (tab.children.length) renderTabs(container, tab.children, depth + 1, newAncestors);
+  });
+}
+
+function countAll() {
+  const all = Object.values(tabMap);
+  return { open: all.filter(t => !t.suspended).length, suspended: all.filter(t => t.suspended).length };
+}
+
+function renderTree() {
+  const tree = document.getElementById('tree');
+  tree.innerHTML = '';
+  const { open, suspended } = countAll();
+
+  windows.forEach(w => {
+    const label = document.createElement('div');
+    label.className = 'win-label';
+    label.innerHTML = `<span style="font-size:8px">▾</span><span>${w.name}</span><span class="win-count">${open} open</span>`;
+    tree.appendChild(label);
+    renderTabs(tree, w.tabs, 0, []);
+  });
+
+  const { open: o, suspended: s } = countAll();
+  document.getElementById('stats').textContent =
+    s > 0 ? `${o} open · ⏸ ${s} parked` : `${o} open`;
+
+  document.getElementById('suspendAllBtn').textContent =
+    s > 0 ? `▶ Resume all (${s})` : '⏸ Suspend all';
+  document.getElementById('suspendAllBtn').title =
+    s > 0 ? 'Resume all suspended tabs' : 'Suspend all background tabs';
+}
+
+// ── Context menu ──
+let ctxTab = null;
+
+function showCtx(e, tab) {
+  ctxTab = tab;
+  const menu = document.getElementById('ctxMenu');
+  const isSuspended = tab.suspended;
+  const hasBranch = tab.children.length > 0;
+
+  document.getElementById('ctxSuspend').style.display = isSuspended ? 'none' : 'flex';
+  document.getElementById('ctxSuspendBranch').style.display = (!isSuspended && hasBranch) ? 'flex' : 'none';
+  document.getElementById('ctxResume').style.display = isSuspended ? 'flex' : 'none';
+  document.getElementById('ctxResumeBranch').style.display = (isSuspended && hasBranch) ? 'flex' : 'none';
+  document.getElementById('ctxClose').style.display = isSuspended ? 'none' : 'flex';
+
+  menu.style.display = 'block';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 210) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+}
+
+function hideCtx() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxTab = null;
+}
+
+function suspendBranch(tab) { tab.suspended = true; tab.children.forEach(c => suspendBranch(c)); }
+function resumeBranch(tab) { tab.suspended = false; tab.children.forEach(c => resumeBranch(c)); }
+
+document.getElementById('ctxSuspend').addEventListener('click', () => {
+  if (!ctxTab) return;
+  ctxTab.suspended = true;
+  showToast(`⏸ Suspended: ${ctxTab.title.slice(0, 30)}`);
+  hideCtx(); renderTree();
+});
+document.getElementById('ctxSuspendBranch').addEventListener('click', () => {
+  if (!ctxTab) return;
+  const count = ctxTab.children.length + 1;
+  suspendBranch(ctxTab);
+  showToast(`⏸ Parked branch — ${count} tabs freed`);
+  hideCtx(); renderTree();
+});
+document.getElementById('ctxResume').addEventListener('click', () => {
+  if (!ctxTab) return;
+  ctxTab.suspended = false;
+  showToast(`▶ Resumed: ${ctxTab.title.slice(0, 30)}`);
+  hideCtx(); renderTree();
+});
+document.getElementById('ctxResumeBranch').addEventListener('click', () => {
+  if (!ctxTab) return;
+  const count = ctxTab.children.length + 1;
+  resumeBranch(ctxTab);
+  showToast(`▶ Resumed branch — ${count} tabs`);
+  hideCtx(); renderTree();
+});
+document.getElementById('ctxRename').addEventListener('click', hideCtx);
+document.getElementById('ctxCopy').addEventListener('click', () => { showToast('Copied'); hideCtx(); });
+
+document.getElementById('suspendAllBtn').addEventListener('click', () => {
+  const { suspended } = countAll();
+  if (suspended > 0) {
+    Object.values(tabMap).forEach(t => { t.suspended = false; });
+    showToast(`▶ Resumed all tabs`);
+  } else {
+    Object.values(tabMap).forEach(t => { if (!t.active) t.suspended = true; });
+    const { suspended: s } = countAll();
+    showToast(`⏸ Parked ${s} background tabs`);
+  }
+  renderTree();
+});
+
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('ctxMenu').contains(e.target)) hideCtx();
+});
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+renderTree();
+</script>
+</body>
+</html>

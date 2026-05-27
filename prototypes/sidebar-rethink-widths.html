@@ -1,0 +1,315 @@
+<!--
+  sidebar-rethink-widths.html
+  The rethought design (guide-rail hierarchy + scrolling title) at 200 / 240 / 280px.
+  Hover long titles in any panel to see the scroll animation.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rethink — width comparison</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #e8e8e8;
+    font-family: system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 28px 20px;
+    min-height: 100vh;
+  }
+
+  .page-title { font-size: 14px; font-weight: 600; color: #444; }
+  .page-sub   { font-size: 12px; color: #888; text-align: center; max-width: 680px; line-height: 1.6; }
+
+  .panels { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .panel-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .panel-lbl  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6366f1; }
+
+  /* ── Sidebar shell ── */
+  .sb {
+    font-family: 'JetBrains Mono','Fira Code','Cascadia Code',Consolas,monospace;
+    font-size: 12px;
+    background: #fff;
+    color: #1c1c1e;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 4px 28px rgba(0,0,0,.14);
+  }
+
+  /* header */
+  .hdr { background:#f9f9f9; border-bottom:1px solid #e5e5e5; padding:8px 10px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .hdr-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#aaa; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .icon-btn { width:22px; height:22px; border:none; background:none; display:flex; align-items:center; justify-content:center; border-radius:4px; color:#bbb; font-size:13px; flex-shrink:0; cursor:pointer; }
+  .icon-btn:hover { background:#eee; color:#555; }
+
+  /* pins */
+  .pins { background:#f9f9f9; border-bottom:1px solid #e5e5e5; padding:6px 10px; display:flex; flex-shrink:0; }
+  .pin-slots { display:flex; gap:6px; width:100%; }
+  .pin-slot { flex:1; aspect-ratio:1; max-height:34px; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .pin-slot.filled { background:#fff; box-shadow:0 0 0 1.5px #e0e0e0; }
+  .pin-slot.filled:hover { box-shadow:0 0 0 1.5px #6366f1; }
+  .pin-slot.empty { border:1.5px dashed #ddd; }
+  .pin-slot.empty:hover { border-color:#6366f1; background:#f0f1ff; }
+  .pin-letter { width:60%; height:60%; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#fff; }
+
+  /* search */
+  .search-row { padding:5px 8px; background:#f9f9f9; border-bottom:1px solid #e5e5e5; flex-shrink:0; }
+  .search { width:100%; padding:4px 8px; background:#fff; border:1px solid #ddd; border-radius:4px; font-size:11px; font-family:inherit; }
+
+  /* tree */
+  .tree { flex:1; overflow-y:auto; padding:4px 0; }
+  .tree::-webkit-scrollbar { width:3px; }
+  .tree::-webkit-scrollbar-thumb { background:#ebebeb; border-radius:2px; }
+
+  /* win label */
+  .win-lbl { display:flex; align-items:center; gap:5px; padding:8px 8px 3px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#ccc; }
+  .win-lbl::after { content:''; flex:1; height:1px; background:#ececec; }
+  .win-count { font-size:8px; color:#ccc; background:#f3f3f3; padding:1px 4px; border-radius:3px; order:10; }
+
+  /* new-tab row */
+  .ntr { display:flex; align-items:center; min-height:20px; cursor:pointer; }
+  .ntr:hover .nti { background:#f4f4f5; }
+  .nti { flex:1; display:flex; align-items:center; gap:5px; padding:0 5px 0 20px; border-radius:4px; margin-right:4px; }
+  .ntp { font-size:12px; color:#d0d0d0; width:12px; text-align:center; flex-shrink:0; }
+  .ntl { font-size:10.5px; color:#d0d0d0; }
+  .ntr:hover .ntp, .ntr:hover .ntl { color:#aaa; }
+
+  /* footer */
+  .footer { border-top:1px solid #e5e5e5; background:#f9f9f9; padding:5px 10px; display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .footer-url { flex:1; font-size:9.5px; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .footer-btn { font-family:inherit; font-size:10px; color:#888; padding:2px 7px; border-radius:4px; border:1px solid #e0e0e0; background:#fff; flex-shrink:0; }
+
+  /* ── New design tab rows ── */
+  .tab-row-new {
+    display:flex; align-items:center; min-height:24px; position:relative; cursor:default;
+  }
+  .tab-row-new:hover .inner-new { background:#f4f4f5; }
+  .tab-row-new.is-active .inner-new { background:#eff6ff; }
+  .tab-row-new.is-active .title-new { color:#2563eb; font-weight:600; }
+
+  .abar-new { width:2px; align-self:stretch; background:#2563eb; border-radius:1px; flex-shrink:0; margin:3px 0; }
+
+  .indent-wrap { flex:1; display:flex; align-items:stretch; min-width:0; }
+
+  .inner-new {
+    flex:1; display:flex; align-items:center; gap:4px;
+    padding:0 5px 0 3px; border-radius:4px; margin-right:3px; min-width:0; height:24px;
+  }
+
+  .tog-new { width:10px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:8px; color:#bbb; }
+  .fav-new { width:13px; height:13px; border-radius:2px; flex-shrink:0; font-size:6.5px; font-weight:800; display:flex; align-items:center; justify-content:center; color:#fff; overflow:hidden; }
+
+  .title-wrap-new { flex:1; min-width:0; overflow:hidden; position:relative; }
+  .title-new { white-space:nowrap; font-size:11px; color:#222; line-height:22px; display:inline-block; will-change:transform; transform:translateX(0); }
+
+  @keyframes title-scroll {
+    0%   { transform: translateX(0); }
+    15%  { transform: translateX(0); }
+    75%  { transform: translateX(var(--scroll-px, 0px)); }
+    90%  { transform: translateX(var(--scroll-px, 0px)); }
+    100% { transform: translateX(0); }
+  }
+  .title-new.scrolling {
+    animation: title-scroll var(--scroll-dur, 3s) ease-in-out infinite;
+  }
+
+  .audio-new { flex-shrink:0; font-size:10px; color:#6366f1; }
+  .ram-new   { font-size:8.5px; font-weight:600; color:#d97706; flex-shrink:0; white-space:nowrap; }
+  .close-new { opacity:0; width:14px; height:14px; display:flex; align-items:center; justify-content:center; border-radius:3px; font-size:9px; color:#bbb; flex-shrink:0; }
+  .tab-row-new:hover .close-new { opacity:1; }
+</style>
+</head>
+<body>
+
+<p class="page-title">Rethought design — 200 / 240 / 280px</p>
+<p class="page-sub">Guide-rail hierarchy + scrolling title. Hover the Stack Overflow or Figma rows in any panel.</p>
+
+<div class="panels" id="panels"></div>
+
+<script>
+var DATA = [
+  { winName:'Window 1', tabs:[
+    { id:1,  title:'GitHub — Pull Requests · org/repo', url:'github.com/org/repo/pulls', color:'#1c1c1e', letter:'G', active:true,
+      children:[
+        { id:11, title:'PR #412: Refactor auth middleware — large diff', url:'github.com/org/repo/pull/412', color:'#1c1c1e', letter:'G', children:[] },
+        { id:12, title:'PR #398: Fix login redirect on mobile Safari', url:'github.com/org/repo/pull/398', color:'#1c1c1e', letter:'G', children:[] },
+      ]},
+    { id:2,  title:'Linear — Sprint Board', url:'linear.app', color:'#8b5cf6', letter:'L', audible:true, children:[] },
+    { id:3,  title:'Figma — Design System v2 Component Library Tokens', url:'figma.com', color:'#ec4899', letter:'F', ram:'218MB', children:[] },
+    { id:4,  title:'Notion — Q1 Roadmap', url:'notion.so', color:'#1c1c1e', letter:'N',
+      children:[
+        { id:41, title:'Engineering Initiatives', url:'notion.so/eng', color:'#1c1c1e', letter:'N', children:[] },
+      ]},
+    { id:5,  title:'Stack Overflow — async/await in for…of loops: unexpected behavior with microtask queue', url:'stackoverflow.com', color:'#f59e0b', letter:'S', children:[] },
+  ]},
+  { winName:'Window 2', tabs:[
+    { id:6,  title:'YouTube — React Conf 2024 Keynote', url:'youtube.com', color:'#ef4444', letter:'Y',
+      children:[
+        { id:61, title:'React 19 — what\'s new?', url:'react.dev', color:'#61dafb', letter:'R', children:[] },
+      ]},
+    { id:7,  title:'Google Calendar', url:'calendar.google.com', color:'#4285f4', letter:'G', children:[] },
+  ]},
+];
+
+var PINS = [
+  { color:'#4285f4', letter:'G' },
+  { color:'#8b5cf6', letter:'L' },
+  { color:'#ec4899', letter:'F' },
+  null, null, null
+];
+
+var WIDTHS = [200, 240, 280];
+
+function buildSidebar(width) {
+  var sb = document.createElement('div');
+  sb.className = 'sb';
+  sb.style.width = width + 'px';
+
+  // Header
+  var h = document.createElement('div'); h.className = 'hdr';
+  var t = document.createElement('span'); t.className = 'hdr-title'; t.textContent = 'nonlinear browser';
+  var b1 = document.createElement('button'); b1.className = 'icon-btn'; b1.textContent = '⊟';
+  var b2 = document.createElement('button'); b2.className = 'icon-btn'; b2.textContent = '—'; b2.style.fontWeight = '300';
+  h.appendChild(t); h.appendChild(b1); h.appendChild(b2);
+  sb.appendChild(h);
+
+  // Pins
+  var ps = document.createElement('div'); ps.className = 'pins';
+  var sl = document.createElement('div'); sl.className = 'pin-slots';
+  PINS.forEach(function(p) {
+    var slot = document.createElement('div');
+    if (p) {
+      slot.className = 'pin-slot filled';
+      var pl = document.createElement('div'); pl.className = 'pin-letter';
+      pl.style.background = p.color; pl.textContent = p.letter;
+      slot.appendChild(pl);
+    } else {
+      slot.className = 'pin-slot empty';
+      var plus = document.createElement('span'); plus.textContent = '+'; plus.style.cssText = 'font-size:13px;color:#ddd';
+      slot.appendChild(plus);
+    }
+    sl.appendChild(slot);
+  });
+  ps.appendChild(sl); sb.appendChild(ps);
+
+  // Search
+  var sr = document.createElement('div'); sr.className = 'search-row';
+  var si = document.createElement('input'); si.className = 'search'; si.placeholder = '/ filter…';
+  sr.appendChild(si); sb.appendChild(sr);
+
+  // Tree
+  var tree = document.createElement('div'); tree.className = 'tree';
+  DATA.forEach(function(w) {
+    // Window label
+    var lbl = document.createElement('div'); lbl.className = 'win-lbl';
+    var ch = document.createElement('span'); ch.textContent = '▾'; ch.style.fontSize = '8px';
+    var nm = document.createElement('span'); nm.textContent = w.winName;
+    var ct = document.createElement('span'); ct.className = 'win-count';
+    var n = 0; function cnt(ts) { ts.forEach(function(t){ n++; if(t.children) cnt(t.children); }); } cnt(w.tabs);
+    ct.textContent = n;
+    lbl.appendChild(ch); lbl.appendChild(nm); lbl.appendChild(ct);
+    tree.appendChild(lbl);
+
+    // New tab row
+    var r = document.createElement('div'); r.className = 'ntr';
+    var ri = document.createElement('div'); ri.className = 'nti';
+    var rp = document.createElement('span'); rp.className = 'ntp'; rp.textContent = '+';
+    var rl = document.createElement('span'); rl.className = 'ntl'; rl.textContent = 'New tab';
+    ri.appendChild(rp); ri.appendChild(rl); r.appendChild(ri); tree.appendChild(r);
+
+    w.tabs.forEach(function(tab) { renderTab(tree, tab, 0); });
+  });
+  sb.appendChild(tree);
+
+  // Footer
+  var f = document.createElement('div'); f.className = 'footer';
+  var fu = document.createElement('span'); fu.className = 'footer-url'; fu.textContent = 'github.com/org/repo/pulls';
+  var fb = document.createElement('button'); fb.className = 'footer-btn'; fb.textContent = 'save';
+  f.appendChild(fu); f.appendChild(fb); sb.appendChild(f);
+
+  return sb;
+}
+
+function renderTab(tree, tab, depth) {
+  var row = document.createElement('div');
+  row.className = 'tab-row-new' + (tab.active ? ' is-active' : '');
+
+  if (tab.active) {
+    var ab = document.createElement('div'); ab.className = 'abar-new'; row.appendChild(ab);
+  }
+
+  // Indent wrap — the left border is the guide rail
+  var iw = document.createElement('div'); iw.className = 'indent-wrap';
+  if (depth > 0) {
+    iw.style.paddingLeft  = (depth * 10) + 'px';
+    iw.style.borderLeft   = '1px solid #e8e8e8';
+    iw.style.marginLeft   = ((depth - 1) * 10 + 2) + 'px';
+  }
+
+  var inner = document.createElement('div'); inner.className = 'inner-new';
+
+  var tog = document.createElement('span'); tog.className = 'tog-new';
+  if (tab.children && tab.children.length) tog.textContent = '▾';
+  inner.appendChild(tog);
+
+  var icon = document.createElement('span'); icon.className = 'fav-new';
+  icon.style.background = tab.color; icon.textContent = tab.letter;
+  inner.appendChild(icon);
+
+  // Scrolling title
+  var tw = document.createElement('span'); tw.className = 'title-wrap-new';
+  var titleEl = document.createElement('span'); titleEl.className = 'title-new';
+  titleEl.textContent = tab.title;
+  tw.appendChild(titleEl); inner.appendChild(tw);
+
+  if (tab.ram) {
+    var rb = document.createElement('span'); rb.className = 'ram-new'; rb.textContent = '↑' + tab.ram; inner.appendChild(rb);
+  }
+  if (tab.audible) {
+    var au = document.createElement('span'); au.className = 'audio-new'; au.textContent = '🔊'; inner.appendChild(au);
+  }
+  var cls = document.createElement('span'); cls.className = 'close-new'; cls.textContent = '🗑'; inner.appendChild(cls);
+
+  iw.appendChild(inner);
+  row.appendChild(iw);
+  tree.appendChild(row);
+
+  // Hover → scroll title if truncated
+  row.addEventListener('mouseenter', function() {
+    requestAnimationFrame(function() {
+      var overflow = titleEl.scrollWidth - tw.clientWidth;
+      if (overflow > 2) {
+        var dur = Math.max(2.5, 1.5 + overflow / 60);
+        titleEl.style.setProperty('--scroll-px', '-' + overflow + 'px');
+        titleEl.style.setProperty('--scroll-dur', dur + 's');
+        titleEl.classList.add('scrolling');
+      }
+    });
+  });
+  row.addEventListener('mouseleave', function() {
+    titleEl.classList.remove('scrolling');
+  });
+
+  if (tab.children) {
+    tab.children.forEach(function(c) { renderTab(tree, c, depth + 1); });
+  }
+}
+
+var panels = document.getElementById('panels');
+WIDTHS.forEach(function(w) {
+  var wrap = document.createElement('div'); wrap.className = 'panel-wrap';
+  var lbl  = document.createElement('div'); lbl.className = 'panel-lbl'; lbl.textContent = w + 'px';
+  wrap.appendChild(lbl);
+  wrap.appendChild(buildSidebar(w));
+  panels.appendChild(wrap);
+});
+</script>
+</body>
+</html>
