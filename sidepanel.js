@@ -29,6 +29,12 @@ var pendingResume = {}; // { [url]: tabNode[] } — queue so same-URL tabs don't
 // maps url → pin index so tabCreated can reconnect the slot with the new tabId.
 var pendingPinOpen = {}; // { [url]: pinIndex[] } — queue so same-URL pins don't collide
 
+// ── Undo: pending restore tracking ───────────────────────────────────────────
+// When undoing a close, createTab(url) fires tabCreated. pendingRestore maps
+// url → soft-deleted tab node so tabCreated can reuse the node (preserving its
+// tree position) and remap any descendants whose parentId references the old id.
+var pendingRestore = {}; // { [url]: tabNode[] } — queue so same-URL undos don't collide
+
 // ── Undo-close stack ──────────────────────────────────────────────────────────
 var closedGroupStack = [];   // [{ids: [tabId, ...]}]
 var MAX_UNDO = 10;           // max undo entries; oldest group is purged when exceeded
@@ -1010,14 +1016,33 @@ document.addEventListener('DOMContentLoaded', function () {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
       e.preventDefault();
       if (!closedGroupStack.length) return;
-      var group    = closedGroupStack.pop();
-      var restored = 0;
+      var group = closedGroupStack.pop();
+      var toRestore = [];
       group.ids.forEach(function (id) {
         var tab = window.data && window.data[id];
-        if (tab && tab.deleted) { tab.deleted = false; restored++; }
+        if (tab && tab.deleted) toRestore.push(tab);
+      });
+      if (!toRestore.length) return;
+      // Snapshot live windowIds before flipping any deleted flags, otherwise a
+      // tab being restored would falsely count as proof its own window exists
+      // (defeating the staleness check after a browser restart).
+      var liveWindowIds = new Set();
+      Object.values(window.data || {}).forEach(function (t) {
+        if (!t.deleted && !t.suspended && t.windowId) liveWindowIds.add(t.windowId);
+      });
+      // Recreate each tab in Chrome; tabCreated reassigns the new id onto our node
+      toRestore.forEach(function (tab) {
+        tab.deleted = false;
+        var url = tab.url || tab.pendingUrl || '';
+        if (url) {
+          if (!pendingRestore[url]) pendingRestore[url] = [];
+          pendingRestore[url].push(tab);
+        }
+        var keepWindow = tab.windowId && liveWindowIds.has(tab.windowId);
+        BrowserApi.createTab(url, keepWindow ? tab.windowId : null);
       });
       renderAll();
-      if (restored) showToast('Restored ' + restored + ' tab' + (restored > 1 ? 's' : ''));
+      showToast('Restored ' + toRestore.length + ' tab' + (toRestore.length > 1 ? 's' : ''));
     }
   });
 });
@@ -1028,8 +1053,32 @@ chrome.runtime.onMessage.addListener(function (message) {
 
   if (message.type === 'tabCreated') {
     tabLastUsed[message.tab.id] = Date.now();
-    // Check if this is a resume — reuse the suspended node to preserve tree position
     var newUrl = message.tab.url || message.tab.pendingUrl || '';
+
+    // Check if this is an undo restore — reuse the soft-deleted node so the
+    // tab keeps its tree position and descendants stay attached.
+    var restoredNode = newUrl && pendingRestore[newUrl] && pendingRestore[newUrl].shift();
+    if (newUrl && pendingRestore[newUrl] && !pendingRestore[newUrl].length) delete pendingRestore[newUrl];
+    if (restoredNode) {
+      var oldId = restoredNode.id;
+      delete window.data[oldId];
+      restoredNode.id       = message.tab.id;
+      restoredNode.windowId = message.tab.windowId;
+      restoredNode.deleted  = false;
+      restoredNode.active   = message.tab.active || false;
+      window.data[message.tab.id] = restoredNode;
+      // Remap parentId on any descendants that still reference the closed id
+      var oldIdStr = String(oldId);
+      var newIdStr = String(message.tab.id);
+      Object.values(window.data).forEach(function (t) {
+        if (String(t.parentId) === oldIdStr) t.parentId = newIdStr;
+      });
+      if (typeof localStore === 'function') localStore();
+      renderAll();
+      return;
+    }
+
+    // Check if this is a resume — reuse the suspended node to preserve tree position
     var suspendedNode = newUrl && pendingResume[newUrl] && pendingResume[newUrl].shift();
     if (!pendingResume[newUrl] || !pendingResume[newUrl].length) delete pendingResume[newUrl];
     if (suspendedNode) {
